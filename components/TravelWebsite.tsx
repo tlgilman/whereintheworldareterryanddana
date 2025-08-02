@@ -99,8 +99,6 @@ const TravelWebsite = () => {
   };
 
   const LocationCard = ({ trip, isCurrent = false }) => {
-    const status = getLocationStatus(trip);
-
     return (
       <div
         className={`rounded-lg p-4 border transition-all duration-200 hover:shadow-md ${
@@ -247,7 +245,7 @@ const TravelWebsite = () => {
           </div>
           <p className="text-gray-600 mb-4 max-w-md mx-auto">
             Planning to be in one of our upcoming destinations? Let us know -
-            we'd love to meet up!
+            we&apos;d love to meet up!
           </p>
           <button className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
             Get In Touch
