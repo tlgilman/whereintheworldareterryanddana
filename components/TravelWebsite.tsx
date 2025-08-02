@@ -8,8 +8,19 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+// Type definition for travel data
+interface TravelData {
+  location: string;
+  country: string;
+  travelTime: string;
+  timeZone: string;
+  arrivalDate: string;
+  departureDate: string;
+  daysAtPlace: number;
+}
+
 // Mock data based on your JSON structure - replace with actual data fetch
-const mockTravelData = [
+const mockTravelData: TravelData[] = [
   {
     location: "Calgary, AB",
     country: "Canada",
@@ -49,9 +60,11 @@ const mockTravelData = [
 ];
 
 const TravelWebsite = () => {
-  const [travelData, setTravelData] = useState([]);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [upcomingLocations, setUpcomingLocations] = useState([]);
+  const [travelData, setTravelData] = useState<TravelData[]>([]);
+  const [currentLocation, setCurrentLocation] = useState<TravelData | null>(
+    null
+  );
+  const [upcomingLocations, setUpcomingLocations] = useState<TravelData[]>([]);
 
   useEffect(() => {
     // In real implementation, fetch from your JSON file
@@ -75,12 +88,12 @@ const TravelWebsite = () => {
         })
         .slice(0, 4);
 
-      setCurrentLocation(current);
+      setCurrentLocation(current ?? null);
       setUpcomingLocations(upcoming);
     }
   }, [travelData]);
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -88,7 +101,23 @@ const TravelWebsite = () => {
     });
   };
 
-  const LocationCard = ({ trip, isCurrent = false }) => {
+  //   const getLocationStatus = (trip) => {
+  //     const today = new Date();
+  //     const arrival = new Date(trip.arrivalDate);
+  //     const departure = new Date(trip.departureDate);
+
+  //     if (today >= arrival && today <= departure) return 'current';
+  //     if (arrival > today) return 'upcoming';
+  //     return 'past';
+  //   };
+
+  const LocationCard = ({
+    trip,
+    isCurrent = false,
+  }: {
+    trip: TravelData;
+    isCurrent?: boolean;
+  }) => {
     return (
       <div
         className={`rounded-lg p-4 border transition-all duration-200 hover:shadow-md ${
