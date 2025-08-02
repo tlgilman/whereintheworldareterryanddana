@@ -88,16 +88,6 @@ const TravelWebsite = () => {
     });
   };
 
-  const getLocationStatus = (trip) => {
-    const today = new Date();
-    const arrival = new Date(trip.arrivalDate);
-    const departure = new Date(trip.departureDate);
-
-    if (today >= arrival && today <= departure) return "current";
-    if (arrival > today) return "upcoming";
-    return "past";
-  };
-
   const LocationCard = ({ trip, isCurrent = false }) => {
     return (
       <div
@@ -163,8 +153,8 @@ const TravelWebsite = () => {
             </h1>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Follow along as we explore the world, moving every 1-3 months to
-              new destinations. Here's where we've been and where we're heading
-              next!
+              new destinations. Here&apos;s where we&apos;ve been and where
+              we&apos;re heading next!
             </p>
           </div>
         </div>
