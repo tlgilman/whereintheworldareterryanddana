@@ -14,7 +14,7 @@ import {
 interface TravelData {
   location: string;
   country: string;
-  travelTime: string;
+  travelTimeToHere: string;
   timeZone: string;
   arrivalDate: string;
   departureDate: string;
@@ -26,7 +26,7 @@ const mockTravelData: TravelData[] = [
   {
     location: "Calgary, AB",
     country: "Canada",
-    travelTime: "10 hr",
+    travelTimeToHere: "10 hr",
     timeZone: "MDT (UTC-6)",
     arrivalDate: "2025-07-01",
     departureDate: "2025-08-15",
@@ -35,7 +35,7 @@ const mockTravelData: TravelData[] = [
   {
     location: "Vancouver, BC",
     country: "Canada",
-    travelTime: "12 hr",
+    travelTimeToHere: "12 hr",
     timeZone: "PDT (UTC-7)",
     arrivalDate: "2025-08-16",
     departureDate: "2025-09-30",
@@ -44,7 +44,7 @@ const mockTravelData: TravelData[] = [
   {
     location: "Portland, OR",
     country: "United States",
-    travelTime: "5 hr",
+    travelTimeToHere: "5 hr",
     timeZone: "PDT (UTC-7)",
     arrivalDate: "2025-10-01",
     departureDate: "2025-11-15",
@@ -53,7 +53,7 @@ const mockTravelData: TravelData[] = [
   {
     location: "Austin, TX",
     country: "United States",
-    travelTime: "18 hr",
+    travelTimeToHere: "18 hr",
     timeZone: "CDT (UTC-5)",
     arrivalDate: "2025-11-16",
     departureDate: "2025-12-31",
@@ -235,7 +235,7 @@ const TravelWebsite = () => {
             </span>
           </div>
 
-          {trip.travelTime && (
+          {trip.travelTimeToHere && (
             <div
               className={`flex items-center space-x-2 ${
                 isCurrent
@@ -246,7 +246,7 @@ const TravelWebsite = () => {
               }`}
             >
               <Globe className="w-4 h-4" />
-              <span>{trip.travelTime} travel time</span>
+              <span>{trip.travelTimeToHere} travel time</span>
             </div>
           )}
         </div>
