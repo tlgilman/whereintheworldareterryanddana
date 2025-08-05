@@ -24,274 +24,40 @@ interface TravelData {
 // Mock data based on your JSON structure - replace with actual data fetch
 const mockTravelData: TravelData[] = [
   {
-    location: "Allen, Tx",
-    country: "United States",
-    travelTime: "",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-01-01",
-    departureDate: "2025-01-18",
-    daysAtPlace: 15,
-  },
-  {
-    location: "San Antonio, TX ",
-    country: "United States",
-    travelTime: "4 hours 36 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-01-18",
-    departureDate: "2025-02-16",
-    daysAtPlace: 27,
-  },
-  {
-    location: "New Orleans, MS ",
-    country: "United States",
-    travelTime: "8 hours 6 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-02-16",
-    departureDate: "2025-05-31",
-    daysAtPlace: 102,
-  },
-  {
-    location: "North Padre Island, TX",
-    country: "United States",
-    travelTime: "9 hours 5 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-07-12",
-    departureDate: "2025-09-21",
-    daysAtPlace: 69,
-  },
-  {
-    location: "Allen, TX",
-    country: "United States",
-    travelTime: "6 hours 53 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-09-21",
-    departureDate: "2025-09-26",
-    daysAtPlace: 3,
-  },
-  {
-    location: "Amarillo, Tx",
-    country: "United States",
-    travelTime: "5 hours 39 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-09-26",
-    departureDate: "2025-09-27",
-    daysAtPlace: 1,
-  },
-  {
-    location: "Albuquerque, NM",
-    country: "United States",
-    travelTime: "4 hours 13 mins *",
-    timeZone: "MDT (UTC−6) *",
-    arrivalDate: "2025-09-27",
-    departureDate: "2025-11-23",
-    daysAtPlace: 55,
-  },
-  {
-    location: "Allen, Tx",
-    country: "United States",
-    travelTime: "9 hours 44 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-11-23",
-    departureDate: "2025-11-27",
-    daysAtPlace: 2,
-  },
-  {
-    location: "Mobile, AL",
-    country: "United States",
-    travelTime: "9 hours 19 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2025-11-27",
-    departureDate: "2025-11-28",
-    daysAtPlace: 1,
-  },
-  {
-    location: "Tampa, FL",
-    country: "United States",
-    travelTime: "7 hours 22 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2025-11-28",
-    departureDate: "2025-11-30",
-    daysAtPlace: 1,
-  },
-  {
-    location: "Key Largo, FL",
-    country: "United States",
-    travelTime: "4 hours 53 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2025-11-30",
-    departureDate: "2026-01-24",
-    daysAtPlace: 53,
-  },
-  {
-    location: "Orlando",
-    country: "United States",
-    travelTime: "4 hours 29 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2026-01-24",
-    departureDate: "2026-03-01",
-    daysAtPlace: 34,
-  },
-  {
-    location: "Ashville, NC",
-    country: "United States",
-    travelTime: "8 hours 26 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2026-03-01",
-    departureDate: "2026-05-23",
-    daysAtPlace: 81,
-  },
-  {
-    location: "Athens, Greece",
-    country: "Greece",
-    travelTime: "Flying: 11h 1m *",
-    timeZone: "EEST (UTC+3) *",
-    arrivalDate: "2026-05-23",
-    departureDate: "2026-06-27",
-    daysAtPlace: 33,
-  },
-  {
-    location: "Greenville, SC",
-    country: "United States",
-    travelTime: "Flying: 11h 4m *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2026-06-27",
-    departureDate: "2026-07-01",
-    daysAtPlace: 2,
-  },
-  {
-    location: "Portland, Maine",
-    country: "United States",
-    travelTime: "15 hours 56 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2026-07-01",
-    departureDate: "2026-08-31",
-    daysAtPlace: 59,
-  },
-  {
-    location: "Ithaca, NY",
-    country: "United States",
-    travelTime: "6 hours 55 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2026-08-31",
-    departureDate: "2026-10-26",
-    daysAtPlace: 54,
-  },
-  {
-    location: "New York City, NY",
-    country: "United States",
-    travelTime: "4 hours 0 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2026-10-26",
-    departureDate: "2026-12-31",
-    daysAtPlace: 64,
-  },
-  {
-    location: "Washington DC",
-    country: "United States",
-    travelTime: "3 hours 56 mins *",
-    timeZone: "EDT (UTC−4) *",
-    arrivalDate: "2026-12-31",
-    departureDate: "2027-02-06",
-    daysAtPlace: 35,
-  },
-  {
-    location: "Chicago, Il",
-    country: "United States",
-    travelTime: "10 hours 49 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2027-02-06",
-    departureDate: "2027-03-28",
-    daysAtPlace: 48,
-  },
-  {
-    location: "Brainerd, Minnesota",
-    country: "United States",
-    travelTime: "8 hours 8 mins *",
-    timeZone: "CDT (UTC−5) *",
-    arrivalDate: "2027-03-28",
-    departureDate: "2027-05-01",
-    daysAtPlace: 32,
-  },
-  {
-    location: "Yellowstone, Wyoming",
-    country: "United States",
-    travelTime: "14 hours 40 mins *",
-    timeZone: "MDT (UTC−6) *",
-    arrivalDate: "2027-05-01",
-    departureDate: "2027-06-05",
-    daysAtPlace: 33,
-  },
-  {
-    location: "Provo, Utah",
-    country: "United States",
-    travelTime: "6 hours 27 mins *",
-    timeZone: "MDT (UTC−6) *",
-    arrivalDate: "2027-06-05",
-    departureDate: "2027-07-31",
-    daysAtPlace: 54,
-  },
-  {
-    location: "Steamboat Springs, Co",
-    country: "United States",
-    travelTime: "5 hours 23 mins *",
-    timeZone: "MDT (UTC−6) *",
-    arrivalDate: "2027-07-31",
-    departureDate: "2027-10-02",
-    daysAtPlace: 61,
-  },
-  {
-    location: "Palms Springs, Ca",
-    country: "United States",
-    travelTime: "14 hours 24 mins *",
-    timeZone: "PDT (UTC−7) *",
-    arrivalDate: "2027-10-02",
-    departureDate: "2027-12-04",
-    daysAtPlace: 61,
-  },
-  {
-    location: "Sacremento,Ca",
-    country: "United States",
-    travelTime: "7 hours 33 mins *",
-    timeZone: "PDT (UTC−7) *",
-    arrivalDate: "2027-12-04",
-    departureDate: "2028-02-05",
-    daysAtPlace: 61,
-  },
-  {
-    location: "Portland, Oregon",
-    country: "United States",
-    travelTime: "8 hours 55 mins *",
-    timeZone: "PDT (UTC−7) *",
-    arrivalDate: "2028-03-25",
-    departureDate: "2028-04-30",
-    daysAtPlace: 34,
-  },
-  {
-    location: "Seattle, Washington",
-    country: "United States",
-    travelTime: "2 hours 46 mins *",
-    timeZone: "PDT (UTC−7) *",
-    arrivalDate: "2028-04-30",
-    departureDate: "2028-06-24",
-    daysAtPlace: 53,
-  },
-  {
-    location: "Vancover, BC",
+    location: "Calgary, AB",
     country: "Canada",
-    travelTime: "2 hours 37 mins *",
-    timeZone: "PDT (UTC−7) *",
-    arrivalDate: "2028-06-24",
-    departureDate: "2028-08-26",
-    daysAtPlace: 61,
+    travelTime: "10 hr",
+    timeZone: "MDT (UTC-6)",
+    arrivalDate: "2025-07-01",
+    departureDate: "2025-08-15",
+    daysAtPlace: 46,
   },
   {
-    location: "Kamloop, BC",
+    location: "Vancouver, BC",
     country: "Canada",
-    travelTime: "3 hours 42 mins *",
-    timeZone: "PDT (UTC−7) *",
-    arrivalDate: "2028-08-26",
-    departureDate: "2028-10-28",
-    daysAtPlace: 61,
+    travelTime: "12 hr",
+    timeZone: "PDT (UTC-7)",
+    arrivalDate: "2025-08-16",
+    departureDate: "2025-09-30",
+    daysAtPlace: 45,
+  },
+  {
+    location: "Portland, OR",
+    country: "United States",
+    travelTime: "5 hr",
+    timeZone: "PDT (UTC-7)",
+    arrivalDate: "2025-10-01",
+    departureDate: "2025-11-15",
+    daysAtPlace: 45,
+  },
+  {
+    location: "Austin, TX",
+    country: "United States",
+    travelTime: "18 hr",
+    timeZone: "CDT (UTC-5)",
+    arrivalDate: "2025-11-16",
+    departureDate: "2025-12-31",
+    daysAtPlace: 45,
   },
 ];
 
@@ -301,11 +67,21 @@ const TravelWebsite = () => {
     null
   );
   const [upcomingLocations, setUpcomingLocations] = useState<TravelData[]>([]);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
   useEffect(() => {
-    // In real implementation, fetch from your JSON file
-    // fetch('/travel-data.json').then(res => res.json()).then(setTravelData);
-    setTravelData(mockTravelData);
+    // Fetch from your JSON file
+    fetch("/travel-data.json")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Loaded travel data:", data);
+        setTravelData(data);
+      })
+      .catch((error) => {
+        console.error("Error loading travel data:", error);
+        // Fallback to mock data if file doesn't exist
+        setTravelData(mockTravelData);
+      });
   }, []);
 
   useEffect(() => {
@@ -317,19 +93,17 @@ const TravelWebsite = () => {
         return today >= arrival && today <= departure;
       });
 
-      const upcoming = travelData
-        .filter((trip) => {
-          const arrival = new Date(trip.arrivalDate);
-          return arrival > today;
-        })
-        .slice(0, 4);
+      const upcoming = travelData.filter((trip) => {
+        const arrival = new Date(trip.arrivalDate);
+        return arrival > today;
+      });
 
-      setCurrentLocation(current ?? null);
+      setCurrentLocation(current);
       setUpcomingLocations(upcoming);
     }
   }, [travelData]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -337,15 +111,15 @@ const TravelWebsite = () => {
     });
   };
 
-  //   const getLocationStatus = (trip) => {
-  //     const today = new Date();
-  //     const arrival = new Date(trip.arrivalDate);
-  //     const departure = new Date(trip.departureDate);
+  const getLocationStatus = (trip) => {
+    const today = new Date();
+    const arrival = new Date(trip.arrivalDate);
+    const departure = new Date(trip.departureDate);
 
-  //     if (today >= arrival && today <= departure) return 'current';
-  //     if (arrival > today) return 'upcoming';
-  //     return 'past';
-  //   };
+    if (today >= arrival && today <= departure) return "current";
+    if (arrival > today) return "upcoming";
+    return "past";
+  };
 
   const LocationCard = ({
     trip,
@@ -354,50 +128,123 @@ const TravelWebsite = () => {
     trip: TravelData;
     isCurrent?: boolean;
   }) => {
+    const isLongStay = trip.daysAtPlace >= 5;
+
     return (
       <div
         className={`rounded-lg p-4 border transition-all duration-200 hover:shadow-md ${
           isCurrent
             ? "bg-blue-50 border-blue-200 shadow-sm"
-            : "bg-white border-gray-200 hover:border-gray-300"
+            : isLongStay
+            ? "bg-white border-green-200 hover:border-green-300 shadow-sm border-2"
+            : "bg-gray-50 border-gray-200 hover:border-gray-300"
         }`}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-2">
-            <MapPin
-              className={`w-5 h-5 ${
-                isCurrent ? "text-blue-600" : "text-gray-600"
-              }`}
-            />
-            <div>
-              <h3 className="font-semibold text-gray-900">{trip.location}</h3>
-              <p className="text-sm text-gray-600">{trip.country}</p>
+            <div className="flex items-center space-x-2">
+              {isLongStay ? (
+                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                  <MapPin className="w-3 h-3 text-green-600" />
+                </div>
+              ) : (
+                <div className="w-5 h-5 bg-gray-100 rounded-full flex items-center justify-center">
+                  <MapPin className="w-3 h-3 text-gray-500" />
+                </div>
+              )}
+              <div>
+                <h3
+                  className={`font-semibold ${
+                    isCurrent
+                      ? "text-blue-900"
+                      : isLongStay
+                      ? "text-gray-900"
+                      : "text-gray-700"
+                  }`}
+                >
+                  {trip.location}
+                </h3>
+                <p
+                  className={`text-sm ${
+                    isCurrent
+                      ? "text-blue-600"
+                      : isLongStay
+                      ? "text-gray-600"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {trip.country}
+                </p>
+              </div>
             </div>
           </div>
-          {isCurrent && (
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
-              Current
-            </span>
-          )}
+          <div className="flex items-center space-x-2">
+            {isCurrent && (
+              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                Current
+              </span>
+            )}
+            {isLongStay && !isCurrent && (
+              <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                Extended Stay
+              </span>
+            )}
+            {!isLongStay && !isCurrent && (
+              <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-1 rounded-full">
+                Travel Stop
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2 text-sm">
-          <div className="flex items-center space-x-2 text-gray-600">
+          <div
+            className={`flex items-center space-x-2 ${
+              isCurrent
+                ? "text-blue-600"
+                : isLongStay
+                ? "text-gray-600"
+                : "text-gray-500"
+            }`}
+          >
             <Calendar className="w-4 h-4" />
             <span>
               {formatDate(trip.arrivalDate)} - {formatDate(trip.departureDate)}
             </span>
           </div>
 
-          <div className="flex items-center space-x-2 text-gray-600">
+          <div
+            className={`flex items-center space-x-2 ${
+              isCurrent
+                ? "text-blue-600"
+                : isLongStay
+                ? "text-gray-600"
+                : "text-gray-500"
+            }`}
+          >
             <Clock className="w-4 h-4" />
             <span>
-              {trip.daysAtPlace} days • {trip.timeZone}
+              <span
+                className={`font-medium ${
+                  isLongStay ? "text-green-700" : "text-gray-600"
+                }`}
+              >
+                {trip.daysAtPlace} day{trip.daysAtPlace !== 1 ? "s" : ""}
+              </span>
+              {trip.timeZone && ` • ${trip.timeZone}`}
             </span>
           </div>
 
           {trip.travelTime && (
-            <div className="flex items-center space-x-2 text-gray-600">
+            <div
+              className={`flex items-center space-x-2 ${
+                isCurrent
+                  ? "text-blue-600"
+                  : isLongStay
+                  ? "text-gray-600"
+                  : "text-gray-500"
+              }`}
+            >
               <Globe className="w-4 h-4" />
               <span>{trip.travelTime} travel time</span>
             </div>
@@ -418,8 +265,8 @@ const TravelWebsite = () => {
             </h1>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Follow along as we explore the world, moving every 1-3 months to
-              new destinations. Here&apos;s where we&apos;ve been and where
-              we&apos;re heading next!
+              new destinations. Here's where we've been and where we're heading
+              next!
             </p>
           </div>
         </div>
@@ -442,19 +289,40 @@ const TravelWebsite = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Calendar className="w-6 h-6 text-gray-700" />
-              <h2 className="text-2xl font-bold text-gray-900">Coming Up</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {showAllUpcoming ? "All Upcoming Destinations" : "Coming Up"}
+              </h2>
             </div>
-            <button className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 font-medium">
-              <span>View All</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            {upcomingLocations.length > 4 && (
+              <button
+                onClick={() => setShowAllUpcoming(!showAllUpcoming)}
+                className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                <span>{showAllUpcoming ? "Show Less" : "View All"}</span>
+                <ChevronRight
+                  className={`w-4 h-4 transition-transform ${
+                    showAllUpcoming ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {upcomingLocations.map((trip, index) => (
+            {(showAllUpcoming
+              ? upcomingLocations
+              : upcomingLocations.slice(0, 4)
+            ).map((trip, index) => (
               <LocationCard key={index} trip={trip} />
             ))}
           </div>
+
+          {upcomingLocations.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>No upcoming destinations planned yet.</p>
+            </div>
+          )}
         </section>
 
         {/* Stats Summary */}
