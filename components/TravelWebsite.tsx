@@ -21,46 +21,6 @@ interface TravelData {
   daysAtPlace: number;
 }
 
-// Mock data based on your JSON structure - replace with actual data fetch
-const mockTravelData: TravelData[] = [
-  {
-    location: "Calgary, AB",
-    country: "Canada",
-    travelTimeToHere: "10 hr",
-    timeZone: "MDT (UTC-6)",
-    arrivalDate: "2025-07-01",
-    departureDate: "2025-08-15",
-    daysAtPlace: 46,
-  },
-  {
-    location: "Vancouver, BC",
-    country: "Canada",
-    travelTimeToHere: "12 hr",
-    timeZone: "PDT (UTC-7)",
-    arrivalDate: "2025-08-16",
-    departureDate: "2025-09-30",
-    daysAtPlace: 45,
-  },
-  {
-    location: "Portland, OR",
-    country: "United States",
-    travelTimeToHere: "5 hr",
-    timeZone: "PDT (UTC-7)",
-    arrivalDate: "2025-10-01",
-    departureDate: "2025-11-15",
-    daysAtPlace: 45,
-  },
-  {
-    location: "Austin, TX",
-    country: "United States",
-    travelTimeToHere: "18 hr",
-    timeZone: "CDT (UTC-5)",
-    arrivalDate: "2025-11-16",
-    departureDate: "2025-12-31",
-    daysAtPlace: 45,
-  },
-];
-
 const TravelWebsite = () => {
   const [travelData, setTravelData] = useState<TravelData[]>([]);
   const [currentLocation, setCurrentLocation] = useState<TravelData | null>(
@@ -79,8 +39,6 @@ const TravelWebsite = () => {
       })
       .catch((error) => {
         console.error("Error loading travel data:", error);
-        // Fallback to mock data if file doesn't exist
-        setTravelData(mockTravelData);
       });
   }, []);
 
@@ -110,16 +68,6 @@ const TravelWebsite = () => {
       year: "numeric",
     });
   };
-
-  //   const getLocationStatus = (trip) => {
-  //     const today = new Date();
-  //     const arrival = new Date(trip.arrivalDate);
-  //     const departure = new Date(trip.departureDate);
-
-  //     if (today >= arrival && today <= departure) return "current";
-  //     if (arrival > today) return "upcoming";
-  //     return "past";
-  //   };
 
   const LocationCard = ({
     trip,
