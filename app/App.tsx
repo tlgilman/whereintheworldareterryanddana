@@ -271,7 +271,7 @@ const App: React.FC = () => {
             <div className="text-center">
               <div className="text-4xl mb-4">🌍</div>
               <h3 className="text-xl font-bold text-gray-800 mb-2">
-                Let's Meet Up!
+                Let&apos;s Meet Up!
               </h3>
               <p className="text-gray-600 mb-6">
                 Great! You know how to reach us. Let us know where you want to
