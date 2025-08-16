@@ -120,19 +120,19 @@ export type CreateTravelData = Omit<TravelData, "daysAtPlace"> & {
 };
 
 // Type guards for runtime type checking
-export const isTravelData = (obj: any): obj is TravelData => {
+export const isTravelData = (obj: unknown): obj is TravelData => {
   return (
     typeof obj === "object" &&
-    typeof obj.location === "string" &&
-    typeof obj.country === "string" &&
-    typeof obj.travelTimeToHere === "string" &&
-    typeof obj.timeZone === "string" &&
-    typeof obj.arrivalDate === "string" &&
-    typeof obj.departureDate === "string" &&
-    typeof obj.daysAtPlace === "number"
+    obj !== null &&
+    typeof (obj as any).location === "string" &&
+    typeof (obj as any).country === "string" &&
+    typeof (obj as any).travelTimeToHere === "string" &&
+    typeof (obj as any).timeZone === "string" &&
+    typeof (obj as any).arrivalDate === "string" &&
+    typeof (obj as any).departureDate === "string" &&
+    typeof (obj as any).daysAtPlace === "number"
   );
 };
-
 // Helper function to calculate days between dates
 export const calculateDaysAtPlace = (
   arrivalDate: string,

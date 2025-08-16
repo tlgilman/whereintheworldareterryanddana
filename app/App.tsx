@@ -165,7 +165,7 @@ const App: React.FC = () => {
             {(showAllUpcoming
               ? upcomingLocations
               : upcomingLocations.slice(0, 4)
-            ).map((trip, index) => (
+            ).map((trip) => (
               <LocationCard
                 key={`${trip.location}-${trip.arrivalDate}`}
                 trip={trip}
