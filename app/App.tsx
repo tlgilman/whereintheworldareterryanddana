@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import HeroSection from "@/components/HeroSection";
 import LocationCard from "@/components/LocationCard";
 import {
@@ -8,6 +8,11 @@ import {
   getUpcomingLocations,
   calculateStats,
 } from "./types/Travel-data";
+import { InteractiveWorldMap } from "@/components/InteractiveWorldMap";
+import { zoom, zoomIdentity } from "d3-zoom";
+import { select } from "d3-selection";
+
+type TimeFilter = "visited" | "upcoming" | "all";
 
 const App: React.FC = () => {
   const [travelData, setTravelData] = useState<TravelData[]>([]);
@@ -25,6 +30,11 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [selectedCountry, setSelectedCountry] =
+    useState<string>("Continental US");
+  const [timeFilter, setTimeFilter] = useState<"visited" | "upcoming" | "all">(
+    "all"
+  );
 
   // Load travel data on component mount
   useEffect(() => {
@@ -40,7 +50,7 @@ const App: React.FC = () => {
         const data: TravelData[] = await response.json();
 
         setTravelData(data);
-        console.log("Loaded travel data:", data);
+        console.log("Loaded travel dataX:", data);
       } catch (err) {
         console.error("Error loading travel data:", err);
         setError("Failed to load travel data. Please try again later.");
@@ -63,6 +73,45 @@ const App: React.FC = () => {
       setUpcomingLocations(upcoming);
       setStats(calculatedStats);
     }
+  }, [travelData]);
+
+  // Update the visitedCountries calculation to separate US regions
+  const visitedCountries = useMemo(() => {
+    const countrySet = new Set<string>();
+
+    travelData.forEach((trip) => {
+      if (trip.country === "United States" && trip.coordinates) {
+        const { lat, lon } = trip.coordinates;
+
+        // Alaska bounds
+        if (lat > 50 && lon < -129) {
+          countrySet.add("Alaska");
+        }
+        // Hawaii bounds
+        else if (lat < 25 && lon < -154) {
+          countrySet.add("Hawaii");
+        }
+        // Continental US
+        else {
+          countrySet.add("Continental US");
+        }
+      } else {
+        countrySet.add(trip.country);
+      }
+    });
+
+    const countries = Array.from(countrySet);
+
+    // Sort with Continental US first, then Alaska, Hawaii, then alphabetically
+    return countries.sort((a, b) => {
+      if (a === "Continental US") return -1;
+      if (b === "Continental US") return 1;
+      if (a === "Alaska") return -1;
+      if (b === "Alaska") return 1;
+      if (a === "Hawaii") return -1;
+      if (b === "Hawaii") return 1;
+      return a.localeCompare(b);
+    });
   }, [travelData]);
 
   // Loading state
@@ -102,7 +151,102 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <HeroSection currentLocation={currentLocation} stats={stats} />
+      <section className="max-w-6xl mx-auto px-4 py-12">
+        {/* Country Navigation */}
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">
+            Countries We've Visited
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {visitedCountries.map((country) => (
+              <button
+                key={country}
+                onClick={() => setSelectedCountry(country)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedCountry === country
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {country}
+              </button>
+            ))}
+          </div>
+        </div>
 
+        {/* Interactive Map */}
+        <div className="bg-white rounded-lg border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-semibold text-gray-900">
+              Cities in {selectedCountry}
+            </h4>
+
+            {/* Time Filter Tabs - ADD THIS */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTimeFilter("all")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  timeFilter === "all"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                All Cities
+              </button>
+              <button
+                onClick={() => setTimeFilter("visited")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  timeFilter === "visited"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Visited
+              </button>
+              <button
+                onClick={() => setTimeFilter("upcoming")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  timeFilter === "upcoming"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Upcoming
+              </button>
+            </div>
+          </div>
+
+          {/* Legend and Instructions */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span>Visited</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+                <span>Current</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span>Upcoming</span>
+              </div>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              💡 Scroll to zoom • Drag to pan • Use controls to reset
+            </div>
+          </div>
+
+          <InteractiveWorldMap
+            travelData={travelData}
+            selectedCountry={selectedCountry}
+            currentLocation={currentLocation}
+            timeFilter={timeFilter}
+            className="w-full h-96"
+          />
+        </div>
+      </section>
       {/* Main Content */}
       <main id="main-content" className="max-w-4xl mx-auto px-4 py-12">
         {/* Current Location Section */}

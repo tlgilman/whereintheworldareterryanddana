@@ -7,6 +7,11 @@ export interface TravelData {
   arrivalDate: string; // ISO date string (e.g., "2025-08-10")
   departureDate: string; // ISO date string (e.g., "2025-08-25")
   daysAtPlace: number; // Number of days staying (calculated or manual)
+  coordinates?: {
+    // Optional for backward compatibility
+    lat: number;
+    lon: number;
+  };
 }
 
 // Statistics interface for hero section and summary displays

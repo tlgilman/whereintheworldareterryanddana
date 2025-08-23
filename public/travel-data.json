@@ -1,120 +1,562 @@
 [
   {
-    "location": "Allen, Tx",
+    "location": "North Augusta, SC",
     "country": "United States",
     "travelTimeToHere": "",
-    "timeZone": "CDT (UTC−5) *",
-    "arrivalDate": "2025-01-01",
-    "departureDate": "2025-01-18",
-    "daysAtPlace": 15
+    "timeZone": "EDT (UTC−4)",
+    "arrivalDate": "2008-02-01",
+    "departureDate": "2024-03-24",
+    "daysAtPlace": 5894,
+    "coordinates": {
+      "lat": 33.5018,
+      "lon": -82.0207
+    }
   },
   {
-    "location": "San Antonio, TX ",
+    "location": "Greenville, SC",
     "country": "United States",
-    "travelTimeToHere": "4 hours 36 mins *",
-    "timeZone": "CDT (UTC−5) *",
-    "arrivalDate": "2025-01-18",
-    "departureDate": "2025-02-16",
-    "daysAtPlace": 27
+    "travelTimeToHere": "2 hours 18 mins *",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2023-03-24",
+    "departureDate": "2023-04-01",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 34.8526,
+      "lon": -82.394
+    }
   },
   {
-    "location": "New Orleans, MS ",
+    "location": "New Orleans, LA",
     "country": "United States",
-    "travelTimeToHere": "8 hours 6 mins *",
+    "travelTimeToHere": "9 hours 2 mins",
     "timeZone": "CDT (UTC−5) *",
-    "arrivalDate": "2025-02-16",
-    "departureDate": "2025-05-31",
-    "daysAtPlace": 102
-  },
-  {
-    "location": "North Padre Island, TX",
-    "country": "United States",
-    "travelTimeToHere": "9 hours 4 mins *",
-    "timeZone": "CDT (UTC−5) *",
-    "arrivalDate": "2025-07-12",
-    "departureDate": "2025-09-21",
-    "daysAtPlace": 69
+    "arrivalDate": "2023-04-01",
+    "departureDate": "2023-05-07",
+    "daysAtPlace": 34,
+    "coordinates": {
+      "lat": 29.9511,
+      "lon": -90.0715
+    }
   },
   {
     "location": "Allen, TX",
     "country": "United States",
-    "travelTimeToHere": "6 hours 52 mins *",
+    "travelTimeToHere": "7 hours 42 mins",
     "timeZone": "CDT (UTC−5) *",
-    "arrivalDate": "2025-09-21",
-    "departureDate": "2025-09-26",
-    "daysAtPlace": 3
+    "arrivalDate": "2023-05-07",
+    "departureDate": "2023-06-19",
+    "daysAtPlace": 41,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
   },
   {
-    "location": "Amarillo, Tx",
+    "location": "Columbia, SC",
     "country": "United States",
-    "travelTimeToHere": "5 hours 39 mins *",
-    "timeZone": "CDT (UTC−5) *",
-    "arrivalDate": "2025-09-26",
-    "departureDate": "2025-09-27",
-    "daysAtPlace": 1
+    "travelTimeToHere": "14 hours 45 mins",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2023-06-19",
+    "departureDate": "2023-06-30",
+    "daysAtPlace": 9,
+    "coordinates": {
+      "lat": 34.0007,
+      "lon": -81.0348
+    }
   },
   {
-    "location": "Albuquerque, NM",
+    "location": "Isle of Palms, SC",
     "country": "United States",
-    "travelTimeToHere": "4 hours 13 mins *",
-    "timeZone": "MDT (UTC−6) *",
-    "arrivalDate": "2025-09-27",
-    "departureDate": "2025-11-23",
-    "daysAtPlace": 55
+    "travelTimeToHere": "2 hours 6 mins",
+    "timeZone": "EDT (UTC−4)",
+    "arrivalDate": "2023-06-30",
+    "departureDate": "2023-07-07",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 32.7473,
+      "lon": -79.8647
+    }
+  },
+  {
+    "location": "Columbia, SC",
+    "country": "United States",
+    "travelTimeToHere": "2 hours 6 mins",
+    "timeZone": "EDT (UTC−4)",
+    "arrivalDate": "2023-07-07",
+    "departureDate": "2023-07-08",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 34.0007,
+      "lon": -81.0348
+    }
+  },
+  {
+    "location": "London",
+    "country": "UK",
+    "travelTimeToHere": "Flying: 8h 7m",
+    "timeZone": "BST (UTC+1)",
+    "arrivalDate": "2023-07-08",
+    "departureDate": "2023-07-09",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 51.5074,
+      "lon": -0.1278
+    }
+  },
+  {
+    "location": "Glasgow",
+    "country": "Scotland",
+    "travelTimeToHere": "Flying: 0h 41m",
+    "timeZone": "BST (UTC+1)",
+    "arrivalDate": "2023-07-09",
+    "departureDate": "2023-08-01",
+    "daysAtPlace": 21,
+    "coordinates": {
+      "lat": 55.8642,
+      "lon": -4.2518
+    }
+  },
+  {
+    "location": "Columbia, SC",
+    "country": "United States",
+    "travelTimeToHere": "Flying: 7h 39m",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2023-08-01",
+    "departureDate": "2023-08-03",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 34.0007,
+      "lon": -81.0348
+    }
+  },
+  {
+    "location": "Steamboat Springs, CO",
+    "country": "United States",
+    "travelTimeToHere": "1 day 2 hours",
+    "timeZone": "MDT (UTC−6)",
+    "arrivalDate": "2023-08-03",
+    "departureDate": "2023-08-13",
+    "daysAtPlace": 8,
+    "coordinates": {
+      "lat": 40.4856,
+      "lon": -106.8175
+    }
+  },
+  {
+    "location": "Tulsa, OK",
+    "country": "United States",
+    "travelTimeToHere": "12 hours 21 mins",
+    "timeZone": "CDT (UTC−5)",
+    "arrivalDate": "2023-08-13",
+    "departureDate": "2023-08-17",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 36.1539,
+      "lon": -95.9928
+    }
+  },
+  {
+    "location": "Branson, MO",
+    "country": "United States",
+    "travelTimeToHere": "3 hours 14 mins",
+    "timeZone": "CDT (UTC−5)",
+    "arrivalDate": "2023-08-17",
+    "departureDate": "2023-09-09",
+    "daysAtPlace": 21,
+    "coordinates": {
+      "lat": 37.0378,
+      "lon": -93.2233
+    }
+  },
+  {
+    "location": "Louisville, KY",
+    "country": "United States",
+    "travelTimeToHere": "7 hours 40 mins",
+    "timeZone": "EDT (UTC−4)",
+    "arrivalDate": "2023-09-09",
+    "departureDate": "2023-10-27",
+    "daysAtPlace": 46,
+    "coordinates": {
+      "lat": 38.2527,
+      "lon": -85.7585
+    }
+  },
+  {
+    "location": "Isle of Palms, SC",
+    "country": "United States",
+    "travelTimeToHere": "9 hours 42 mins",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2023-10-27",
+    "departureDate": "2023-11-04",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 32.7473,
+      "lon": -79.8647
+    }
+  },
+  {
+    "location": "Devenport, FL",
+    "country": "United States",
+    "travelTimeToHere": "6 hours 46 mins",
+    "timeZone": "EDT (UTC−4)",
+    "arrivalDate": "2023-11-04",
+    "departureDate": "2023-12-02",
+    "daysAtPlace": 26,
+    "coordinates": {
+      "lat": 29.6483,
+      "lon": -82.3558
+    }
+  },
+  {
+    "location": "North Augusta, SC",
+    "country": "United States",
+    "travelTimeToHere": "6 hours 50 mins",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2023-12-02",
+    "departureDate": "2023-12-10",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 33.5018,
+      "lon": -82.0207
+    }
+  },
+  {
+    "location": "Greenville, SC",
+    "country": "United States",
+    "travelTimeToHere": "2 hours 18 mins",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2023-12-10",
+    "departureDate": "2024-01-04",
+    "daysAtPlace": 23,
+    "coordinates": {
+      "lat": 34.8526,
+      "lon": -82.394
+    }
+  },
+  {
+    "location": "Allen, TX",
+    "country": "United States",
+    "travelTimeToHere": "13 hours 56 mins",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2024-01-04",
+    "departureDate": "2024-02-01",
+    "daysAtPlace": 26,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
+  },
+  {
+    "location": "Austin, TX",
+    "country": "United States",
+    "travelTimeToHere": "3 hours 23 mins",
+    "timeZone": "CDT (UTC−5)",
+    "arrivalDate": "2024-02-01",
+    "departureDate": "2024-03-31",
+    "daysAtPlace": 57,
+    "coordinates": {
+      "lat": 30.2672,
+      "lon": -97.7431
+    }
+  },
+  {
+    "location": "Allen, TX",
+    "country": "United States",
+    "travelTimeToHere": "3 hours 21 mins",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2024-03-31",
+    "departureDate": "2024-04-14",
+    "daysAtPlace": 12,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
+  },
+  {
+    "location": "Santa Fe, NM",
+    "country": "United States",
+    "travelTimeToHere": "9 hours 49 mins",
+    "timeZone": "MDT (UTC−6)",
+    "arrivalDate": "2024-04-14",
+    "departureDate": "2024-05-18",
+    "daysAtPlace": 32,
+    "coordinates": {
+      "lat": 35.6895,
+      "lon": -106.0383
+    }
+  },
+  {
+    "location": "Sedona, AZ",
+    "country": "United States",
+    "travelTimeToHere": "6 hours 20 mins",
+    "timeZone": "MST (UTC−7)",
+    "arrivalDate": "2024-05-18",
+    "departureDate": "2024-06-28",
+    "daysAtPlace": 39,
+    "coordinates": {
+      "lat": 34.8697,
+      "lon": -111.7603
+    }
+  },
+  {
+    "location": "Allen, TX",
+    "country": "United States",
+    "travelTimeToHere": "15 hours 3 mins",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2024-06-28",
+    "departureDate": "2024-06-30",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
+  },
+  {
+    "location": "North Augusta, SC",
+    "country": "United States",
+    "travelTimeToHere": "13 hours 50 mins",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2024-06-30",
+    "departureDate": "2024-07-04",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 33.5018,
+      "lon": -82.0207
+    }
+  },
+  {
+    "location": "Paris",
+    "country": "France",
+    "travelTimeToHere": "Flying: 8h 34m",
+    "timeZone": "CEST (UTC+2)",
+    "arrivalDate": "2024-07-04",
+    "departureDate": "2024-08-01",
+    "daysAtPlace": 26,
+    "coordinates": {
+      "lat": 48.8566,
+      "lon": 2.3522
+    }
+  },
+  {
+    "location": "Osaka",
+    "country": "Japan",
+    "travelTimeToHere": "Flying: 11h 58m",
+    "timeZone": "JST (UTC+9)",
+    "arrivalDate": "2024-08-01",
+    "departureDate": "2024-08-31",
+    "daysAtPlace": 28,
+    "coordinates": {
+      "lat": 34.6937,
+      "lon": 135.5023
+    }
+  },
+  {
+    "location": "Greenville, SC",
+    "country": "United States",
+    "travelTimeToHere": "Flying: 14h 5m",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2024-08-31",
+    "departureDate": "2024-09-07",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 34.8526,
+      "lon": -82.394
+    }
+  },
+  {
+    "location": "Philadelphia, PA",
+    "country": "United States",
+    "travelTimeToHere": "9 hours 52 mins",
+    "timeZone": "EDT (UTC−4)",
+    "arrivalDate": "2024-09-07",
+    "departureDate": "2024-11-17",
+    "daysAtPlace": 69,
+    "coordinates": {
+      "lat": 39.9526,
+      "lon": -75.1652
+    }
+  },
+  {
+    "location": "Greenville, SC",
+    "country": "United States",
+    "travelTimeToHere": "10 hours 0 mins",
+    "timeZone": "EDT (UTC−4) *",
+    "arrivalDate": "2024-11-17",
+    "departureDate": "2024-01-01",
+    "daysAtPlace": 0,
+    "coordinates": {
+      "lat": 34.8526,
+      "lon": -82.394
+    }
   },
   {
     "location": "Allen, Tx",
     "country": "United States",
-    "travelTimeToHere": "9 hours 44 mins *",
+    "travelTimeToHere": "13 hours 56 mins",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2025-01-01",
+    "departureDate": "2025-01-18",
+    "daysAtPlace": 15,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
+  },
+  {
+    "location": "San Antonio, TX ",
+    "country": "United States",
+    "travelTimeToHere": "4 hours 37 mins *",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2025-01-18",
+    "departureDate": "2025-02-16",
+    "daysAtPlace": 27,
+    "coordinates": {
+      "lat": 29.4241,
+      "lon": -98.4936
+    }
+  },
+  {
+    "location": "New Orleans, LA",
+    "country": "United States",
+    "travelTimeToHere": "8 hours 9 mins",
+    "timeZone": "CDT (UTC−5)",
+    "arrivalDate": "2025-02-16",
+    "departureDate": "2025-05-31",
+    "daysAtPlace": 102,
+    "coordinates": {
+      "lat": 29.9511,
+      "lon": -90.0715
+    }
+  },
+  {
+    "location": "North Padre Island, TX",
+    "country": "United States",
+    "travelTimeToHere": "9 hours 7 mins",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2025-07-12",
+    "departureDate": "2025-09-21",
+    "daysAtPlace": 69,
+    "coordinates": {
+      "lat": 26.1443,
+      "lon": -97.1948
+    }
+  },
+  {
+    "location": "Allen, TX",
+    "country": "United States",
+    "travelTimeToHere": "6 hours 53 mins *",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2025-09-21",
+    "departureDate": "2025-09-26",
+    "daysAtPlace": 3,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
+  },
+  {
+    "location": "Amarillo, Tx",
+    "country": "United States",
+    "travelTimeToHere": "5 hours 42 mins *",
+    "timeZone": "CDT (UTC−5) *",
+    "arrivalDate": "2025-09-26",
+    "departureDate": "2025-09-27",
+    "daysAtPlace": 1,
+    "coordinates": {
+      "lat": 35.205,
+      "lon": -101.8333
+    }
+  },
+  {
+    "location": "Albuquerque, NM",
+    "country": "United States",
+    "travelTimeToHere": "4 hours 12 mins *",
+    "timeZone": "MDT (UTC−6) *",
+    "arrivalDate": "2025-09-27",
+    "departureDate": "2025-11-23",
+    "daysAtPlace": 55,
+    "coordinates": {
+      "lat": 35.0844,
+      "lon": -106.6504
+    }
+  },
+  {
+    "location": "Allen, Tx",
+    "country": "United States",
+    "travelTimeToHere": "9 hours 48 mins *",
     "timeZone": "CDT (UTC−5) *",
     "arrivalDate": "2025-11-23",
     "departureDate": "2025-11-27",
-    "daysAtPlace": 2
+    "daysAtPlace": 2,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
   },
   {
     "location": "Mobile, AL",
     "country": "United States",
-    "travelTimeToHere": "9 hours 20 mins *",
+    "travelTimeToHere": "9 hours 19 mins *",
     "timeZone": "CDT (UTC−5) *",
     "arrivalDate": "2025-11-27",
     "departureDate": "2025-11-28",
-    "daysAtPlace": 1
+    "daysAtPlace": 1,
+    "coordinates": {
+      "lat": 30.6954,
+      "lon": -88.0399
+    }
   },
   {
     "location": "Tampa, FL",
     "country": "United States",
-    "travelTimeToHere": "7 hours 22 mins *",
+    "travelTimeToHere": "7 hours 20 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2025-11-28",
     "departureDate": "2025-11-30",
-    "daysAtPlace": 1
+    "daysAtPlace": 1,
+    "coordinates": {
+      "lat": 27.9475,
+      "lon": -82.4584
+    }
   },
   {
     "location": "Key Largo, FL",
     "country": "United States",
-    "travelTimeToHere": "4 hours 53 mins *",
+    "travelTimeToHere": "4 hours 56 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2025-11-30",
     "departureDate": "2026-01-24",
-    "daysAtPlace": 53
+    "daysAtPlace": 53,
+    "coordinates": {
+      "lat": 25.0918,
+      "lon": -80.4542
+    }
   },
   {
     "location": "Orlando",
     "country": "United States",
-    "travelTimeToHere": "4 hours 29 mins *",
+    "travelTimeToHere": "4 hours 32 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2026-01-24",
     "departureDate": "2026-03-01",
-    "daysAtPlace": 34
+    "daysAtPlace": 34,
+    "coordinates": {
+      "lat": 28.5383,
+      "lon": -81.3792
+    }
   },
   {
     "location": "Ashville, NC",
     "country": "United States",
-    "travelTimeToHere": "8 hours 26 mins *",
+    "travelTimeToHere": "8 hours 25 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2026-03-01",
     "departureDate": "2026-05-23",
-    "daysAtPlace": 81
+    "daysAtPlace": 81,
+    "coordinates": {
+      "lat": 35.5951,
+      "lon": -82.5515
+    }
   },
   {
     "location": "Athens, Greece",
@@ -123,7 +565,11 @@
     "timeZone": "EEST (UTC+3) *",
     "arrivalDate": "2026-05-23",
     "departureDate": "2026-06-27",
-    "daysAtPlace": 33
+    "daysAtPlace": 33,
+    "coordinates": {
+      "lat": 37.9838,
+      "lon": 23.7275
+    }
   },
   {
     "location": "Greenville, SC",
@@ -132,151 +578,219 @@
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2026-06-27",
     "departureDate": "2026-07-01",
-    "daysAtPlace": 2
+    "daysAtPlace": 2,
+    "coordinates": {
+      "lat": 34.8526,
+      "lon": -82.394
+    }
   },
   {
     "location": "Portland, Maine",
     "country": "United States",
-    "travelTimeToHere": "15 hours 56 mins *",
+    "travelTimeToHere": "16 hours 6 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2026-07-01",
     "departureDate": "2026-08-31",
-    "daysAtPlace": 59
+    "daysAtPlace": 59,
+    "coordinates": {
+      "lat": 43.6615,
+      "lon": -70.2553
+    }
   },
   {
     "location": "Ithaca, NY",
     "country": "United States",
-    "travelTimeToHere": "6 hours 55 mins *",
+    "travelTimeToHere": "6 hours 56 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2026-08-31",
     "departureDate": "2026-10-26",
-    "daysAtPlace": 54
+    "daysAtPlace": 54,
+    "coordinates": {
+      "lat": 42.4437,
+      "lon": -76.4888
+    }
   },
   {
     "location": "New York City, NY",
     "country": "United States",
-    "travelTimeToHere": "4 hours 0 mins *",
+    "travelTimeToHere": "3 hours 59 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2026-10-26",
     "departureDate": "2027-01-09",
-    "daysAtPlace": 73
+    "daysAtPlace": 73,
+    "coordinates": {
+      "lat": 40.7128,
+      "lon": -74.006
+    }
   },
   {
     "location": "Greenville, SC",
     "country": "United States",
-    "travelTimeToHere": "11 hours 12 mins",
+    "travelTimeToHere": "11 hours 23 mins *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2027-01-09",
     "departureDate": "2027-02-07",
-    "daysAtPlace": 27
+    "daysAtPlace": 27,
+    "coordinates": {
+      "lat": 34.8526,
+      "lon": -82.394
+    }
   },
   {
     "location": "Costa Rica",
     "country": "Costa Rica",
-    "travelTimeToHere": "Flying: 3h 28m",
+    "travelTimeToHere": "Flying: 3h 28m *",
     "timeZone": "CST (UTC−6) *",
     "arrivalDate": "2027-02-07",
     "departureDate": "2027-03-06",
-    "daysAtPlace": 25
+    "daysAtPlace": 25,
+    "coordinates": {
+      "lat": 9.7489,
+      "lon": -83.7534
+    }
   },
   {
     "location": "Greenville, SC",
     "country": "United States",
-    "travelTimeToHere": "Flying: 3h 28m",
+    "travelTimeToHere": "Flying: 3h 28m *",
     "timeZone": "EDT (UTC−4) *",
     "arrivalDate": "2027-03-06",
     "departureDate": "2027-04-03",
-    "daysAtPlace": 26
+    "daysAtPlace": 26,
+    "coordinates": {
+      "lat": 34.8526,
+      "lon": -82.394
+    }
   },
   {
     "location": "New Orleans, MS ",
     "country": "United States",
-    "travelTimeToHere": "9 hours 1 min",
+    "travelTimeToHere": "9 hours 2 mins *",
     "timeZone": "CDT (UTC−5) *",
     "arrivalDate": "2027-04-03",
     "departureDate": "2027-05-08",
-    "daysAtPlace": 33
+    "daysAtPlace": 33,
+    "coordinates": {
+      "lat": 29.9511,
+      "lon": -90.0715
+    }
   },
   {
     "location": "Allen, TX",
     "country": "United States",
-    "travelTimeToHere": "7 hours 40 mins",
+    "travelTimeToHere": "7 hours 42 mins *",
     "timeZone": "CDT (UTC−5) *",
     "arrivalDate": "2027-05-08",
     "departureDate": "2027-05-22",
-    "daysAtPlace": 12
+    "daysAtPlace": 12,
+    "coordinates": {
+      "lat": 33.1031,
+      "lon": -96.6706
+    }
   },
   {
     "location": "Sioux City, Iowa",
     "country": "United States",
-    "travelTimeToHere": "11 hours 6 mins",
-    "timeZone": "CDT (UTC−5)",
+    "travelTimeToHere": "11 hours 8 mins *",
+    "timeZone": "CDT (UTC−5) *",
     "arrivalDate": "2027-05-22",
     "departureDate": "2027-06-26",
-    "daysAtPlace": 33
+    "daysAtPlace": 33,
+    "coordinates": {
+      "lat": 42.5005,
+      "lon": -96.4023
+    }
   },
   {
     "location": "Bozeman, MT",
     "country": "United States",
-    "travelTimeToHere": "12 hours 51 mins",
-    "timeZone": "MDT (UTC−6)",
+    "travelTimeToHere": "12 hours 48 mins *",
+    "timeZone": "MDT (UTC−6) *",
     "arrivalDate": "2027-06-26",
     "departureDate": "2027-07-31",
-    "daysAtPlace": 33
+    "daysAtPlace": 33,
+    "coordinates": {
+      "lat": 45.6767,
+      "lon": -111.0429
+    }
   },
   {
     "location": "Provo, Utah",
     "country": "United States",
-    "travelTimeToHere": "18 hours 40 mins *",
+    "travelTimeToHere": "18 hours 43 mins *",
     "timeZone": "MDT (UTC−6) *",
     "arrivalDate": "2027-07-31",
     "departureDate": "2027-10-02",
-    "daysAtPlace": 61
+    "daysAtPlace": 61,
+    "coordinates": {
+      "lat": 40.2492,
+      "lon": -111.6423
+    }
   },
   {
     "location": "Palms Springs, Ca",
     "country": "United States",
-    "travelTimeToHere": "9 hours 26 mins *",
+    "travelTimeToHere": "9 hours 28 mins *",
     "timeZone": "PDT (UTC−7) *",
     "arrivalDate": "2027-10-02",
     "departureDate": "2027-12-04",
-    "daysAtPlace": 61
+    "daysAtPlace": 61,
+    "coordinates": {
+      "lat": 33.8303,
+      "lon": -116.518
+    }
   },
   {
     "location": "Sacremento,Ca",
     "country": "United States",
-    "travelTimeToHere": "7 hours 33 mins *",
+    "travelTimeToHere": "7 hours 36 mins *",
     "timeZone": "PDT (UTC−7) *",
     "arrivalDate": "2027-12-04",
     "departureDate": "2028-02-05",
-    "daysAtPlace": 61
+    "daysAtPlace": 61,
+    "coordinates": {
+      "lat": 38.5816,
+      "lon": -121.4944
+    }
   },
   {
     "location": "Portland, Oregon",
     "country": "United States",
-    "travelTimeToHere": "8 hours 55 mins *",
+    "travelTimeToHere": "8 hours 54 mins *",
     "timeZone": "PDT (UTC−7) *",
     "arrivalDate": "2028-03-25",
     "departureDate": "2028-04-30",
-    "daysAtPlace": 34
+    "daysAtPlace": 34,
+    "coordinates": {
+      "lat": 45.5231,
+      "lon": -122.6765
+    }
   },
   {
     "location": "Seattle, Washington",
     "country": "United States",
-    "travelTimeToHere": "2 hours 46 mins *",
+    "travelTimeToHere": "2 hours 49 mins *",
     "timeZone": "PDT (UTC−7) *",
     "arrivalDate": "2028-04-30",
     "departureDate": "2028-06-24",
-    "daysAtPlace": 53
+    "daysAtPlace": 53,
+    "coordinates": {
+      "lat": 47.6062,
+      "lon": -122.3321
+    }
   },
   {
     "location": "Vancover, BC",
     "country": "Canada",
-    "travelTimeToHere": "2 hours 36 mins *",
+    "travelTimeToHere": "2 hours 44 mins *",
     "timeZone": "PDT (UTC−7) *",
     "arrivalDate": "2028-06-24",
     "departureDate": "2028-08-26",
-    "daysAtPlace": 61
+    "daysAtPlace": 61,
+    "coordinates": {
+      "lat": 49.2827,
+      "lon": -123.1207
+    }
   },
   {
     "location": "Kamloop, BC",
@@ -285,6 +799,10 @@
     "timeZone": "PDT (UTC−7) *",
     "arrivalDate": "2028-08-26",
     "departureDate": "2028-10-28",
-    "daysAtPlace": 61
+    "daysAtPlace": 61,
+    "coordinates": {
+      "lat": 49.8024,
+      "lon": -124.6992
+    }
   }
 ]

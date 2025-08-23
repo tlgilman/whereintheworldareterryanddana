@@ -31,7 +31,7 @@ const TravelWebsite = () => {
 
   useEffect(() => {
     // Fetch from your JSON file
-    fetch("/travel-data.json")
+    fetch("../data/travel-data.json")
       .then((res) => res.json())
       .then((data) => {
         console.log("Loaded travel data:", data);
