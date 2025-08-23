@@ -8,10 +8,7 @@ import {
   getUpcomingLocations,
   calculateStats,
 } from "./types/Travel-data";
-import {
-  InteractiveWorldMap,
-  type TimeFilter,
-} from "@/components/InteractiveWorldMap";
+import Link from "next/link";
 
 const App: React.FC = () => {
   const [travelData, setTravelData] = useState<TravelData[]>([]);
@@ -29,9 +26,6 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [selectedCountry, setSelectedCountry] =
-    useState<string>("Continental US");
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
   // Load travel data on component mount
   useEffect(() => {
@@ -72,45 +66,6 @@ const App: React.FC = () => {
     }
   }, [travelData]);
 
-  // Update the visitedCountries calculation to separate US regions
-  const visitedCountries = useMemo(() => {
-    const countrySet = new Set<string>();
-
-    travelData.forEach((trip) => {
-      if (trip.country === "United States" && trip.coordinates) {
-        const { lat, lon } = trip.coordinates;
-
-        // Alaska bounds
-        if (lat > 50 && lon < -129) {
-          countrySet.add("Alaska");
-        }
-        // Hawaii bounds
-        else if (lat < 25 && lon < -154) {
-          countrySet.add("Hawaii");
-        }
-        // Continental US
-        else {
-          countrySet.add("Continental US");
-        }
-      } else {
-        countrySet.add(trip.country);
-      }
-    });
-
-    const countries = Array.from(countrySet);
-
-    // Sort with Continental US first, then Alaska, Hawaii, then alphabetically
-    return countries.sort((a, b) => {
-      if (a === "Continental US") return -1;
-      if (b === "Continental US") return 1;
-      if (a === "Alaska") return -1;
-      if (b === "Alaska") return 1;
-      if (a === "Hawaii") return -1;
-      if (b === "Hawaii") return 1;
-      return a.localeCompare(b);
-    });
-  }, [travelData]);
-
   // Loading state
   if (loading) {
     return (
@@ -148,102 +103,54 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <HeroSection currentLocation={currentLocation} stats={stats} />
+
+      {/* Call to Action for Map - KEEP THIS */}
       <section className="max-w-6xl mx-auto px-4 py-12">
-        {/* Country Navigation */}
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Countries We&apos;ve Visited
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {visitedCountries.map((country) => (
-              <button
-                key={country}
-                onClick={() => setSelectedCountry(country)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedCountry === country
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {country}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Interactive Map */}
-        <div className="bg-white rounded-lg border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-lg font-semibold text-gray-900">
-              Cities in {selectedCountry}
-            </h4>
-
-            {/* Time Filter Tabs - ADD THIS */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setTimeFilter("all")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  timeFilter === "all"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                All Cities
-              </button>
-              <button
-                onClick={() => setTimeFilter("visited")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  timeFilter === "visited"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Visited
-              </button>
-              <button
-                onClick={() => setTimeFilter("upcoming")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  timeFilter === "upcoming"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                Upcoming
-              </button>
-            </div>
-          </div>
-
-          {/* Legend and Instructions */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span>Visited</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                <span>Current</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span>Upcoming</span>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 overflow-hidden">
+          {/* Your "See Where We've Been" button code - this is correct */}
+          <div className="p-8 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-8 h-8 text-blue-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                </svg>
               </div>
             </div>
-
-            <div className="text-sm text-gray-500">
-              💡 Scroll to zoom • Drag to pan • Use controls to reset
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              Explore Our Travel Map
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+              See exactly where we&apos;ve been around the world! Browse our
+              interactive maps by country, zoom in to see individual cities, and
+              filter by time period.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/map"
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                See Where We&apos;ve Been
+              </Link>
+              <div className="text-sm text-gray-500">
+                Interactive maps • Zoom & pan • Mobile friendly
+              </div>
             </div>
           </div>
-
-          <InteractiveWorldMap
-            travelData={travelData}
-            selectedCountry={selectedCountry}
-            timeFilter={timeFilter}
-            className="w-full h-96"
-          />
         </div>
       </section>
-      {/* Main Content */}
+
+      {/* Main Content - KEEP THIS */}
       <main id="main-content" className="max-w-4xl mx-auto px-4 py-12">
         {/* Current Location Section */}
         {currentLocation && (
