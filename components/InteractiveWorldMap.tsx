@@ -11,7 +11,7 @@ type City = {
   isUpcoming: boolean;
   isCurrent: boolean;
 };
-type TimeFilter = "visited" | "upcoming" | "all";
+export type TimeFilter = "visited" | "upcoming" | "all";
 
 // Helper function to determine US region based on coordinates
 const getUSRegion = (
@@ -45,14 +45,12 @@ export function InteractiveWorldMap({
   timeFilter = "all",
   viewBox = "0 0 1000 700",
   className,
-  usLower48 = false,
 }: {
   travelData: TravelData[];
   selectedCountry: string;
   timeFilter?: TimeFilter;
   viewBox?: string;
   className?: string;
-  usLower48?: boolean;
 }) {
   const today = new Date();
 

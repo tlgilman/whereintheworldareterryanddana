@@ -8,9 +8,10 @@ import {
   getUpcomingLocations,
   calculateStats,
 } from "./types/Travel-data";
-import { InteractiveWorldMap } from "@/components/InteractiveWorldMap";
-
-type TimeFilter = "visited" | "upcoming" | "all";
+import {
+  InteractiveWorldMap,
+  type TimeFilter,
+} from "@/components/InteractiveWorldMap";
 
 const App: React.FC = () => {
   const [travelData, setTravelData] = useState<TravelData[]>([]);
@@ -30,9 +31,7 @@ const App: React.FC = () => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [selectedCountry, setSelectedCountry] =
     useState<string>("Continental US");
-  const [timeFilter, setTimeFilter] = useState<"visited" | "upcoming" | "all">(
-    "all"
-  );
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
   // Load travel data on component mount
   useEffect(() => {
@@ -239,7 +238,6 @@ const App: React.FC = () => {
           <InteractiveWorldMap
             travelData={travelData}
             selectedCountry={selectedCountry}
-            currentLocation={currentLocation}
             timeFilter={timeFilter}
             className="w-full h-96"
           />
