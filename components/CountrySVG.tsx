@@ -59,7 +59,7 @@ export const CountrySVG: React.FC<CountrySVGProps> = ({
     if (!feature) {
       return {
         pathD: "",
-        project: (_lon: number, _lat: number) => [0, 0] as [number, number],
+        project: () => [0, 0] as [number, number],
       };
     }
     const { projection, path } = buildProjection(feature, width, height, 10);

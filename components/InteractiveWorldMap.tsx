@@ -42,7 +42,6 @@ const getUSRegion = (
 export function InteractiveWorldMap({
   travelData,
   selectedCountry,
-  currentLocation,
   timeFilter = "all",
   viewBox = "0 0 1000 700",
   className,
@@ -50,7 +49,6 @@ export function InteractiveWorldMap({
 }: {
   travelData: TravelData[];
   selectedCountry: string;
-  currentLocation: TravelData | null;
   timeFilter?: TimeFilter;
   viewBox?: string;
   className?: string;

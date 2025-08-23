@@ -9,8 +9,6 @@ import {
   calculateStats,
 } from "./types/Travel-data";
 import { InteractiveWorldMap } from "@/components/InteractiveWorldMap";
-import { zoom, zoomIdentity } from "d3-zoom";
-import { select } from "d3-selection";
 
 type TimeFilter = "visited" | "upcoming" | "all";
 
@@ -155,7 +153,7 @@ const App: React.FC = () => {
         {/* Country Navigation */}
         <div className="mb-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Countries We've Visited
+            Countries We&apos;ve Visited
           </h3>
           <div className="flex flex-wrap gap-2">
             {visitedCountries.map((country) => (
