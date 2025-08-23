@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 
 // Type definition for travel data
 interface TravelData {
@@ -30,13 +31,33 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   const [currentSlide, setCurrentSlide] = useState(0);
   const [localTime, setLocalTime] = useState("");
 
-  // Sample hero images - replace with your actual travel photos
+  // Your actual travel photos
   const heroImages = [
-    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=2074&q=80",
-    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1539635278303-d4002c07eae3?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-4.0.3&auto=format&fit=crop&w=2035&q=80",
-    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+    {
+      src: "/images/hero/hero-France.jpg",
+      alt: "Sunflower field in France",
+      location: "Paris, France",
+    },
+    {
+      src: "/images/hero/hero-Japan.jpg",
+      alt: "Osaka Lights",
+      location: "Osaka, Japan",
+    },
+    {
+      src: "/images/hero/hero-Scotland.jpg",
+      alt: "Falkirk Wheel",
+      location: "Scotland, UK",
+    },
+    {
+      src: "/images/hero/hero-jazz-fest-2014.jpg",
+      alt: "Jazzfest",
+      location: "New Orleans, USA",
+    },
+    {
+      src: "/images/hero/hero-Louisville.jpg",
+      alt: "Barrel of Bourbon",
+      location: "Louisville, USA",
+    },
   ];
 
   useEffect(() => {
@@ -79,19 +100,32 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         {heroImages.map((image, index) => (
           <div
             key={index}
-            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-2000 ${
+            className={`absolute inset-0 transition-opacity duration-2000 ${
               index === currentSlide ? "opacity-100" : "opacity-0"
             }`}
-            style={{
-              backgroundImage: `url(${image})`,
-              filter: "brightness(0.7)",
-            }}
-          />
+          >
+            <Image
+              src={image.src}
+              alt={image.alt}
+              fill
+              className="object-cover"
+              style={{
+                filter: "brightness(0.7)",
+              }}
+              priority={index === 0} // Prioritize loading the first image
+              quality={85}
+            />
+          </div>
         ))}
       </div>
 
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/20 to-black/40" />
+
+      {/* Optional: Photo Credit/Location Overlay */}
+      <div className="absolute bottom-4 left-4 text-white/80 text-sm">
+        📍 {heroImages[currentSlide].location}
+      </div>
 
       {/* Location Info Card */}
       <div className="absolute top-8 right-8 bg-white/15 backdrop-blur-md rounded-3xl p-6 text-white border border-white/20 hidden md:block">
