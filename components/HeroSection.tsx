@@ -58,6 +58,31 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       alt: "Barrel of Bourbon",
       location: "Louisville, USA",
     },
+    {
+      src: "/images/hero/hero-Colorado.jpg",
+      alt: "Estes Park",
+      location: "Colorado, USA",
+    },
+    {
+      src: "/images/hero/hero-sedona.jpg",
+      alt: "Sedona",
+      location: "Sedona, USA",
+    },
+    {
+      src: "/images/hero/hero-philadelphia.jpg",
+      alt: "Philadelphia",
+      location: "Philadelphia, USA",
+    },
+    {
+      src: "/images/hero/hero-santa-fe.jpg",
+      alt: "Santa Fe",
+      location: "Santa Fe, USA",
+    },
+    {
+      src: "/images/hero/hero-greenville.jpg",
+      alt: "Greenville - Yummy",
+      location: "Greenville, USA",
+    },
   ];
 
   useEffect(() => {
