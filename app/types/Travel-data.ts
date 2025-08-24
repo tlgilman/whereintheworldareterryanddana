@@ -7,6 +7,7 @@ export interface TravelData {
   arrivalDate: string; // ISO date string (e.g., "2025-08-10")
   departureDate: string; // ISO date string (e.g., "2025-08-25")
   daysAtPlace: number; // Number of days staying (calculated or manual)
+  booked: boolean; // Whether the accommodation/transportation is booked
   coordinates?: {
     // Optional for backward compatibility
     lat: number;
@@ -139,7 +140,8 @@ export const isTravelData = (obj: unknown): obj is TravelData => {
     typeof candidate.timeZone === "string" &&
     typeof candidate.arrivalDate === "string" &&
     typeof candidate.departureDate === "string" &&
-    typeof candidate.daysAtPlace === "number"
+    typeof candidate.daysAtPlace === "number" &&
+    typeof candidate.booked === "boolean" // Add validation for booked property
   );
 };
 
@@ -190,12 +192,69 @@ export const getUpcomingLocations = (
     );
 };
 
-// Helper function to calculate travel statistics
+// Helper function to get trips that have already been completed
+export const getAlreadyTraveled = (travelData: TravelData[]): TravelData[] => {
+  const today = new Date();
+  return travelData
+    .filter((trip) => {
+      const departure = new Date(trip.departureDate);
+      return departure < today;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.departureDate).getTime() -
+        new Date(a.departureDate).getTime()
+    ); // Most recent first
+};
+
+// Helper function to get upcoming booked trips
+export const getUpcomingTrips = (travelData: TravelData[]): TravelData[] => {
+  const today = new Date();
+  return travelData
+    .filter((trip) => {
+      const arrival = new Date(trip.arrivalDate);
+      return arrival > today && trip.booked === true;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.arrivalDate).getTime() - new Date(b.arrivalDate).getTime()
+    ); // Earliest first
+};
+
+// Helper function to get potential (unbooked) future trips
+export const getPotentialTrips = (travelData: TravelData[]): TravelData[] => {
+  const today = new Date();
+  return travelData
+    .filter((trip) => {
+      const arrival = new Date(trip.arrivalDate);
+      return arrival > today && trip.booked === false;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.arrivalDate).getTime() - new Date(b.arrivalDate).getTime()
+    ); // Earliest first
+};
+
+// Master function to organize all travel data into the 4 categories
+export const organizeTravelData = (
+  travelData: TravelData[]
+): OrganizedTravelData => {
+  return {
+    alreadyTraveled: getAlreadyTraveled(travelData),
+    currentLocation: getCurrentLocation(travelData),
+    upcomingTrips: getUpcomingTrips(travelData),
+    potentialTrips: getPotentialTrips(travelData),
+  };
+};
+
+// Updated calculateStats to use the new categories
 export const calculateStats = (travelData: TravelData[]): Stats => {
+  const organized = organizeTravelData(travelData); // Fixed typo here
   const countries = new Set(travelData.map((trip) => trip.country)).size;
   const destinations = travelData.length;
   const totalDays = travelData.reduce((sum, trip) => sum + trip.daysAtPlace, 0);
-  const upcoming = getUpcomingLocations(travelData).length;
+  const upcoming =
+    organized.upcomingTrips.length + organized.potentialTrips.length;
 
   return {
     countries,
@@ -204,5 +263,13 @@ export const calculateStats = (travelData: TravelData[]): Stats => {
     upcoming,
   };
 };
+
+// Interface for organized travel data by status
+export interface OrganizedTravelData {
+  alreadyTraveled: TravelData[];
+  currentLocation: TravelData | null;
+  upcomingTrips: TravelData[];
+  potentialTrips: TravelData[];
+}
 
 export default TravelData;

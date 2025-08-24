@@ -7,39 +7,19 @@ import {
   InteractiveWorldMap,
   type TimeFilter,
 } from "@/components/InteractiveWorldMap";
+import { useTravelData } from "@/hooks/useTravelData";
 
 export default function MapPage() {
-  const [travelData, setTravelData] = useState<TravelData[]>([]);
+  // Use the custom hook
+  const { travelData, loading, error } = useTravelData({ source: "local" });
+
   const [currentLocation, setCurrentLocation] = useState<TravelData | null>(
     null
   );
+  console.log(currentLocation);
   const [selectedCountry, setSelectedCountry] =
     useState<string>("Continental US");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load travel data on component mount
-  useEffect(() => {
-    const loadTravelData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch("/travel-data.json");
-        if (!response.ok) {
-          throw new Error("Failed to load travel data");
-        }
-        const data: TravelData[] = await response.json();
-        setTravelData(data);
-      } catch (err) {
-        console.error("Error loading travel data:", err);
-        setError("Failed to load travel data. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTravelData();
-  }, []);
 
   // Update derived state when travel data changes
   useEffect(() => {
