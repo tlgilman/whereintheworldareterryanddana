@@ -11,7 +11,7 @@ import { useTravelData } from "@/hooks/useTravelData";
 
 export default function MapPage() {
   // Use the custom hook
-  const { travelData, loading, error } = useTravelData({ source: "local" });
+  const { travelData, loading, error } = useTravelData({ source: "s3" });
 
   const [currentLocation, setCurrentLocation] = useState<TravelData | null>(
     null
@@ -184,25 +184,16 @@ export default function MapPage() {
                 >
                   Upcoming
                 </button>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap items-center gap-6 mb-6 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span>Visited</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                <span>Current</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span>Upcoming</span>
-              </div>
-              <div className="text-gray-500 text-xs">
-                💡 Use mouse wheel to zoom • Drag to pan • Use controls to reset
+                <button
+                  onClick={() => setTimeFilter("potential")}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    timeFilter === "potential"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  Potential
+                </button>
               </div>
             </div>
 
@@ -213,7 +204,7 @@ export default function MapPage() {
                 selectedCountry={selectedCountry}
                 timeFilter={timeFilter}
                 className="w-full h-full"
-                viewBox="0 0 1000 600"
+                viewBox="0 0 1000 500"
               />
             </div>
           </div>
