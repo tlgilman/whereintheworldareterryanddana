@@ -8,6 +8,7 @@ export interface TravelData {
   departureDate: string; // ISO date string (e.g., "2025-08-25")
   daysAtPlace: number; // Number of days staying (calculated or manual)
   booked: boolean; // Whether the accommodation/transportation is booked
+  residing: boolean; // Whether the person is residing in the location
   coordinates?: {
     // Optional for backward compatibility
     lat: number;
@@ -141,7 +142,8 @@ export const isTravelData = (obj: unknown): obj is TravelData => {
     typeof candidate.arrivalDate === "string" &&
     typeof candidate.departureDate === "string" &&
     typeof candidate.daysAtPlace === "number" &&
-    typeof candidate.booked === "boolean" // Add validation for booked property
+    typeof candidate.booked === "boolean" && // Add validation for booked property
+    typeof candidate.residing === "boolean"
   );
 };
 

@@ -1,28 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-
-// Type definition for travel data
-interface TravelData {
-  location: string;
-  country: string;
-  travelTimeToHere: string;
-  timeZone: string;
-  arrivalDate: string;
-  departureDate: string;
-  daysAtPlace: number;
-}
-
-interface Stats {
-  countries: number;
-  destinations: number;
-  totalDays: number;
-  upcoming: number;
-}
-
-interface HeroSectionProps {
-  currentLocation: TravelData | null;
-  stats: Stats;
-}
+import { HeroSectionProps } from "@/app/types/Travel-data";
 
 const HeroSection: React.FC<HeroSectionProps> = ({
   currentLocation,
