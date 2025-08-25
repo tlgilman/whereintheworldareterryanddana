@@ -251,10 +251,46 @@ export const organizeTravelData = (
 
 // Updated calculateStats to use the new categories
 export const calculateStats = (travelData: TravelData[]): Stats => {
-  const organized = organizeTravelData(travelData); // Fixed typo here
-  const countries = new Set(travelData.map((trip) => trip.country)).size;
-  const destinations = travelData.length;
-  const totalDays = travelData.reduce((sum, trip) => sum + trip.daysAtPlace, 0);
+  const organized = organizeTravelData(travelData);
+
+  // Filter to only include trips that have been completed or are currently happening
+  const actuallyVisited = travelData.filter((trip) => {
+    const today = new Date();
+    const arrivalDate = new Date(trip.arrivalDate);
+    const departureDate = new Date(trip.departureDate);
+
+    // Include if:
+    // 1. Trip is completed (departure is in the past)
+    // 2. Currently visiting (today is between arrival and departure)
+    return (
+      departureDate < today || (arrivalDate <= today && today <= departureDate)
+    );
+  });
+
+  // Count unique countries and destinations from actually visited places
+  const countries = new Set(actuallyVisited.map((trip) => trip.country)).size;
+  const destinations = actuallyVisited.length;
+
+  // Calculate total days since first departure to today
+  const totalDays = (() => {
+    if (travelData.length === 0) return 0;
+
+    // Find the earliest departure date
+    const earliestDeparture = travelData
+      .map((trip) => new Date(trip.departureDate))
+      .filter((date) => !isNaN(date.getTime())) // Filter out invalid dates
+      .sort((a, b) => a.getTime() - b.getTime())[0]; // Get earliest
+
+    if (!earliestDeparture) return 0;
+
+    // Calculate days from earliest departure to today
+    const today = new Date();
+    const diffTime = today.getTime() - earliestDeparture.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return Math.max(0, diffDays); // Ensure non-negative
+  })();
+
   const upcoming =
     organized.upcomingTrips.length + organized.potentialTrips.length;
 
