@@ -29,10 +29,17 @@ export function useTravelData(
 
       const url =
         source === "s3"
-          ? "https://my-travel-data-bucket.s3.us-east-1.amazonaws.com/travel-data.json"
-          : "/travel-data.json";
+          ? `https://my-travel-data-bucket.s3.us-east-1.amazonaws.com/travel-data.json?v=${Date.now()}`
+          : `/travel-data.json?v=${Date.now()}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        cache: "no-cache",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch travel data: ${response.statusText}`);
