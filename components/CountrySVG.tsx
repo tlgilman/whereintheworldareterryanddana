@@ -43,6 +43,10 @@ export const CountrySVG: React.FC<CountrySVGProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
 
+  const zoomBehaviorRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(
+    null
+  );
+
   // Load country geometry
   const baseFeature = useMemo(() => getCountryFeature(country), [country]);
   // Optionally trim USA to Lower 48
@@ -76,7 +80,6 @@ export const CountrySVG: React.FC<CountrySVGProps> = ({
     const svg = select(svgRef.current);
     const g = select(gRef.current);
 
-    // Create zoom behavior with proper typing
     const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = zoom<
       SVGSVGElement,
       unknown
@@ -86,51 +89,46 @@ export const CountrySVG: React.FC<CountrySVGProps> = ({
         g.attr("transform", event.transform);
       });
 
-    // Apply zoom behavior to SVG with proper typing
+    zoomBehaviorRef.current = zoomBehavior;
+
     (svg as Selection<SVGSVGElement, unknown, null, undefined>).call(
       zoomBehavior
     );
 
-    // Cleanup
     return () => {
       svg.on(".zoom", null);
+      zoomBehaviorRef.current = null; // Clear the ref
     };
-  }, [enableZoom, pathD]); // Re-run when pathD changes (new country)
+  }, [enableZoom, pathD]);
 
-  // Reset zoom function
   const resetZoom = () => {
-    if (!svgRef.current || !gRef.current) return;
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
     const svg = select(svgRef.current);
-    const zoomBehavior = zoom<SVGSVGElement, unknown>();
 
     (svg as Selection<SVGSVGElement, unknown, null, undefined>)
       .transition()
       .duration(750)
-      .call(zoomBehavior.transform, zoomIdentity);
+      .call(zoomBehaviorRef.current.transform, zoomIdentity);
   };
 
-  // Zoom in function
   const zoomIn = () => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
     const svg = select(svgRef.current);
-    const zoomBehavior = zoom<SVGSVGElement, unknown>();
 
     (svg as Selection<SVGSVGElement, unknown, null, undefined>)
       .transition()
       .duration(300)
-      .call(zoomBehavior.scaleBy, 1.5);
+      .call(zoomBehaviorRef.current.scaleBy, 1.5);
   };
 
-  // Zoom out function
   const zoomOut = () => {
-    if (!svgRef.current) return;
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
     const svg = select(svgRef.current);
-    const zoomBehavior = zoom<SVGSVGElement, unknown>();
 
     (svg as Selection<SVGSVGElement, unknown, null, undefined>)
       .transition()
       .duration(300)
-      .call(zoomBehavior.scaleBy, 1 / 1.5);
+      .call(zoomBehaviorRef.current.scaleBy, 1 / 1.5);
   };
 
   return (
