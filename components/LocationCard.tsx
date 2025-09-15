@@ -13,12 +13,23 @@ const LocationCard: React.FC<LocationCardProps> = ({
   const isLongStay = trip.residing;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    // Parse as local date to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day); // month is 0-indexed
+    
+    return dateObj.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
   };
+
+  // Also debug the raw trip data
+  console.log("🔍 Raw trip data:");
+  console.log("  trip.arrivalDate:", trip.arrivalDate);
+  console.log("  trip.departureDate:", trip.departureDate);
+  console.log("  typeof arrivalDate:", typeof trip.arrivalDate);
+  console.log("  typeof departureDate:", typeof trip.departureDate);
 
   return (
     <div
