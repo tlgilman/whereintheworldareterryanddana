@@ -98,7 +98,7 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
 
           {/* Potential Trips Section */}
           <TravelSection
-            title="Dream Destinations (Planning)"
+            title="Dream Destinations (Wildly Speculative)"
             trips={potentialTrips}
             showAll={showAllPotential}
             onToggle={onTogglePotential}
