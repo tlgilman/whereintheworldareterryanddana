@@ -24,12 +24,24 @@ const LocationCard: React.FC<LocationCardProps> = ({
     });
   };
 
-  // Also debug the raw trip data
-  console.log("🔍 Raw trip data:");
-  console.log("  trip.arrivalDate:", trip.arrivalDate);
-  console.log("  trip.departureDate:", trip.departureDate);
-  console.log("  typeof arrivalDate:", typeof trip.arrivalDate);
-  console.log("  typeof departureDate:", typeof trip.departureDate);
+  const formatVacationDate = (dateString: string) => {
+    // Handle ISO date strings like "2025-12-20T00:00:00.000Z"
+    // Extract just the date part to avoid timezone issues
+    const datePart = dateString.split('T')[0]; // Get "2025-12-20" from "2025-12-20T00:00:00.000Z"
+    const [year, month, day] = datePart.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day); // month is 0-indexed
+    
+    return dateObj.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  // Check if vacation dates exist and aren't empty
+  const hasVacationDates = trip.vacationStart && trip.vacationEnd && 
+                          trip.vacationStart.trim() !== "" && 
+                          trip.vacationEnd.trim() !== "";
 
   return (
     <div
@@ -170,6 +182,22 @@ const LocationCard: React.FC<LocationCardProps> = ({
               {formatDate(trip.arrivalDate)} - {formatDate(trip.departureDate)}
             </span>
           </div>
+
+          {/* Vacation Dates - Highlighted when present */}
+          {hasVacationDates && (
+            <div className="flex items-center space-x-2">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md flex items-center space-x-2">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 11h2v2H7zm0 4h2v2H7zm4-4h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/>
+                  <path d="M5 22h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2zM19 8H5V6h14v2z"/>
+                </svg>
+                <span>🏖️ VACATION</span>
+                <span>
+                  {formatVacationDate(trip.vacationStart!)} - {formatVacationDate(trip.vacationEnd!)}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Duration and Timezone */}
           <div

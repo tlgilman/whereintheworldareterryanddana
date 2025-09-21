@@ -9,6 +9,8 @@ export interface TravelData {
   daysAtPlace: number; // Number of days staying (calculated or manual)
   booked: boolean; // Whether the accommodation/transportation is booked
   residing: boolean; // Whether the person is residing in the location
+  vacationStart?: string; // ISO date string for vacation start (optional)
+  vacationEnd?: string; // ISO date string for vacation end (optional)
   coordinates?: {
     // Optional for backward compatibility
     lat: number;
