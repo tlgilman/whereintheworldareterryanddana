@@ -9,7 +9,7 @@ interface UseTravelDataReturn {
 }
 
 interface UseTravelDataOptions {
-  source?: "local" | "s3";
+  source?: "local" | "s3" | "api";
   autoFetch?: boolean;
 }
 
@@ -30,6 +30,8 @@ export function useTravelData(
       const url =
         source === "s3"
           ? `https://my-travel-data-bucket.s3.us-east-1.amazonaws.com/travel-data.json?v=${Date.now()}`
+            : source === "api"
+              ? `/api/travel-data`
           : `/travel-data.json?v=${Date.now()}`;
 
       const response = await fetch(url, {

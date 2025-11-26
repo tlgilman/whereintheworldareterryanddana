@@ -13,6 +13,8 @@ import Link from "next/link";
 import { TravelData, Stats } from "@/app/types/Travel-data";
 import HeroSection from "./HeroSection";
 import TravelSection from "./TravelSection";
+import Timeline from "./Timeline";
+import LocationCard from "./LocationCard";
 
 // Props interface for TravelWebsite component
 interface TravelWebsiteProps {
@@ -27,6 +29,8 @@ interface TravelWebsiteProps {
   onToggleAlreadyTraveled: () => void;
   onToggleUpcoming: () => void;
   onTogglePotential: () => void;
+  showAllJourney: boolean;
+  onToggleJourney: () => void;
 }
 
 const TravelWebsite: React.FC<TravelWebsiteProps> = ({
@@ -41,53 +45,69 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
   onToggleAlreadyTraveled,
   onToggleUpcoming,
   onTogglePotential,
+  showAllJourney,
+  onToggleJourney,
 }) => {
+  // Track visitor on mount
+  React.useEffect(() => {
+    const trackVisitor = async () => {
+      // Check session storage to avoid duplicate tracking per session
+      if (sessionStorage.getItem('visitor_tracked')) return;
+
+      try {
+        await fetch('/api/track-visitor', { method: 'POST' });
+        sessionStorage.setItem('visitor_tracked', 'true');
+      } catch (e) {
+        console.error('Failed to track visitor', e);
+      }
+    };
+
+    trackVisitor();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Hero Section */}
       <HeroSection currentLocation={currentLocation} stats={stats} />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
+
         {/* Link to Map Page */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-16">
           <Link
             href="/map"
-            className="inline-flex items-center px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg font-semibold"
+            className="group relative inline-flex items-center px-8 py-4 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all hover:shadow-lg hover:-translate-y-1"
           >
-            🗺️ See Where We&apos;ve Been
+            <span className="text-lg font-semibold mr-2">🗺️ Explore the Interactive Map</span>
+            <span className="group-hover:translate-x-1 transition-transform">→</span>
           </Link>
         </div>
 
-        {/* Travel Sections */}
-        <div className="space-y-12">
-          {/* Already Traveled Section */}
-          <TravelSection
-            title="Places We've Explored"
-            trips={alreadyTraveled}
-            showAll={showAllAlreadyTraveled}
-            onToggle={onToggleAlreadyTraveled}
-            emptyMessage="No completed trips yet."
-            iconColor="text-green-600"
-            icon="✓"
-          />
+        {/* Timeline View */}
+        <Timeline
+          title="Our Journey So Far"
+          trips={alreadyTraveled}
+          showAll={showAllJourney}
+          onToggle={onToggleJourney}
+        />
 
-          {/* Current Location Section */}
-          {currentLocation && (
-            <TravelSection
-              title="Where We Are Now"
-              trips={[currentLocation]}
-              showAll={true}
-              onToggle={() => {}}
-              emptyMessage=""
-              iconColor="text-blue-600"
-              icon="📍"
-            />
-          )}
+        {/* Current Location Section */}
+        {currentLocation && (
+          <div className="mb-20">
+            <div className="flex items-center mb-8">
+              <span className="text-2xl mr-3">📍</span>
+              <h3 className="text-xl font-semibold text-gray-900">Current Location</h3>
+            </div>
+            <div className="max-w-2xl mx-auto">
+              <LocationCard trip={currentLocation} isCurrent={true} />
+            </div>
+          </div>
+        )}
 
-          {/* Upcoming Trips Section */}
+        {/* Upcoming & Potential (Keep as cards for now, or add to timeline?) */}
+        <div className="grid md:grid-cols-2 gap-8">
           <TravelSection
-            title="Upcoming Adventures (Booked)"
+            title="Upcoming Adventures"
             trips={upcomingTrips}
             showAll={showAllUpcoming}
             onToggle={onToggleUpcoming}
@@ -96,9 +116,8 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
             icon="✈️"
           />
 
-          {/* Potential Trips Section */}
           <TravelSection
-            title="Dream Destinations (Wildly Speculative)"
+            title="Dream Destinations"
             trips={potentialTrips}
             showAll={showAllPotential}
             onToggle={onTogglePotential}

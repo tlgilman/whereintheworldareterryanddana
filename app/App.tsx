@@ -4,14 +4,13 @@ import React, { useState, useEffect } from "react";
 import {
   calculateStats,
   organizeTravelData,
-  OrganizedTravelData, // Import from types, not from TravelWebsite
+  OrganizedTravelData,
 } from "./types/Travel-data";
 import { useTravelData } from "@/hooks/useTravelData";
 import TravelWebsite from "@/components/TravelWebsite";
 
 const App: React.FC = () => {
-  // Use the custom hook instead of manual fetching
-  const { travelData, loading, error } = useTravelData({ source: "s3" });
+  const { travelData, loading, error } = useTravelData({ source: "api" });
 
   const [organizedData, setOrganizedData] = useState<OrganizedTravelData>({
     alreadyTraveled: [],
@@ -23,8 +22,8 @@ const App: React.FC = () => {
   const [showAllAlreadyTraveled, setShowAllAlreadyTraveled] = useState(false);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllPotential, setShowAllPotential] = useState(false);
+  const [showAllJourney, setShowAllJourney] = useState(false);
 
-  // Organize data when travelData changes
   useEffect(() => {
     if (travelData.length > 0) {
       const organized = organizeTravelData(travelData);
@@ -32,7 +31,6 @@ const App: React.FC = () => {
     }
   }, [travelData]);
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -44,7 +42,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -77,11 +74,13 @@ const App: React.FC = () => {
       showAllAlreadyTraveled={showAllAlreadyTraveled}
       showAllUpcoming={showAllUpcoming}
       showAllPotential={showAllPotential}
+      showAllJourney={showAllJourney}
       onToggleAlreadyTraveled={() =>
         setShowAllAlreadyTraveled(!showAllAlreadyTraveled)
       }
       onToggleUpcoming={() => setShowAllUpcoming(!showAllUpcoming)}
       onTogglePotential={() => setShowAllPotential(!showAllPotential)}
+      onToggleJourney={() => setShowAllJourney(!showAllJourney)}
     />
   );
 };

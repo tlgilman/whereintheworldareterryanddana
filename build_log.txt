@@ -1,0 +1,57 @@
+
+> whereintheworldareterryanddana@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.4.5
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 2000ms
+   Linting and checking validity of types ...
+
+./app/api/travel-data/route.ts
+35:11  Warning: '_body' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+39:12  Warning: '_error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/auth/signin/page.tsx
+68:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/LocationCard.tsx
+30:14  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/Timeline.tsx
+29:14  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/TravelWebsite.tsx
+42:3  Warning: 'showAllAlreadyTraveled' is defined but never used.  @typescript-eslint/no-unused-vars
+45:3  Warning: 'onToggleAlreadyTraveled' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/10) ...
+null
+   Generating static pages (2/10) 
+   Generating static pages (4/10) 
+   Generating static pages (7/10) 
+ Γ£ô Generating static pages (10/10)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+Γöî Γùï /                                    48.3 kB         151 kB
+Γö£ Γùï /_not-found                            990 B         101 kB
+Γö£ Γùï /admin                                1.1 kB         110 kB
+Γö£ ╞Æ /api/auth/[...nextauth]                131 B        99.8 kB
+Γö£ ╞Æ /api/track-visitor                     131 B        99.8 kB
+Γö£ ╞Æ /api/travel-data                       131 B        99.8 kB
+Γö£ Γùï /auth/signin                         1.05 kB         110 kB
+Γöö Γùï /map                                 68.7 kB         172 kB
++ First Load JS shared by all            99.7 kB
+  Γö£ chunks/4bd1b696-cf72ae8a39fa05aa.js  54.1 kB
+  Γö£ chunks/964-02efbd2195ef91bd.js       43.5 kB
+  Γöö other shared chunks (total)             2 kB
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

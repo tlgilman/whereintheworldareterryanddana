@@ -12,31 +12,27 @@ const LocationCard: React.FC<LocationCardProps> = ({
 }) => {
   const isLongStay = trip.residing;
 
-  const formatDate = (dateString: string) => {
-    // Parse as local date to avoid timezone issues
-    const [year, month, day] = dateString.split('-').map(Number);
-    const dateObj = new Date(year, month - 1, day); // month is 0-indexed
-    
-    return dateObj.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      // Adjust for timezone offset to prevent off-by-one errors if date string is simple YYYY-MM-DD
+      const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+      const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+
+      if (isNaN(adjustedDate.getTime())) return dateStr;
+
+      return adjustedDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (e) {
+      return dateStr;
+    }
   };
 
-  const formatVacationDate = (dateString: string) => {
-    // Handle ISO date strings like "2025-12-20T00:00:00.000Z"
-    // Extract just the date part to avoid timezone issues
-    const datePart = dateString.split('T')[0]; // Get "2025-12-20" from "2025-12-20T00:00:00.000Z"
-    const [year, month, day] = datePart.split('-').map(Number);
-    const dateObj = new Date(year, month - 1, day); // month is 0-indexed
-    
-    return dateObj.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const formatVacationDate = formatDate; // Reuse the same robust logic
 
   // Check if vacation dates exist and aren't empty
   const hasVacationDates = trip.vacationStart && trip.vacationEnd && 
@@ -185,16 +181,19 @@ const LocationCard: React.FC<LocationCardProps> = ({
 
           {/* Vacation Dates - Highlighted when present */}
           {hasVacationDates && (
-            <div className="flex items-center space-x-2">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md flex items-center space-x-2">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M7 11h2v2H7zm0 4h2v2H7zm4-4h2v2h-2zm0 4h2v2h-2zm4-4h2v2h-2zm0 4h2v2h-2z"/>
-                  <path d="M5 22h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2zM19 8H5V6h14v2z"/>
-                </svg>
-                <span>🏖️ VACATION</span>
-                <span>
-                  {formatVacationDate(trip.vacationStart!)} - {formatVacationDate(trip.vacationEnd!)}
-                </span>
+            <div className="mt-2 mb-1">
+              <div className="bg-purple-50/80 border border-purple-100 rounded-md p-2 flex items-center gap-2.5">
+                <div className="text-base">
+                  🏖️
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-purple-600 uppercase tracking-wider leading-none mb-0.5">
+                    Vacation
+                  </div>
+                  <div className="text-xs text-gray-600 font-medium">
+                    {formatVacationDate(trip.vacationStart!)} - {formatVacationDate(trip.vacationEnd!)}
+                  </div>
+                </div>
               </div>
             </div>
           )}
