@@ -2,30 +2,37 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { NextAuthOptions } from "next-auth";
 
-export const authOptions: NextAuthOptions = {
-  providers: [
+const providers: NextAuthOptions['providers'] = [
+  CredentialsProvider({
+    name: "Password",
+    credentials: {
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      // Simple password check for friends/family
+      // In a real app, you'd want something more robust, but for a personal site this is often enough
+      if (credentials?.password === process.env.GUEST_PASSWORD) {
+        return { id: "guest", name: "Guest", email: "guest@example.com", role: "guest" };
+      }
+      if (credentials?.password === process.env.ADMIN_PASSWORD) {
+        return { id: "admin", name: "Admin", email: "admin@example.com", role: "admin" };
+      }
+      return null;
+    },
+  }),
+];
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    }),
-    CredentialsProvider({
-      name: "Password",
-      credentials: {
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        // Simple password check for friends/family
-        // In a real app, you'd want something more robust, but for a personal site this is often enough
-        if (credentials?.password === process.env.GUEST_PASSWORD) {
-          return { id: "guest", name: "Guest", email: "guest@example.com", role: "guest" };
-        }
-        if (credentials?.password === process.env.ADMIN_PASSWORD) {
-            return { id: "admin", name: "Admin", email: "admin@example.com", role: "admin" };
-        }
-        return null;
-      },
-    }),
-  ],
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
+
+export const authOptions: NextAuthOptions = {
+  providers,
   callbacks: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async jwt({ token, user }: any) {
