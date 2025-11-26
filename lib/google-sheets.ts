@@ -17,11 +17,16 @@ const serviceAccountAuth = new JWT({
 });
 
 export const getDoc = async () => {
-  if (!SPREADSHEET_ID || !CLIENT_EMAIL || !PRIVATE_KEY) {
-    throw new Error('Google Sheets credentials are missing');
+  const missingVars = [];
+  if (!SPREADSHEET_ID) missingVars.push('GOOGLE_SHEET_ID');
+  if (!CLIENT_EMAIL) missingVars.push('GOOGLE_SERVICE_ACCOUNT_EMAIL');
+  if (!PRIVATE_KEY) missingVars.push('GOOGLE_PRIVATE_KEY');
+
+  if (missingVars.length > 0) {
+    throw new Error(`Google Sheets credentials are missing: ${missingVars.join(', ')}`);
   }
 
-  const doc = new GoogleSpreadsheet(SPREADSHEET_ID, serviceAccountAuth);
+  const doc = new GoogleSpreadsheet(SPREADSHEET_ID as string, serviceAccountAuth);
   await doc.loadInfo();
   return doc;
 };
