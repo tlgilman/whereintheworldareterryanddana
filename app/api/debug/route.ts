@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/options";
 import { getDoc } from '@/lib/google-sheets';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
+  const { searchParams } = new URL(request.url);
+  const key = searchParams.get('key');
 
-  if (!session || session.user?.role !== 'admin') {
+  // Allow if admin OR if correct secret key is provided
+  if ((!session || session.user?.role !== 'admin') && key !== 'debug_secret_123') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
