@@ -7,7 +7,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   stats,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [localTime, setLocalTime] = useState("");
+
 
   // Your actual travel photos
   const heroImages = [
@@ -72,22 +72,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     return () => clearInterval(interval);
   }, [heroImages.length]);
 
-  useEffect(() => {
-    // Update local time every minute
-    const updateLocalTime = () => {
-      const now = new Date();
-      const timeString = now.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-      setLocalTime(`${timeString} Local Time`);
-    };
 
-    updateLocalTime();
-    const timeInterval = setInterval(updateLocalTime, 60000);
-    return () => clearInterval(timeInterval);
-  }, []);
 
   const scrollToContent = () => {
     const element = document.getElementById("main-content");
@@ -130,14 +115,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         📍 {heroImages[currentSlide].location}
       </div>
 
-      {/* Location Info Card */}
-      <div className="absolute top-8 right-8 bg-white/15 backdrop-blur-md rounded-3xl p-6 text-white border border-white/20 hidden md:block">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-2xl font-bold">72°F</span>
-          <span className="text-2xl">☀️</span>
-        </div>
-        <div className="text-sm opacity-80">{localTime}</div>
-      </div>
+
 
       {/* Main Content */}
       <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-6">

@@ -3,30 +3,29 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X, User, LogOut, Image as ImageIcon, Shield } from "lucide-react";
+import WeatherIndicator from "./WeatherIndicator";
 
 export default function Navigation() {
   const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className={`${isHome ? 'fixed top-0 left-0 w-full z-50 bg-transparent text-white' : 'bg-white shadow-sm text-gray-800'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <Link href="/" className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-bold text-gray-800">Travel Tracker</span>
-            </Link>
-          </div>
-          
-          <div className="flex items-center">
+        <div className="flex items-center h-16">
+          {/* Left Side: Menu & Login */}
+          <div className="flex items-center gap-4">
             {status === "loading" ? (
               <div className="h-8 w-8 animate-pulse bg-gray-200 rounded-full"></div>
             ) : status === "authenticated" ? (
               <div className="relative">
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                    className={`p-2 rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 ${isHome ? 'text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
                 >
                   {isMenuOpen ? (
                     <X className="h-6 w-6" />
@@ -36,7 +35,7 @@ export default function Navigation() {
                 </button>
 
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
                     <div className="py-1" role="menu" aria-orientation="vertical">
                       <div className="px-4 py-2 text-sm text-gray-500 border-b">
                         Signed in as<br />
@@ -93,11 +92,19 @@ export default function Navigation() {
             ) : (
               <button
                 onClick={() => signIn()}
-                className="text-gray-600 hover:text-gray-900 font-medium"
+                    className={`font-medium ${isHome ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
               >
                 Sign in
               </button>
             )}
+
+            {/* Logo next to menu */}
+            <Link href="/" className="flex-shrink-0 flex items-center ml-2">
+              <span className={`text-xl font-bold ${isHome ? 'text-white' : 'text-gray-800'}`}>Travel Tracker</span>
+            </Link>
+
+            {/* Weather Indicator (Home only) */}
+            {isHome && <WeatherIndicator />}
           </div>
         </div>
       </div>
