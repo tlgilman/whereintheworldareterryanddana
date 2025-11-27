@@ -2,21 +2,45 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { NextAuthOptions } from "next-auth";
 
+import { getUserByEmail } from "@/lib/google-sheets";
+import * as bcrypt from "bcryptjs";
+
 const providers: NextAuthOptions['providers'] = [
   CredentialsProvider({
     name: "Password",
     credentials: {
+      email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      // Simple password check for friends/family
-      // In a real app, you'd want something more robust, but for a personal site this is often enough
-      if (credentials?.password === process.env.GUEST_PASSWORD) {
+      if (!credentials?.email || !credentials?.password) return null;
+
+      // 1. Check for hardcoded admin/guest first (migration path)
+      if (credentials.email === process.env.ADMIN_EMAIL && credentials.password === process.env.ADMIN_PASSWORD) {
+        return { id: "admin", name: "Admin", email: credentials.email, role: "admin" };
+      }
+      if (credentials.email === "guest@example.com" && credentials.password === process.env.GUEST_PASSWORD) {
         return { id: "guest", name: "Guest", email: "guest@example.com", role: "guest" };
       }
-      if (credentials?.password === process.env.ADMIN_PASSWORD) {
-        return { id: "admin", name: "Admin", email: "admin@example.com", role: "admin" };
+
+      // 2. Check Google Sheets
+      try {
+        const user = await getUserByEmail(credentials.email);
+        if (user && user.password) {
+          const isValid = await bcrypt.compare(credentials.password, user.password);
+          if (isValid) {
+            return {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+            };
+          }
+        }
+      } catch (error) {
+        console.error("Auth error:", error);
       }
+
       return null;
     },
   }),

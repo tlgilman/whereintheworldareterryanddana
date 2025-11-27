@@ -1,6 +1,7 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { TravelData } from '@/app/types/Travel-data';
+import { User } from '@/app/types/User';
 
 // Config variables
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
@@ -103,27 +104,102 @@ export const addTrip = async (trip: TravelData) => {
 };
 
 export const trackVisit = async (ip: string, userAgent: string) => {
-  try {
-    const doc = await getDoc();
-    
-    // Check if "Visitors" sheet exists, if not create it
-    let sheet = doc.sheetsByTitle['Visitors'];
-    if (!sheet) {
-      console.log('Creating Visitors sheet...');
-      sheet = await doc.addSheet({ title: 'Visitors' });
-      await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'location']);
-    }
+  const doc = await getDoc();
 
-    // Add the visit
-    await sheet.addRow({
-      timestamp: new Date().toISOString(),
-      ip,
-      userAgent,
-      location: 'Unknown' // Could be enhanced with GeoIP later
-    });
-    console.log(`Tracked visit from ${ip}`);
-  } catch (error) {
-    console.error('Error tracking visit:', error);
-    // Don't throw, just log error so we don't break the app flow
+  // Check if "Visitors" sheet exists, if not create it
+  let sheet = doc.sheetsByTitle['Visitors'];
+  if (!sheet) {
+    console.log('Creating Visitors sheet...');
+    sheet = await doc.addSheet({ title: 'Visitors' });
+    await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'location']);
   }
+
+  // Add the visit
+  await sheet.addRow({
+    timestamp: new Date().toISOString(),
+    ip,
+    userAgent,
+    location: 'Unknown' // Could be enhanced with GeoIP later
+  });
+  console.log(`Tracked visit from ${ip}`);
+};
+
+export const getUsers = async (): Promise<User[]> => {
+  const doc = await getDoc();
+  let sheet = doc.sheetsByTitle['Users'];
+
+  if (!sheet) {
+    console.log('Creating Users sheet...');
+    sheet = await doc.addSheet({ title: 'Users' });
+    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'createdAt', 'updatedAt']);
+    return [];
+  }
+
+  const rows = await sheet.getRows();
+  return rows.map(row => ({
+    id: row.get('id'),
+    name: row.get('name'),
+    email: row.get('email'),
+    password: row.get('password'),
+    role: row.get('role'),
+    createdAt: row.get('createdAt'),
+    updatedAt: row.get('updatedAt'),
+  }));
+};
+
+export const getUserByEmail = async (email: string): Promise<User | null> => {
+  const users = await getUsers();
+  return users.find(user => user.email === email) || null;
+};
+
+export const createUser = async (user: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User> => {
+  const doc = await getDoc();
+  let sheet = doc.sheetsByTitle['Users'];
+
+  if (!sheet) {
+    sheet = await doc.addSheet({ title: 'Users' });
+    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'createdAt', 'updatedAt']);
+  }
+
+  const timestamp = new Date().toISOString();
+  const newUser = {
+    ...user,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  await sheet.addRow(newUser);
+  return newUser;
+};
+
+export const updateUser = async (email: string, updates: Partial<User>): Promise<User | null> => {
+  const doc = await getDoc();
+  const sheet = doc.sheetsByTitle['Users'];
+  if (!sheet) return null;
+
+  const rows = await sheet.getRows();
+  const row = rows.find(r => r.get('email') === email);
+
+  if (!row) return null;
+
+  const timestamp = new Date().toISOString();
+
+  Object.entries(updates).forEach(([key, value]) => {
+    if (key !== 'email' && key !== 'id' && key !== 'createdAt') {
+      row.set(key, value);
+    }
+  });
+
+  row.set('updatedAt', timestamp);
+  await row.save();
+
+  return {
+    id: row.get('id'),
+    name: row.get('name'),
+    email: row.get('email'),
+    password: row.get('password'),
+    role: row.get('role'),
+    createdAt: row.get('createdAt'),
+    updatedAt: timestamp,
+  };
 };

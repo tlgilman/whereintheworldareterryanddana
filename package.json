@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/d3-transition": "^3.0.9",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "d3-geo": "^3.1.1",
     "d3-selection": "^3.0.0",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/d3-geo": "^3.1.0",
     "@types/d3-selection": "^3.0.10",
     "@types/d3-zoom": "^3.0.8",

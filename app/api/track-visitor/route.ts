@@ -7,8 +7,8 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
-    // Fire and forget - don't await to keep response fast
-    trackVisit(ip, userAgent).catch(console.error);
+    // Await the result to catch errors for debugging
+    await trackVisit(ip, userAgent);
 
     return NextResponse.json({ success: true });
   } catch (error) {

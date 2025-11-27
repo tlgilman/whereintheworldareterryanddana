@@ -32,11 +32,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const _body = await request.json();
+    await request.json(); // Consume body even if unused for now
     // Here we would call addTrip or updateTrip from lib/google-sheets
     // For now, just return success
     return NextResponse.json({ success: true, message: "Trip added (simulation)" });
-  } catch (_error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to update data' }, { status: 500 });
   }
 }
