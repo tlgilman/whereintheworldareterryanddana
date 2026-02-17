@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 import AuthProvider from "@/components/AuthProvider";
 
 import Navigation from "@/components/Navigation";
+import VisitorTracker from "@/components/VisitorTracker";
 
 export default function RootLayout({
   children,
@@ -32,6 +33,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
+          <VisitorTracker />
           <Navigation />
           {children}
         </AuthProvider>

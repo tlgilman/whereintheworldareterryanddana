@@ -134,7 +134,17 @@ export const addTrip = async (trip: TravelData) => {
   });
 };
 
-export const trackVisit = async (ip: string, userAgent: string) => {
+export interface VisitorData {
+  ip: string;
+  userAgent: string;
+  path?: string;
+  referrer?: string;
+  city?: string;
+  country?: string;
+  timestamp?: string;
+}
+
+export const trackVisit = async (data: VisitorData) => {
   const doc = await getDoc();
 
   // Check if "Visitors" sheet exists, if not create it
@@ -142,17 +152,39 @@ export const trackVisit = async (ip: string, userAgent: string) => {
   if (!sheet) {
     console.log('Creating Visitors sheet...');
     sheet = await doc.addSheet({ title: 'Visitors' });
-    await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'location']);
+    await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'path', 'referrer', 'city', 'country']);
   }
 
   // Add the visit
   await sheet.addRow({
     timestamp: new Date().toISOString(),
-    ip,
-    userAgent,
-    location: 'Unknown' // Could be enhanced with GeoIP later
+    ip: data.ip,
+    userAgent: data.userAgent,
+    path: data.path || '/',
+    referrer: data.referrer || '',
+    city: data.city || '',
+    country: data.country || '',
   });
-  console.log(`Tracked visit from ${ip}`);
+  console.log(`Tracked visit from ${data.ip} to ${data.path}`);
+};
+
+export const getVisitors = async (): Promise<VisitorData[]> => {
+  const doc = await getDoc();
+  const sheet = doc.sheetsByTitle['Visitors'];
+  if (!sheet) return [];
+
+  const rows = await sheet.getRows();
+  // Reverse to get newest first, limit to last 1000 for performance?
+  // For now just return all
+  return rows.map(row => ({
+    timestamp: row.get('timestamp'),
+    ip: row.get('ip'),
+    userAgent: row.get('userAgent'),
+    path: row.get('path'),
+    referrer: row.get('referrer'),
+    city: row.get('city'),
+    country: row.get('country'),
+  })).reverse();
 };
 
 export const getUsers = async (): Promise<User[]> => {
