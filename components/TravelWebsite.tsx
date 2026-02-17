@@ -15,6 +15,7 @@ import HeroSection from "./HeroSection";
 import TravelSection from "./TravelSection";
 import Timeline from "./Timeline";
 import LocationCard from "./LocationCard";
+import SkeletonSection from "./SkeletonSection";
 
 // Props interface for TravelWebsite component
 interface TravelWebsiteProps {
@@ -31,6 +32,7 @@ interface TravelWebsiteProps {
   onTogglePotential: () => void;
   showAllJourney: boolean;
   onToggleJourney: () => void;
+  loading?: boolean;
 }
 
 const TravelWebsite: React.FC<TravelWebsiteProps> = ({
@@ -47,6 +49,7 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
   onTogglePotential,
   showAllJourney,
   onToggleJourney,
+  loading = false,
 }) => {
   // Track visitor on mount
   React.useEffect(() => {
@@ -67,7 +70,7 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <HeroSection currentLocation={currentLocation} stats={stats} />
+      <HeroSection currentLocation={currentLocation} stats={stats} loading={loading} />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
@@ -97,34 +100,59 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
         )}
 
         {/* Timeline View */}
-        <Timeline
-          title="Our Journey So Far"
-          trips={alreadyTraveled}
-          showAll={showAllJourney}
-          onToggle={onToggleJourney}
-        />
+        {loading ? (
+          <div className="mb-20">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4 ml-6">Loading Our Journey...</h3>
+            <div className="container mx-auto px-4 py-12 bg-white rounded-lg border animate-pulse">
+              <div className="space-y-12">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex flex-col space-y-4">
+                    <div className="h-6 bg-gray-200 rounded w-1/4 self-center"></div>
+                    <div className="h-32 bg-gray-100 rounded w-full md:w-2/3 self-center"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+            <Timeline
+              title="Our Journey So Far"
+              trips={alreadyTraveled}
+              showAll={showAllJourney}
+              onToggle={onToggleJourney}
+            />
+        )}
 
         {/* Upcoming & Potential (Keep as cards for now, or add to timeline?) */}
         <div className="grid md:grid-cols-2 gap-8">
-          <TravelSection
-            title="Upcoming Adventures"
-            trips={upcomingTrips}
-            showAll={showAllUpcoming}
-            onToggle={onToggleUpcoming}
-            emptyMessage="No booked trips yet."
-            iconColor="text-purple-600"
-            icon="✈️"
-          />
+          {loading ? (
+            <>
+              <SkeletonSection title="Upcoming Adventures" count={2} />
+              <SkeletonSection title="Dream Destinations" count={2} />
+            </>
+          ) : (
+            <>
+                <TravelSection
+                  title="Upcoming Adventures"
+                  trips={upcomingTrips}
+                  showAll={showAllUpcoming}
+                  onToggle={onToggleUpcoming}
+                  emptyMessage="No booked trips yet."
+                  iconColor="text-purple-600"
+                  icon="✈️"
+                />
 
-          <TravelSection
-            title="Dream Destinations"
-            trips={potentialTrips}
-            showAll={showAllPotential}
-            onToggle={onTogglePotential}
-            emptyMessage="No potential trips planned."
-            iconColor="text-orange-600"
-            icon="💭"
-          />
+                <TravelSection
+                  title="Dream Destinations"
+                  trips={potentialTrips}
+                  showAll={showAllPotential}
+                  onToggle={onTogglePotential}
+                  emptyMessage="No potential trips planned."
+                  iconColor="text-orange-600"
+                  icon="💭"
+                />
+            </>
+          )}
         </div>
       </div>
 

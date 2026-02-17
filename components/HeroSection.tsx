@@ -5,6 +5,7 @@ import { HeroSectionProps } from "@/app/types/Travel-data";
 const HeroSection: React.FC<HeroSectionProps> = ({
   currentLocation,
   stats,
+  loading = false,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -148,21 +149,33 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         {/* Stats */}
         <div className="flex flex-wrap justify-center gap-4 md:gap-8 mb-12">
           <div className="text-center bg-white/10 backdrop-blur-md rounded-2xl p-4 md:p-6 min-w-[100px] md:min-w-[120px] border border-white/20 flex-1 sm:flex-none">
-            <div className="text-2xl md:text-3xl font-bold text-yellow-400">
-              {stats.countries}
-            </div>
+            {loading ? (
+              <div className="h-8 md:h-9 bg-white/20 animate-pulse rounded mb-1 mx-auto w-16"></div>
+            ) : (
+                <div className="text-2xl md:text-3xl font-bold text-yellow-400">
+                  {stats.countries}
+                </div>
+            )}
             <div className="text-xs md:text-sm opacity-80 mt-1">Countries</div>
           </div>
           <div className="text-center bg-white/10 backdrop-blur-md rounded-2xl p-4 md:p-6 min-w-[100px] md:min-w-[120px] border border-white/20 flex-1 sm:flex-none">
-            <div className="text-2xl md:text-3xl font-bold text-yellow-400">
-              {stats.destinations}
-            </div>
+            {loading ? (
+              <div className="h-8 md:h-9 bg-white/20 animate-pulse rounded mb-1 mx-auto w-16"></div>
+            ) : (
+                <div className="text-2xl md:text-3xl font-bold text-yellow-400">
+                  {stats.destinations}
+                </div>
+            )}
             <div className="text-xs md:text-sm opacity-80 mt-1">Cities</div>
           </div>
           <div className="text-center bg-white/10 backdrop-blur-md rounded-2xl p-4 md:p-6 min-w-[100px] md:min-w-[120px] border border-white/20 flex-1 sm:flex-none">
-            <div className="text-2xl md:text-3xl font-bold text-yellow-400">
-              {stats.totalDays}
-            </div>
+            {loading ? (
+              <div className="h-8 md:h-9 bg-white/20 animate-pulse rounded mb-1 mx-auto w-16"></div>
+            ) : (
+                <div className="text-2xl md:text-3xl font-bold text-yellow-400">
+                  {stats.totalDays}
+                </div>
+            )}
             <div className="text-xs md:text-sm opacity-80 mt-1">Days</div>
           </div>
         </div>

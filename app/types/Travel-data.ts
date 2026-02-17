@@ -30,6 +30,7 @@ export interface Stats {
 export interface HeroSectionProps {
   currentLocation: TravelData | null;
   stats: Stats;
+  loading?: boolean;
 }
 
 // Props interface for LocationCard component

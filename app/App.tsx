@@ -31,16 +31,8 @@ const App: React.FC = () => {
     }
   }, [travelData]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading travel data...</p>
-        </div>
-      </div>
-    );
-  }
+  // Loading state is now handled by TravelWebsite component
+  // if (loading) { ... } removed
 
   if (error) {
     return (
@@ -81,6 +73,7 @@ const App: React.FC = () => {
       onToggleUpcoming={() => setShowAllUpcoming(!showAllUpcoming)}
       onTogglePotential={() => setShowAllPotential(!showAllPotential)}
       onToggleJourney={() => setShowAllJourney(!showAllJourney)}
+      loading={loading}
     />
   );
 };
