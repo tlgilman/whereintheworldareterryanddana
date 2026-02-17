@@ -66,6 +66,7 @@ export function useTravelData(
 
         setTravelData(data);
         setError(null);
+        setLoading(false);
         return; // Success, exit loop
       } catch (err) {
         attempts++;
