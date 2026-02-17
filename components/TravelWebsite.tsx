@@ -83,14 +83,6 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
           </Link>
         </div>
 
-        {/* Timeline View */}
-        <Timeline
-          title="Our Journey So Far"
-          trips={alreadyTraveled}
-          showAll={showAllJourney}
-          onToggle={onToggleJourney}
-        />
-
         {/* Current Location Section */}
         {currentLocation && (
           <div className="mb-20">
@@ -103,6 +95,14 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
             </div>
           </div>
         )}
+
+        {/* Timeline View */}
+        <Timeline
+          title="Our Journey So Far"
+          trips={alreadyTraveled}
+          showAll={showAllJourney}
+          onToggle={onToggleJourney}
+        />
 
         {/* Upcoming & Potential (Keep as cards for now, or add to timeline?) */}
         <div className="grid md:grid-cols-2 gap-8">
