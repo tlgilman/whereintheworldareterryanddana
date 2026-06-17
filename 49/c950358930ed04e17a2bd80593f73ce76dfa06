@@ -1,0 +1,19 @@
+app/map/page.tsx
+  s_d9ec214412354c::t_b5fba2a13b7d67 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "49c950358930ed04e17a2bd80593f73ce76dfa06",
+  "prompts": {},
+  "sessions": {
+    "s_d9ec214412354c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41680a26-28fc-40dd-978e-5e174492b082",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
