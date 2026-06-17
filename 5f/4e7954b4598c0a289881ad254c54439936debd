@@ -1,0 +1,20 @@
+app/layout.tsx
+  s_d9ec214412354c::t_e23e7e47a4f24a 37-39
+  s_d9ec214412354c::t_958ebd2aeadf74 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "5f4e7954b4598c0a289881ad254c54439936debd",
+  "prompts": {},
+  "sessions": {
+    "s_d9ec214412354c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41680a26-28fc-40dd-978e-5e174492b082",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
