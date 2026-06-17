@@ -11,7 +11,7 @@ import { useTravelData } from "@/hooks/useTravelData";
 
 export default function MapPage() {
   // Use the custom hook
-  const { travelData, loading, error } = useTravelData({ source: "s3" });
+  const { travelData, loading, error } = useTravelData({ source: "api" });
 
   const [currentLocation, setCurrentLocation] = useState<TravelData | null>(
     null
