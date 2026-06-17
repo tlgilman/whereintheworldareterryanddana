@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
       userAgent,
       path: body.path,
       referrer: body.referrer,
-      country: (request as any).geo?.country,
-      city: (request as any).geo?.city,
+      country: undefined,
+      city: undefined,
     });
 
     return NextResponse.json({ success: true });
