@@ -1,0 +1,19 @@
+app/api/track-visitor/route.ts
+  s_d9ec214412354c::t_53d72b4d270b51 18-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "ca1f038a880292c7f603ab168ffff2cedc3b6b14",
+  "prompts": {},
+  "sessions": {
+    "s_d9ec214412354c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41680a26-28fc-40dd-978e-5e174492b082",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
