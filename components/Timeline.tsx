@@ -40,29 +40,18 @@ export default function Timeline({ trips, title, showAll, onToggle }: TimelinePr
   };
 
   return (
-    <div className="relative container mx-auto px-4 py-12 bg-white rounded-lg border mb-20">
+    <div className="relative container mx-auto px-4 pt-12 pb-0 bg-white rounded-lg border mb-20 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-12">
-        <div className="flex items-center">
-          <span className="text-2xl mr-3">🗺️</span>
-          <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-          <span className="ml-3 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
-            {trips.length}
-          </span>
-        </div>
-
-        {trips.length > 6 && (
-          <button
-            onClick={onToggle}
-            className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            {showAll ? "Show Less" : `Show All ${trips.length}`}
-          </button>
-        )}
+      <div className="flex items-center mb-12">
+        <span className="text-2xl mr-3">🗺️</span>
+        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+        <span className="ml-3 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
+          {trips.length}
+        </span>
       </div>
 
       {/* Vertical Line */}
-      <div className="absolute left-4 md:left-1/2 top-32 bottom-12 w-0.5 bg-gradient-to-b from-blue-200 via-purple-200 to-orange-200" />
+      <div className="absolute left-4 md:left-1/2 top-32 bottom-16 w-0.5 bg-gradient-to-b from-blue-200 via-purple-200 to-orange-200" />
 
       <div className="space-y-12">
         {displayTrips.map((trip, index) => {
@@ -152,6 +141,29 @@ export default function Timeline({ trips, title, showAll, onToggle }: TimelinePr
           );
         })}
       </div>
+
+      {trips.length > 6 && (
+        <button
+          onClick={onToggle}
+          className="w-full mt-6 py-3 flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 border-t text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
+        >
+          {showAll ? (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+              Show Less
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+              Show All {trips.length}
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
