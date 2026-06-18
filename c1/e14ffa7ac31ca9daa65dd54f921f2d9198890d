@@ -1,0 +1,20 @@
+components/Timeline.tsx
+  s_25bca171203f43::t_fbd0872f1892b2 144-166
+  s_25bca171203f43::t_5726fb2dbf136d 43,45-50,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "c1e14ffa7ac31ca9daa65dd54f921f2d9198890d",
+  "prompts": {},
+  "sessions": {
+    "s_25bca171203f43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59641bf9-2e9a-4c1c-b77e-bb352ca7d316",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
