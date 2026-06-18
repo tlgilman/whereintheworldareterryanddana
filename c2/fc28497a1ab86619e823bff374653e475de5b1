@@ -1,0 +1,19 @@
+components/HeroSection.tsx
+  s_25bca171203f43::t_f9114c24ef8bda 65-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "c2fc28497a1ab86619e823bff374653e475de5b1",
+  "prompts": {},
+  "sessions": {
+    "s_25bca171203f43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59641bf9-2e9a-4c1c-b77e-bb352ca7d316",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
