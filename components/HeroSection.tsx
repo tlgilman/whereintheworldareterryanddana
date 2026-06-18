@@ -62,6 +62,46 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       alt: "Greenville - Yummy",
       location: "Greenville, USA",
     },
+    {
+      src: "/images/hero/hero-Albequerque.jpg",
+      alt: "Albuquerque",
+      location: "Albuquerque, USA",
+    },
+    {
+      src: "/images/hero/hero-carlsbad.jpg",
+      alt: "Carlsbad Caverns",
+      location: "Carlsbad, USA",
+    },
+    {
+      src: "/images/hero/hero-cyprus.jpg",
+      alt: "Cyprus",
+      location: "Cyprus",
+    },
+    {
+      src: "/images/hero/hero-greece.jpg",
+      alt: "Greece",
+      location: "Greece",
+    },
+    {
+      src: "/images/hero/hero-greekislands.jpg",
+      alt: "Greek Islands",
+      location: "Greek Islands, Greece",
+    },
+    {
+      src: "/images/hero/hero-keylargo.jpg",
+      alt: "Key Largo",
+      location: "Key Largo, USA",
+    },
+    {
+      src: "/images/hero/hero-whitesands.jpg",
+      alt: "White Sands",
+      location: "White Sands, USA",
+    },
+    {
+      src: "/images/hero/hero-yaught.jpg",
+      alt: "On the water",
+      location: "Out at Sea",
+    },
   ];
 
   useEffect(() => {
