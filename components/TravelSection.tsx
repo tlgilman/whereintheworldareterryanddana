@@ -34,8 +34,8 @@ export const TravelSection: React.FC<TravelSectionProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg border p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-lg border overflow-hidden">
+      <div className="flex items-center justify-between p-6 pb-6">
         <div className="flex items-center">
           <span className={`text-2xl ${iconColor} mr-3`}>{icon}</span>
           <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
@@ -43,18 +43,9 @@ export const TravelSection: React.FC<TravelSectionProps> = ({
             {trips.length}
           </span>
         </div>
-
-        {trips.length > 6 && (
-          <button
-            onClick={onToggle}
-            className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            {showAll ? "Show Less" : `Show All ${trips.length}`}
-          </button>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6">
         {displayTrips.map((trip, index) => (
           <LocationCard
             key={`${trip.location}-${trip.arrivalDate}-${index}`}
@@ -63,6 +54,29 @@ export const TravelSection: React.FC<TravelSectionProps> = ({
           />
         ))}
       </div>
+
+      {trips.length > 6 && (
+        <button
+          onClick={onToggle}
+          className="w-full mt-6 py-3 flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 border-t text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
+        >
+          {showAll ? (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+              Show Less
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+              Show All {trips.length}
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 };
