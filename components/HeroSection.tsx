@@ -85,7 +85,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   return (
     <section className="relative min-h-[100dvh] flex items-center justify-center overflow-x-hidden">
       {/* Background Images */}
-      <div className="absolute inset-0 fixed">
+      <div className="absolute inset-0">
         {heroImages.map((image, index) => (
           <div
             key={index}
