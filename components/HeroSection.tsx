@@ -100,7 +100,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     {
       src: "/images/hero/hero-yaught.jpg",
       alt: "On the water",
-      location: "Out at Sea",
+      location: "Greece",
     },
   ];
 
