@@ -164,8 +164,8 @@ export function InteractiveWorldMap({
 
       return {
         name: trip.location,
-        lat: trip.coordinates!.lon, // Swap these
-        lon: trip.coordinates!.lat, // Swap these
+        lat: trip.coordinates!.lat,
+        lon: trip.coordinates!.lon,
         isUpcoming,
         isCurrent,
         isBooked,
@@ -322,14 +322,8 @@ export function InteractiveWorldMap({
         {({ project }) => (
           <>
             {traveledCities.map((city, index) => {
-              // Try both coordinate orders to handle potential data inconsistencies
-              const [x1, y1] = project(city.lon, city.lat); // lon, lat order
-              const [x2, y2] = project(city.lat, city.lon); // lat, lon order
+              const [x, y] = project(city.lon, city.lat);
 
-              // Use whichever projection gives valid results
-              const [x, y] = !isNaN(x1) && !isNaN(y1) ? [x1, y1] : [x2, y2];
-
-              // Skip if both projections are invalid
               if (isNaN(x) || isNaN(y)) {
                 return null;
               }
