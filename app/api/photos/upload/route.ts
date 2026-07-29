@@ -4,6 +4,41 @@ import { addPhoto } from "@/lib/google-sheets";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+async function resolveGooglePhotosUrl(inputUrl: string): Promise<string> {
+  const cleanUrl = inputUrl.trim().replace(/[?&]authuser=\d+/g, "");
+
+  if (
+    cleanUrl.includes("photos.app.goo.gl") ||
+    cleanUrl.includes("photos.google.com/share") ||
+    cleanUrl.includes("goo.gl/photos")
+  ) {
+    try {
+      const response = await fetch(cleanUrl, {
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
+
+      const html = await response.text();
+
+      const ogMatch =
+        html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
+        html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i) ||
+        html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
+
+      if (ogMatch && ogMatch[1]) {
+        return ogMatch[1];
+      }
+    } catch (e) {
+      console.error("Error resolving Google Photos link:", e);
+    }
+  }
+
+  return cleanUrl;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession();
@@ -29,7 +64,7 @@ export async function POST(request: NextRequest) {
       const sourceInput = (formData.get("source") as string) || "";
 
       if (urlInput) {
-        url = urlInput;
+        url = await resolveGooglePhotosUrl(urlInput);
         source = (sourceInput as "file_upload" | "google_photos" | "external_url") || "google_photos";
       } else if (file) {
         // Handle file upload
@@ -59,15 +94,17 @@ export async function POST(request: NextRequest) {
       location = body.location || "";
       country = body.country || "";
       caption = body.caption || "";
-      url = body.url || "";
+      const rawUrl = body.url || "";
       source = body.source || "google_photos";
 
-      if (!url) {
+      if (!rawUrl) {
         return NextResponse.json(
           { error: "Photo URL is required" },
           { status: 400 }
         );
       }
+
+      url = await resolveGooglePhotosUrl(rawUrl);
     } else {
       return NextResponse.json(
         { error: "Unsupported Content-Type" },

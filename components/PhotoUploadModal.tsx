@@ -71,7 +71,7 @@ export default function PhotoUploadModal({
   };
 
   // Handle URL changes with live preview validation
-  const handleUrlChange = (val: string) => {
+  const handleUrlChange = async (val: string) => {
     setUrlInput(val);
     setError(null);
 
@@ -87,6 +87,23 @@ export default function PhotoUploadModal({
 
       // Remove query parameters like ?authuser=0 that Google adds locally
       cleanVal = cleanVal.replace(/[?&]authuser=\d+/g, "");
+
+      // If it's a Google Photos shortlink or share page, resolve it to direct image CDN
+      if (cleanVal.includes("photos.app.goo.gl") || cleanVal.includes("photos.google.com/share") || cleanVal.includes("goo.gl/photos")) {
+        try {
+          const res = await fetch(`/api/photos/resolve-link?url=${encodeURIComponent(cleanVal)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.resolvedUrl) {
+              setUrlPreview(data.resolvedUrl);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Link resolution error:", e);
+        }
+      }
+
       setUrlPreview(cleanVal);
     } else {
       setUrlPreview(null);
