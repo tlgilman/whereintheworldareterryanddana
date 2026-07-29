@@ -4,8 +4,17 @@ import { addPhoto } from "@/lib/google-sheets";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+function cleanGoogleCdnUrl(url: string): string {
+  if (url.includes("googleusercontent.com") || url.includes("ggpht.com")) {
+    // Replace crop parameters (e.g. =w1200-h630-p) with =s0 for original full resolution
+    return url.replace(/=[ws]\d+(-h\d+)?.*$/i, "=s0");
+  }
+  return url;
+}
+
 async function resolveGooglePhotosUrl(inputUrl: string): Promise<string> {
-  const cleanUrl = inputUrl.trim().replace(/[?&]authuser=\d+/g, "");
+  let cleanUrl = inputUrl.trim().replace(/[?&]authuser=\d+/g, "");
+  cleanUrl = cleanGoogleCdnUrl(cleanUrl);
 
   if (
     cleanUrl.includes("photos.app.goo.gl") ||
@@ -29,7 +38,7 @@ async function resolveGooglePhotosUrl(inputUrl: string): Promise<string> {
         html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i);
 
       if (ogMatch && ogMatch[1]) {
-        return ogMatch[1];
+        return cleanGoogleCdnUrl(ogMatch[1]);
       }
     } catch (e) {
       console.error("Error resolving Google Photos link:", e);
