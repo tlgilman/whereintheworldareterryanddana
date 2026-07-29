@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { User } from "@/app/types/User";
 import {
   Users as UsersIcon,
@@ -213,13 +214,22 @@ export default function AdminUsersPage() {
               Create accounts, send welcome emails with temporary passwords, and manage user access.
             </p>
           </div>
-          <button
-            onClick={() => router.push("/admin")}
-            className="flex items-center space-x-2 text-sm font-semibold text-gray-600 hover:text-gray-900 bg-white px-4 py-2 rounded-xl border shadow-xs transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Dashboard</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center space-x-2 bg-slate-900 hover:bg-black text-white font-bold px-4 py-2 rounded-xl shadow-sm transition-all text-sm"
+            >
+              <span>🏠 Return to Main Site</span>
+            </Link>
+
+            <button
+              onClick={() => router.push("/admin")}
+              className="flex items-center space-x-2 text-sm font-semibold text-gray-700 hover:text-gray-900 bg-white px-4 py-2 rounded-xl border shadow-xs transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Admin</span>
+            </button>
+          </div>
         </div>
 
         {/* Global Status Banner */}

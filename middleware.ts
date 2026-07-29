@@ -6,7 +6,7 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // If user is logged in with mustChangePassword = true, redirect them to /auth/change-password
+    // If user is logged in with mustChangePassword = true, force redirect to /auth/change-password
     if (token?.mustChangePassword && pathname !== "/auth/change-password") {
       return NextResponse.redirect(new URL("/auth/change-password", req.url));
     }
@@ -15,15 +15,36 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => Boolean(token),
+      authorized: ({ req, token }) => {
+        const pathname = req.nextUrl.pathname;
+
+        // Force password change check if logged in and mustChangePassword is true
+        if (token?.mustChangePassword) {
+          return true;
+        }
+
+        // Protected routes require logged-in session
+        if (pathname.startsWith("/admin") || pathname.startsWith("/profile")) {
+          return Boolean(token);
+        }
+
+        // All other public pages (Home, Pictures, Map, etc.) are viewable
+        return true;
+      },
     },
   }
 );
 
 export const config = {
   matcher: [
-    "/profile/:path*",
-    "/admin/:path*",
-    "/auth/change-password",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - uploads (uploaded image files)
+     * - api/auth (auth routes)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|uploads|api/auth).*)",
   ],
 };

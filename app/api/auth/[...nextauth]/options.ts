@@ -65,12 +65,27 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.mustChangePassword = user.mustChangePassword;
       }
-      // Support dynamic update of session
+
+      // Live re-check mustChangePassword from Google Sheets so Admin force resets apply immediately
+      if (token?.email && token.email !== process.env.ADMIN_EMAIL && token.email !== "guest@example.com") {
+        try {
+          const dbUser = await getUserByEmail(token.email);
+          if (dbUser) {
+            token.mustChangePassword = dbUser.mustChangePassword ?? false;
+            token.role = dbUser.role || token.role;
+          }
+        } catch (e) {
+          // keep token state if sheets call fails
+        }
+      }
+
+      // Support dynamic update of session via updateSession()
       if (trigger === "update" && session) {
         if (session.mustChangePassword !== undefined) {
           token.mustChangePassword = session.mustChangePassword;
         }
       }
+
       // If logging in with Google, check if email matches admin email
       if (user?.email === process.env.ADMIN_EMAIL) {
         token.role = "admin";

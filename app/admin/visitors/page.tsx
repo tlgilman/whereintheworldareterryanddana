@@ -53,14 +53,20 @@ export default function VisitorsDashboard() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center">
+          <div className="flex items-center space-x-3">
             <button 
                 onClick={() => router.push('/admin')}
-                className="mr-4 text-gray-500 hover:text-gray-700"
+                className="text-sm text-gray-600 hover:text-gray-900 font-semibold bg-white border px-3 py-1.5 rounded-lg shadow-xs"
             >
-                ← Back
+                ← Back to Admin
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">Visitor Logs</h1>
+            <button 
+                onClick={() => router.push('/')}
+                className="text-sm bg-slate-900 text-white font-bold px-3.5 py-1.5 rounded-lg shadow-xs hover:bg-black"
+            >
+                🏠 Return to Main Site
+            </button>
+            <h1 className="text-3xl font-bold text-gray-900 ml-2">Visitor Logs</h1>
           </div>
           <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg">
             Total Visits: <strong>{visitors.length}</strong>

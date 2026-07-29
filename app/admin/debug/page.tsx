@@ -57,12 +57,20 @@ export default function DebugPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">System Status</h1>
-          <button
-            onClick={() => router.push("/admin")}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            &larr; Back to Dashboard
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => router.push("/")}
+              className="bg-slate-900 hover:bg-black text-white text-sm font-bold px-3.5 py-1.5 rounded-lg shadow-xs"
+            >
+              🏠 Return to Main Site
+            </button>
+            <button
+              onClick={() => router.push("/admin")}
+              className="text-sm text-gray-600 hover:text-gray-900 font-semibold bg-white border px-3 py-1.5 rounded-lg shadow-xs"
+            >
+              &larr; Back to Admin
+            </button>
+          </div>
         </div>
 
         {error && (
