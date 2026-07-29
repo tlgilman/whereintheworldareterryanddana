@@ -2,12 +2,10 @@
 
 import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Lock, CheckCircle, AlertCircle, ShieldAlert, ArrowRight } from "lucide-react";
 
 export default function ChangePasswordPage() {
   const { data: session, update: updateSession } = useSession();
-  const router = useRouter();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -57,9 +55,8 @@ export default function ChangePasswordPage() {
       setStatus({ type: "success", message: "Password updated successfully! Redirecting..." });
 
       setTimeout(() => {
-        router.push("/");
-        router.refresh();
-      }, 1000);
+        window.location.href = "/";
+      }, 500);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setStatus({ type: "error", message: err.message });
