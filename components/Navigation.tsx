@@ -4,7 +4,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, User, LogOut, Image as ImageIcon, Shield } from "lucide-react";
+import { Menu, X, User, LogOut, Image as ImageIcon, Shield, Camera } from "lucide-react";
 import WeatherIndicator from "./WeatherIndicator";
 
 export default function Navigation() {
@@ -16,8 +16,8 @@ export default function Navigation() {
   return (
     <nav className={`${isHome ? 'fixed top-0 left-0 w-full z-50 bg-transparent text-white' : 'bg-white shadow-sm text-gray-800'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-16">
-          {/* Left Side: Menu & Login */}
+        <div className="flex items-center justify-between h-16">
+          {/* Left Side: Menu, Logo & Weather */}
           <div className="flex items-center gap-4">
             {status === "loading" ? (
               <div className="h-8 w-8 animate-pulse bg-gray-200 rounded-full"></div>
@@ -25,7 +25,7 @@ export default function Navigation() {
               <div className="relative">
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className={`p-2 rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 ${isHome ? 'text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                  className={`p-2 rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 ${isHome ? 'text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
                 >
                   {isMenuOpen ? (
                     <X className="h-6 w-6" />
@@ -35,7 +35,7 @@ export default function Navigation() {
                 </button>
 
                 {isMenuOpen && (
-                    <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
                     <div className="py-1" role="menu" aria-orientation="vertical">
                       <div className="px-4 py-2 text-sm text-gray-500 border-b">
                         Signed in as<br />
@@ -58,8 +58,8 @@ export default function Navigation() {
                         role="menuitem"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <ImageIcon className="mr-3 h-4 w-4" />
-                        Pictures
+                        <ImageIcon className="mr-3 h-4 w-4 text-blue-600" />
+                        Picture Book
                       </Link>
 
                       {session.user?.role === 'admin' && (
@@ -92,7 +92,7 @@ export default function Navigation() {
             ) : (
               <button
                 onClick={() => signIn()}
-                    className={`font-medium ${isHome ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`font-medium text-sm ${isHome ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
               >
                 Sign in
               </button>
@@ -105,6 +105,21 @@ export default function Navigation() {
 
             {/* Weather Indicator (Home only) */}
             {isHome && <WeatherIndicator />}
+          </div>
+
+          {/* Right Side: Quick Picture Book Link */}
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/pictures"
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                isHome
+                  ? "bg-white/15 hover:bg-white/25 text-white border border-white/20"
+                  : "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Picture Book</span>
+            </Link>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { TravelData } from '@/app/types/Travel-data';
 import { User } from '@/app/types/User';
+import { Photo } from '@/app/types/Photo';
 
 // Config variables
 const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
@@ -266,3 +267,78 @@ export const updateUser = async (email: string, updates: Partial<User>): Promise
     updatedAt: timestamp,
   };
 };
+
+export const getPhotos = async (): Promise<Photo[]> => {
+  const doc = await getDoc();
+  let sheet = doc.sheetsByTitle['Photos'];
+
+  if (!sheet) {
+    console.log('Creating Photos sheet...');
+    sheet = await doc.addSheet({ title: 'Photos' });
+    await sheet.setHeaderRow(['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt']);
+    return [];
+  }
+
+  const rows = await sheet.getRows();
+  return rows.map(row => ({
+    id: row.get('id'),
+    location: row.get('location'),
+    country: row.get('country'),
+    url: row.get('url'),
+    source: (row.get('source') as Photo['source']) || 'file_upload',
+    caption: row.get('caption') || '',
+    uploadedBy: row.get('uploadedBy') || '',
+    uploadedAt: row.get('uploadedAt') || '',
+  })).reverse(); // Return newest photos first
+};
+
+export const addPhoto = async (photo: Omit<Photo, 'id' | 'uploadedAt'> & { id?: string; uploadedAt?: string }): Promise<Photo> => {
+  const doc = await getDoc();
+  let sheet = doc.sheetsByTitle['Photos'];
+
+  if (!sheet) {
+    console.log('Creating Photos sheet...');
+    sheet = await doc.addSheet({ title: 'Photos' });
+    await sheet.setHeaderRow(['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt']);
+  }
+
+  const timestamp = new Date().toISOString();
+  const newPhoto: Photo = {
+    id: photo.id || `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    location: photo.location,
+    country: photo.country,
+    url: photo.url,
+    source: photo.source || 'file_upload',
+    caption: photo.caption || '',
+    uploadedBy: photo.uploadedBy,
+    uploadedAt: photo.uploadedAt || timestamp,
+  };
+
+  await sheet.addRow({
+    id: newPhoto.id,
+    location: newPhoto.location,
+    country: newPhoto.country,
+    url: newPhoto.url,
+    source: newPhoto.source,
+    caption: newPhoto.caption || '',
+    uploadedBy: newPhoto.uploadedBy,
+    uploadedAt: newPhoto.uploadedAt,
+  });
+
+  return newPhoto;
+};
+
+export const deletePhoto = async (id: string): Promise<boolean> => {
+  const doc = await getDoc();
+  const sheet = doc.sheetsByTitle['Photos'];
+  if (!sheet) return false;
+
+  const rows = await sheet.getRows();
+  const row = rows.find(r => r.get('id') === id);
+
+  if (!row) return false;
+
+  await row.delete();
+  return true;
+};
+

@@ -1,8 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TravelData } from "@/app/types/Travel-data";
+import { Photo } from "@/app/types/Photo";
+import { Camera, Plus } from "lucide-react";
+import { useSession } from "next-auth/react";
+import PhotoModal from "./PhotoModal";
+import PhotoUploadModal from "./PhotoUploadModal";
 
 interface TimelineProps {
   trips: TravelData[];
@@ -12,13 +17,35 @@ interface TimelineProps {
 }
 
 export default function Timeline({ trips, title, showAll, onToggle }: TimelineProps) {
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
+
+  const [allPhotos, setAllPhotos] = useState<Photo[]>([]);
+  const [activeModalTrip, setActiveModalTrip] = useState<TravelData | null>(null);
+  const [activeUploadTrip, setActiveUploadTrip] = useState<TravelData | null>(null);
+
+  const fetchPhotos = async () => {
+    try {
+      const res = await fetch("/api/photos");
+      if (res.ok) {
+        const data: Photo[] = await res.json();
+        setAllPhotos(data);
+      }
+    } catch (e) {
+      console.error("Error fetching photos in timeline", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchPhotos();
+  }, []);
+
   const displayTrips = showAll ? trips : trips.slice(0, 6);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
     try {
       const date = new Date(dateStr);
-      // Adjust for timezone offset to prevent off-by-one errors if date string is simple YYYY-MM-DD
       const userTimezoneOffset = date.getTimezoneOffset() * 60000;
       const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
       return adjustedDate.toLocaleDateString("en-US", {
@@ -39,6 +66,10 @@ export default function Timeline({ trips, title, showAll, onToggle }: TimelinePr
     return "🚗";
   };
 
+  const getTripPhotos = (location: string) => {
+    return allPhotos.filter((p) => p.location.toLowerCase() === location.toLowerCase());
+  };
+
   return (
     <div className="relative container mx-auto px-4 pt-12 pb-0 bg-white rounded-lg border mb-20 overflow-hidden">
       {/* Header */}
@@ -57,24 +88,24 @@ export default function Timeline({ trips, title, showAll, onToggle }: TimelinePr
         {displayTrips.map((trip, index) => {
           const isEven = index % 2 === 0;
           const isVacation = !trip.residing;
-          
+          const tripPhotos = getTripPhotos(trip.location);
+
           return (
             <motion.div
               key={`${trip.location}-${index}`}
               initial={{ opacity: 0, x: isEven ? -50 : 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-50px" }}
-              // Optimize delay: cap it at a small number so late items don't wait forever
               transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
               className={`relative flex items-center ${
                 isEven ? "md:flex-row" : "md:flex-row-reverse"
               }`}
             >
-              {/* Dot on the line */}
-              <div 
+              {/* Dot on line */}
+              <div
                 className={`absolute left-4 md:left-1/2 w-5 h-5 rounded-full transform -translate-x-1/2 z-10 border-4 ${
                   isVacation ? "bg-orange-500 border-orange-200" : "bg-blue-500 border-blue-200"
-                }`} 
+                }`}
               />
 
               {/* Content Card */}
@@ -103,12 +134,12 @@ export default function Timeline({ trips, title, showAll, onToggle }: TimelinePr
                       {trip.country}
                     </span>
                   </div>
-                  
+
                   <div className="text-sm text-gray-600 mb-4 font-mono">
                     {formatDate(trip.arrivalDate)} — {formatDate(trip.departureDate)}
                   </div>
 
-                  {/* Vacation Dates - Highlighted when present */}
+                  {/* Vacation Dates */}
                   {trip.vacationStart && trip.vacationEnd && (
                     <div className="mb-4">
                       <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
@@ -130,11 +161,39 @@ export default function Timeline({ trips, title, showAll, onToggle }: TimelinePr
                       {trip.travelTimeToHere && (
                         <div className="flex items-center gap-1">
                           <span>{getTravelIcon(trip.travelTimeToHere)}</span>
-                          <span>{trip.travelTimeToHere.replace('*', '')}</span>
+                          <span>{trip.travelTimeToHere.replace("*", "")}</span>
                         </div>
                       )}
                     </div>
                   )}
+
+                  {/* Photo Actions Row */}
+                  <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                    {tripPhotos.length > 0 ? (
+                      <button
+                        onClick={() => setActiveModalTrip(trip)}
+                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>View Photos ({tripPhotos.length})</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-400 flex items-center space-x-1">
+                        <Camera className="w-3.5 h-3.5 opacity-50" />
+                        <span>No photos yet</span>
+                      </span>
+                    )}
+
+                    {isAuthenticated && (
+                      <button
+                        onClick={() => setActiveUploadTrip(trip)}
+                        className="flex items-center space-x-1 px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg text-xs font-medium transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Add Photo</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -163,6 +222,29 @@ export default function Timeline({ trips, title, showAll, onToggle }: TimelinePr
             </>
           )}
         </button>
+      )}
+
+      {/* Lightbox Modal */}
+      {activeModalTrip && (
+        <PhotoModal
+          isOpen={Boolean(activeModalTrip)}
+          onClose={() => setActiveModalTrip(null)}
+          photos={getTripPhotos(activeModalTrip.location)}
+          locationName={activeModalTrip.location}
+          onPhotoDeleted={() => fetchPhotos()}
+        />
+      )}
+
+      {/* Upload Modal */}
+      {activeUploadTrip && (
+        <PhotoUploadModal
+          isOpen={Boolean(activeUploadTrip)}
+          onClose={() => setActiveUploadTrip(null)}
+          trips={[activeUploadTrip]}
+          defaultLocation={activeUploadTrip.location}
+          defaultCountry={activeUploadTrip.country}
+          onPhotoUploaded={() => fetchPhotos()}
+        />
       )}
     </div>
   );
