@@ -188,6 +188,19 @@ export const getVisitors = async (): Promise<VisitorData[]> => {
   })).reverse();
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ensureUsersHeader = async (sheet: any) => {
+  try {
+    await sheet.loadHeaderRow();
+    if (!sheet.headerValues.includes('mustChangePassword')) {
+      console.log('Upgrading Users sheet header row to include mustChangePassword...');
+      await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
+    }
+  } catch (e) {
+    console.error('Error ensuring Users header row:', e);
+  }
+};
+
 export const getUsers = async (): Promise<User[]> => {
   const doc = await getDoc();
   let sheet = doc.sheetsByTitle['Users'];
@@ -197,6 +210,8 @@ export const getUsers = async (): Promise<User[]> => {
     sheet = await doc.addSheet({ title: 'Users' });
     await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
     return [];
+  } else {
+    await ensureUsersHeader(sheet);
   }
 
   const rows = await sheet.getRows();
@@ -206,7 +221,7 @@ export const getUsers = async (): Promise<User[]> => {
     email: row.get('email'),
     password: row.get('password'),
     role: row.get('role'),
-    mustChangePassword: row.get('mustChangePassword') === 'true',
+    mustChangePassword: String(row.get('mustChangePassword')).toLowerCase() === 'true',
     createdAt: row.get('createdAt'),
     updatedAt: row.get('updatedAt'),
   }));
@@ -224,6 +239,8 @@ export const createUser = async (user: Omit<User, 'createdAt' | 'updatedAt'>): P
   if (!sheet) {
     sheet = await doc.addSheet({ title: 'Users' });
     await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
+  } else {
+    await ensureUsersHeader(sheet);
   }
 
   const timestamp = new Date().toISOString();
@@ -253,6 +270,8 @@ export const updateUser = async (email: string, updates: Partial<User>): Promise
   const sheet = doc.sheetsByTitle['Users'];
   if (!sheet) return null;
 
+  await ensureUsersHeader(sheet);
+
   const rows = await sheet.getRows();
   const row = rows.find(r => r.get('email')?.toLowerCase() === email.toLowerCase());
 
@@ -279,7 +298,7 @@ export const updateUser = async (email: string, updates: Partial<User>): Promise
     email: row.get('email'),
     password: row.get('password'),
     role: row.get('role'),
-    mustChangePassword: row.get('mustChangePassword') === 'true',
+    mustChangePassword: String(row.get('mustChangePassword')).toLowerCase() === 'true',
     createdAt: row.get('createdAt'),
     updatedAt: timestamp,
   };
