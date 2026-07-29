@@ -1,0 +1,19 @@
+components/Timeline.tsx
+  s_25bca171203f43::t_5c1d6f0f8b3547 3,6-10,20-42,69-72,91-92,104-105,108,137,142,164,169-196,226-248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "76766fdfa06a5fe7676557258543cf07ac0e2f84",
+  "prompts": {},
+  "sessions": {
+    "s_25bca171203f43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59641bf9-2e9a-4c1c-b77e-bb352ca7d316",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
