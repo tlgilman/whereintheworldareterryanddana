@@ -6,7 +6,7 @@ frontend:
         - npm ci
     build:
       commands:
-        - env | grep -e GOOGLE_ -e NEXTAUTH_ -e ADMIN_ -e GUEST_ >> .env.production
+        - env | grep -e GOOGLE_ -e NEXTAUTH_ -e ADMIN_ -e GUEST_ -e SMTP_ >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

@@ -278,7 +278,7 @@ export default function AdminUsersPage() {
 
             <p className="text-xs text-blue-200">
               {tempPasswordNotice.simulated
-                ? "💡 Note: SMTP is not configured in .env.local yet. The welcome email containing this temporary password was logged to your server console."
+                ? "💡 Note: SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) were not passed to the server build. The email was logged to server output."
                 : "✅ An automated welcome email containing this password has been sent to the user's inbox."}
             </p>
           </div>
