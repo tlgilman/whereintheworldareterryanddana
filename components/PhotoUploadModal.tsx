@@ -77,6 +77,14 @@ export default function PhotoUploadModal({
 
     let cleanVal = val.trim();
     if (cleanVal) {
+      if (cleanVal.includes("photos.google.com/photo/")) {
+        setError(
+          "That link (photos.google.com/photo/...) is a private browser address bar link. To share a photo, click the Share icon (↗️) -> Create link in Google Photos, or switch to the 'Upload File' tab to pick the file directly!"
+        );
+        setUrlPreview(null);
+        return;
+      }
+
       // Remove query parameters like ?authuser=0 that Google adds locally
       cleanVal = cleanVal.replace(/[?&]authuser=\d+/g, "");
       setUrlPreview(cleanVal);
