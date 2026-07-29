@@ -41,8 +41,14 @@ export default function ChangePasswordPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to update password.");
+        let errorMsg = "Failed to update password.";
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch {
+          errorMsg = `Server error (${res.status})`;
+        }
+        throw new Error(errorMsg);
       }
 
       // Update session to reflect mustChangePassword = false

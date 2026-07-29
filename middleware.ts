@@ -6,6 +6,11 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
+    // Never redirect API routes (e.g. /api/users PUT request to set new password)
+    if (pathname.startsWith("/api")) {
+      return NextResponse.next();
+    }
+
     // If user is logged in with mustChangePassword = true, force redirect to /auth/change-password
     if (token?.mustChangePassword && pathname !== "/auth/change-password") {
       return NextResponse.redirect(new URL("/auth/change-password", req.url));
@@ -17,6 +22,11 @@ export default withAuth(
     callbacks: {
       authorized: ({ req, token }) => {
         const pathname = req.nextUrl.pathname;
+
+        // Allow API routes to be handled by API route handlers
+        if (pathname.startsWith("/api")) {
+          return true;
+        }
 
         // Force password change check if logged in and mustChangePassword is true
         if (token?.mustChangePassword) {
@@ -38,13 +48,13 @@ export default withAuth(
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all request paths except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - uploads (uploaded image files)
-     * - api/auth (auth routes)
+     * - api (API routes)
      */
-    "/((?!_next/static|_next/image|favicon.ico|uploads|api/auth).*)",
+    "/((?!_next/static|_next/image|favicon.ico|uploads|api).*)",
   ],
 };
