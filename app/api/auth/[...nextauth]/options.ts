@@ -17,10 +17,10 @@ const providers: NextAuthOptions['providers'] = [
 
       // 1. Check for hardcoded admin/guest first (migration path)
       if (credentials.email === process.env.ADMIN_EMAIL && credentials.password === process.env.ADMIN_PASSWORD) {
-        return { id: "admin", name: "Admin", email: credentials.email, role: "admin" };
+        return { id: "admin", name: "Admin", email: credentials.email, role: "admin", mustChangePassword: false };
       }
       if (credentials.email === "guest@example.com" && credentials.password === process.env.GUEST_PASSWORD) {
-        return { id: "guest", name: "Guest", email: "guest@example.com", role: "guest" };
+        return { id: "guest", name: "Guest", email: "guest@example.com", role: "guest", mustChangePassword: false };
       }
 
       // 2. Check Google Sheets
@@ -34,6 +34,7 @@ const providers: NextAuthOptions['providers'] = [
               name: user.name,
               email: user.email,
               role: user.role,
+              mustChangePassword: user.mustChangePassword ?? false,
             };
           }
         }
@@ -59,9 +60,16 @@ export const authOptions: NextAuthOptions = {
   providers,
   callbacks: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async jwt({ token, user }: any) {
+    async jwt({ token, user, trigger, session }: any) {
       if (user) {
         token.role = user.role;
+        token.mustChangePassword = user.mustChangePassword;
+      }
+      // Support dynamic update of session
+      if (trigger === "update" && session) {
+        if (session.mustChangePassword !== undefined) {
+          token.mustChangePassword = session.mustChangePassword;
+        }
       }
       // If logging in with Google, check if email matches admin email
       if (user?.email === process.env.ADMIN_EMAIL) {
@@ -73,6 +81,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }: any) {
       if (session.user) {
         session.user.role = token.role;
+        session.user.mustChangePassword = token.mustChangePassword;
       }
       return session;
     },

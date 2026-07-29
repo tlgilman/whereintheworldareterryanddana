@@ -195,7 +195,7 @@ export const getUsers = async (): Promise<User[]> => {
   if (!sheet) {
     console.log('Creating Users sheet...');
     sheet = await doc.addSheet({ title: 'Users' });
-    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'createdAt', 'updatedAt']);
+    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
     return [];
   }
 
@@ -206,6 +206,7 @@ export const getUsers = async (): Promise<User[]> => {
     email: row.get('email'),
     password: row.get('password'),
     role: row.get('role'),
+    mustChangePassword: row.get('mustChangePassword') === 'true',
     createdAt: row.get('createdAt'),
     updatedAt: row.get('updatedAt'),
   }));
@@ -213,7 +214,7 @@ export const getUsers = async (): Promise<User[]> => {
 
 export const getUserByEmail = async (email: string): Promise<User | null> => {
   const users = await getUsers();
-  return users.find(user => user.email === email) || null;
+  return users.find(user => user.email.toLowerCase() === email.toLowerCase()) || null;
 };
 
 export const createUser = async (user: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User> => {
@@ -222,17 +223,28 @@ export const createUser = async (user: Omit<User, 'createdAt' | 'updatedAt'>): P
 
   if (!sheet) {
     sheet = await doc.addSheet({ title: 'Users' });
-    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'createdAt', 'updatedAt']);
+    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
   }
 
   const timestamp = new Date().toISOString();
   const newUser = {
     ...user,
+    mustChangePassword: user.mustChangePassword ?? true,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
 
-  await sheet.addRow(newUser);
+  await sheet.addRow({
+    id: newUser.id,
+    name: newUser.name,
+    email: newUser.email,
+    password: newUser.password || '',
+    role: newUser.role,
+    mustChangePassword: newUser.mustChangePassword ? 'true' : 'false',
+    createdAt: newUser.createdAt,
+    updatedAt: newUser.updatedAt,
+  });
+
   return newUser;
 };
 
@@ -242,7 +254,7 @@ export const updateUser = async (email: string, updates: Partial<User>): Promise
   if (!sheet) return null;
 
   const rows = await sheet.getRows();
-  const row = rows.find(r => r.get('email') === email);
+  const row = rows.find(r => r.get('email')?.toLowerCase() === email.toLowerCase());
 
   if (!row) return null;
 
@@ -250,7 +262,11 @@ export const updateUser = async (email: string, updates: Partial<User>): Promise
 
   Object.entries(updates).forEach(([key, value]) => {
     if (key !== 'email' && key !== 'id' && key !== 'createdAt') {
-      row.set(key, value);
+      if (key === 'mustChangePassword') {
+        row.set(key, value ? 'true' : 'false');
+      } else {
+        row.set(key, value);
+      }
     }
   });
 
@@ -263,6 +279,7 @@ export const updateUser = async (email: string, updates: Partial<User>): Promise
     email: row.get('email'),
     password: row.get('password'),
     role: row.get('role'),
+    mustChangePassword: row.get('mustChangePassword') === 'true',
     createdAt: row.get('createdAt'),
     updatedAt: timestamp,
   };
