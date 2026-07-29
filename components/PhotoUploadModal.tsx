@@ -74,8 +74,12 @@ export default function PhotoUploadModal({
   const handleUrlChange = (val: string) => {
     setUrlInput(val);
     setError(null);
-    if (val.trim()) {
-      setUrlPreview(val.trim());
+
+    let cleanVal = val.trim();
+    if (cleanVal) {
+      // Remove query parameters like ?authuser=0 that Google adds locally
+      cleanVal = cleanVal.replace(/[?&]authuser=\d+/g, "");
+      setUrlPreview(cleanVal);
     } else {
       setUrlPreview(null);
     }
@@ -294,8 +298,9 @@ export default function PhotoUploadModal({
                       src={urlPreview}
                       alt="Link preview"
                       className="max-h-44 object-contain"
+                      referrerPolicy="no-referrer"
                       onError={() => {
-                        setError("Invalid image link. Please check the URL.");
+                        setError("Could not load image from this link. Try copying the link via the Share button or uploading the photo file directly.");
                       }}
                     />
                   </div>

@@ -154,8 +154,8 @@ export default function PhotoModal({
             src={currentPhoto.url}
             alt={currentPhoto.caption || currentPhoto.location}
             className="max-h-[60vh] max-w-full object-contain select-none transition-all duration-300"
+            referrerPolicy="no-referrer"
             onError={(e) => {
-              // Fallback image handling
               (e.target as HTMLImageElement).src =
                 "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80";
             }}
@@ -244,6 +244,7 @@ export default function PhotoModal({
                     src={p.url}
                     alt={p.caption || "Thumbnail"}
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 </button>
               ))}
