@@ -76,21 +76,26 @@ export async function POST(request: NextRequest) {
         url = await resolveGooglePhotosUrl(urlInput);
         source = (sourceInput as "file_upload" | "google_photos" | "external_url") || "google_photos";
       } else if (file) {
-        // Handle file upload
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Ensure target uploads directory exists
-        const uploadDir = path.join(process.cwd(), "public", "uploads");
-        await mkdir(uploadDir, { recursive: true });
+        // Try local disk write, fallback to Data URI for serverless hosts (AWS Amplify / Vercel)
+        try {
+          const uploadDir = path.join(process.cwd(), "public", "uploads");
+          await mkdir(uploadDir, { recursive: true });
 
-        // Generate safe unique filename
-        const ext = path.extname(file.name) || ".jpg";
-        const filename = `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`;
-        const filePath = path.join(uploadDir, filename);
+          const ext = path.extname(file.name) || ".jpg";
+          const filename = `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`;
+          const filePath = path.join(uploadDir, filename);
 
-        await writeFile(filePath, buffer);
-        url = `/uploads/${filename}`;
+          await writeFile(filePath, buffer);
+          url = `/uploads/${filename}`;
+        } catch (fsError) {
+          console.warn("Serverless read-only filesystem detected, converting uploaded file to Data URI:", fsError);
+          const mimeType = file.type || "image/jpeg";
+          url = `data:${mimeType};base64,${buffer.toString("base64")}`;
+        }
+
         source = "file_upload";
       } else {
         return NextResponse.json(

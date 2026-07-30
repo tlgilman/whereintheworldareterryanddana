@@ -14,6 +14,47 @@ interface PhotoUploadModalProps {
   onPhotoUploaded?: (newPhoto: Photo) => void;
 }
 
+function compressImage(file: File, maxWidth = 1600, maxHeight = 1600, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(event.target?.result as string);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function PhotoUploadModal({
   isOpen,
   onClose,
@@ -35,6 +76,7 @@ export default function PhotoUploadModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Sync default location/country when modal opens
   useEffect(() => {
@@ -55,19 +97,47 @@ export default function PhotoUploadModal({
     }
   };
 
-  // Handle File selection
+  const processSelectedFile = async (file: File) => {
+    setSelectedFile(file);
+    setError(null);
+
+    try {
+      const compressedDataUrl = await compressImage(file);
+      setFilePreview(compressedDataUrl || URL.createObjectURL(file));
+    } catch {
+      setFilePreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Handle File selection via input
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setError(null);
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFilePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      processSelectedFile(e.target.files[0]);
     }
+  };
+
+  // Handle Drop event (e.g. from Microsoft Phone Link or File Explorer)
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith("image/")) {
+        processSelectedFile(file);
+      } else {
+        setError("Please drop a valid image file (JPEG, PNG, WEBP).");
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
 
   // Handle URL changes with live preview validation
@@ -85,10 +155,8 @@ export default function PhotoUploadModal({
         return;
       }
 
-      // Remove query parameters like ?authuser=0 that Google adds locally
       cleanVal = cleanVal.replace(/[?&]authuser=\d+/g, "");
 
-      // If it's a Google Photos shortlink or share page, resolve it to direct image CDN
       if (cleanVal.includes("photos.app.goo.gl") || cleanVal.includes("photos.google.com/share") || cleanVal.includes("goo.gl/photos")) {
         try {
           const res = await fetch(`/api/photos/resolve-link?url=${encodeURIComponent(cleanVal)}`);
@@ -117,7 +185,7 @@ export default function PhotoUploadModal({
       return;
     }
 
-    if (activeTab === "file" && !selectedFile) {
+    if (activeTab === "file" && !selectedFile && !filePreview) {
       setError("Please select an image file to upload.");
       return;
     }
@@ -133,18 +201,35 @@ export default function PhotoUploadModal({
     try {
       let response: Response;
 
-      if (activeTab === "file" && selectedFile) {
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("location", location.trim());
-        formData.append("country", country.trim());
-        formData.append("caption", caption.trim());
-        formData.append("source", "file_upload");
+      if (activeTab === "file") {
+        if (filePreview && filePreview.startsWith("data:image/")) {
+          // Send optimized Data URI payload directly
+          response = await fetch("/api/photos/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: filePreview,
+              location: location.trim(),
+              country: country.trim(),
+              caption: caption.trim(),
+              source: "file_upload",
+            }),
+          });
+        } else if (selectedFile) {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          formData.append("location", location.trim());
+          formData.append("country", country.trim());
+          formData.append("caption", caption.trim());
+          formData.append("source", "file_upload");
 
-        response = await fetch("/api/photos/upload", {
-          method: "POST",
-          body: formData,
-        });
+          response = await fetch("/api/photos/upload", {
+            method: "POST",
+            body: formData,
+          });
+        } else {
+          throw new Error("No file selected.");
+        }
       } else {
         response = await fetch("/api/photos/upload", {
           method: "POST",
@@ -171,7 +256,6 @@ export default function PhotoUploadModal({
         onPhotoUploaded(newPhoto);
       }
 
-      // Reset form after brief success message
       setTimeout(() => {
         setSelectedFile(null);
         setFilePreview(null);
@@ -180,7 +264,7 @@ export default function PhotoUploadModal({
         setCaption("");
         setSuccess(false);
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "An error occurred while saving the photo.";
@@ -192,7 +276,6 @@ export default function PhotoUploadModal({
 
   if (!isOpen) return null;
 
-  // Extract unique locations from trips list
   const uniqueLocations = Array.from(
     new Set(trips.map((t) => t.location).filter(Boolean))
   );
@@ -262,9 +345,18 @@ export default function PhotoUploadModal({
           {activeTab === "file" && (
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                Choose Image File
+                Choose Image File or Drag from Phone Link
               </label>
-              <div className="relative border-2 border-dashed border-gray-300 hover:border-blue-500 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50/50 transition-all cursor-pointer">
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                className={`relative border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center transition-all cursor-pointer ${
+                  isDragging
+                    ? "border-blue-600 bg-blue-50/80 scale-[1.01]"
+                    : "border-gray-300 hover:border-blue-500 bg-gray-50/50"
+                }`}
+              >
                 <input
                   type="file"
                   accept="image/*"
@@ -285,7 +377,7 @@ export default function PhotoUploadModal({
                       <Upload className="w-6 h-6" />
                     </div>
                     <p className="text-sm font-medium text-gray-700">
-                      Click or drag photo here
+                      Click, drag file, or drop from Phone Link
                     </p>
                     <p className="text-xs text-gray-400">
                       PNG, JPG, WEBP or phone camera photos
@@ -306,7 +398,7 @@ export default function PhotoUploadModal({
                 type="url"
                 value={urlInput}
                 onChange={(e) => handleUrlChange(e.target.value)}
-                placeholder="https://lh3.googleusercontent.com/... or shared link"
+                placeholder="https://photos.app.goo.gl/... or shared link"
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800"
               />
               <p className="text-xs text-gray-500">
