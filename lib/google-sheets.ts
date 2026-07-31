@@ -372,9 +372,93 @@ export const deletePhoto = async (id: string): Promise<boolean> => {
   const rows = await sheet.getRows();
   const row = rows.find(r => r.get('id') === id);
 
-  if (!row) return false;
-
-  await row.delete();
-  return true;
+  if (row) {
+    await row.delete();
+    return true;
+  }
+  return false;
 };
 
+export interface AlbumData {
+  id: string;
+  location: string;
+  country: string;
+  albumUrl: string;
+  title: string;
+  photoCount: number;
+  lastSyncedAt?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+export const getAlbums = async (): Promise<AlbumData[]> => {
+  const doc = await getDoc();
+  let sheet = doc.sheetsByTitle['Albums'];
+
+  if (!sheet) {
+    console.log('Creating Albums sheet...');
+    sheet = await doc.addSheet({ title: 'Albums' });
+    await sheet.setHeaderRow(['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt']);
+    return [];
+  }
+
+  const rows = await sheet.getRows();
+  return rows.map(row => ({
+    id: row.get('id'),
+    location: row.get('location'),
+    country: row.get('country'),
+    albumUrl: row.get('albumUrl'),
+    title: row.get('title') || 'Google Photos Album',
+    photoCount: parseInt(row.get('photoCount') || '0', 10),
+    lastSyncedAt: row.get('lastSyncedAt'),
+    createdBy: row.get('createdBy'),
+    createdAt: row.get('createdAt'),
+  })).reverse();
+};
+
+export const addAlbum = async (album: Omit<AlbumData, 'id' | 'createdAt'>): Promise<AlbumData> => {
+  const doc = await getDoc();
+  let sheet = doc.sheetsByTitle['Albums'];
+
+  if (!sheet) {
+    sheet = await doc.addSheet({ title: 'Albums' });
+    await sheet.setHeaderRow(['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt']);
+  }
+
+  const timestamp = new Date().toISOString();
+  const newAlbum: AlbumData = {
+    id: `album_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    ...album,
+    createdAt: timestamp,
+    lastSyncedAt: timestamp,
+  };
+
+  await sheet.addRow({
+    id: newAlbum.id,
+    location: newAlbum.location,
+    country: newAlbum.country,
+    albumUrl: newAlbum.albumUrl,
+    title: newAlbum.title,
+    photoCount: String(newAlbum.photoCount),
+    lastSyncedAt: newAlbum.lastSyncedAt || timestamp,
+    createdBy: newAlbum.createdBy || '',
+    createdAt: newAlbum.createdAt || timestamp,
+  });
+
+  return newAlbum;
+};
+
+export const deleteAlbum = async (id: string): Promise<boolean> => {
+  const doc = await getDoc();
+  const sheet = doc.sheetsByTitle['Albums'];
+  if (!sheet) return false;
+
+  const rows = await sheet.getRows();
+  const row = rows.find(r => r.get('id') === id);
+
+  if (row) {
+    await row.delete();
+    return true;
+  }
+  return false;
+};
