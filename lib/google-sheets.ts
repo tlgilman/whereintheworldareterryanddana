@@ -18,7 +18,64 @@ const serviceAccountAuth = new JWT({
   ],
 });
 
-export const getDoc = async () => {
+// Cache structures for rate-limit & quota optimization
+let cachedDoc: GoogleSpreadsheet | null = null;
+let lastDocLoadTime = 0;
+const DOC_CACHE_TTL = 30 * 1000; // 30 seconds
+
+interface DataCache<T> {
+  data: T;
+  timestamp: number;
+}
+
+let travelDataCache: DataCache<TravelData[]> | null = null;
+let photosCache: DataCache<Photo[]> | null = null;
+let albumsCache: DataCache<AlbumData[]> | null = null;
+let usersCache: DataCache<User[]> | null = null;
+const DATA_CACHE_TTL = 15 * 1000; // 15 seconds memory cache
+
+export const invalidatePhotosCache = () => {
+  photosCache = null;
+};
+
+export const invalidateAlbumsCache = () => {
+  albumsCache = null;
+};
+
+export const invalidateUsersCache = () => {
+  usersCache = null;
+};
+
+export const invalidateTravelDataCache = () => {
+  travelDataCache = null;
+};
+
+// Retry helper for handling Google API rate-limit / 429 Quota Exceeded
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, initialDelay = 1500): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      attempt++;
+      const isQuotaError =
+        err instanceof Error &&
+        (err.message.includes('429') ||
+          err.message.includes('Quota exceeded') ||
+          err.message.includes('Read requests'));
+
+      if (isQuotaError && attempt <= maxRetries) {
+        const delay = initialDelay * Math.pow(2, attempt - 1);
+        console.warn(`Google Sheets 429 Quota limit hit. Retrying attempt ${attempt}/${maxRetries} in ${delay}ms...`);
+        await new Promise((res) => setTimeout(res, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+export const getDoc = async (): Promise<GoogleSpreadsheet> => {
   const missingVars = [];
   if (!SPREADSHEET_ID) missingVars.push('GOOGLE_SHEET_ID');
   if (!CLIENT_EMAIL) missingVars.push('GOOGLE_SERVICE_ACCOUNT_EMAIL');
@@ -28,90 +85,86 @@ export const getDoc = async () => {
     throw new Error(`Google Sheets credentials are missing: ${missingVars.join(', ')}`);
   }
 
-  const doc = new GoogleSpreadsheet(SPREADSHEET_ID as string, serviceAccountAuth);
-  await doc.loadInfo();
-  return doc;
+  const now = Date.now();
+  if (cachedDoc && now - lastDocLoadTime < DOC_CACHE_TTL) {
+    return cachedDoc;
+  }
+
+  return withRetry(async () => {
+    const doc = new GoogleSpreadsheet(SPREADSHEET_ID as string, serviceAccountAuth);
+    await doc.loadInfo();
+    cachedDoc = doc;
+    lastDocLoadTime = Date.now();
+    return doc;
+  });
 };
 
 export const fetchTravelData = async (): Promise<TravelData[]> => {
-  let attempts = 0;
-  const maxAttempts = 3;
-  const baseDelay = 1000;
-
-  while (attempts < maxAttempts) {
-    try {
-      console.log(`Starting fetchTravelData (attempt ${attempts + 1})...`);
-
-      const doc = await getDoc();
-      console.log('Doc loaded:', doc.title);
-
-      const sheet = doc.sheetsById[parseInt(SHEET_ID)];
-      if (!sheet) {
-        throw new Error(`Sheet with ID ${SHEET_ID} not found. Available sheets: ${Object.keys(doc.sheetsById).join(', ')}`);
-      }
-      console.log('Sheet found:', sheet.title);
-
-      const rows = await sheet.getRows();
-      console.log(`Found ${rows.length} rows`);
-
-      return rows.map((row) => {
-        const parseBoolean = (value: string | undefined): boolean => {
-          if (!value) return false;
-          const v = value.toLowerCase().trim();
-          return v === 'true' || v === 'yes' || v === '1' || v === 'y' || v === 't';
-        };
-
-        return {
-          location: row.get('location'),
-          country: row.get('country'),
-          travelTimeToHere: row.get('travelTimeToHere'),
-          timeZone: row.get('timeZone'),
-          arrivalDate: row.get('arrivalDate'),
-          departureDate: row.get('departureDate'),
-          daysAtPlace: parseInt(row.get('daysAtPlace') || '0'),
-          residing: parseBoolean(row.get('residing')),
-          booked: parseBoolean(row.get('booked')),
-          vacationStart: row.get('vacationStart'),
-          vacationEnd: row.get('vacationEnd'),
-          coordinates: {
-            lat: parseFloat(row.get('lat')),
-            lon: parseFloat(row.get('lon')),
-          },
-        };
-      });
-    } catch (error) {
-      attempts++;
-      console.error(`Error fetching travel data (attempt ${attempts}):`, error);
-      if (attempts >= maxAttempts) {
-        console.error('Max retries reached. Failing.');
-        throw error;
-      }
-      const delay = baseDelay * Math.pow(2, attempts - 1);
-      console.log(`Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
+  const now = Date.now();
+  if (travelDataCache && now - travelDataCache.timestamp < DATA_CACHE_TTL) {
+    return travelDataCache.data;
   }
-  return [];
+
+  return withRetry(async () => {
+    const doc = await getDoc();
+    const sheet = doc.sheetsById[parseInt(SHEET_ID)];
+    if (!sheet) {
+      throw new Error(`Sheet with ID ${SHEET_ID} not found.`);
+    }
+
+    const rows = await sheet.getRows();
+
+    const parseBoolean = (value: string | undefined): boolean => {
+      if (!value) return false;
+      const v = value.toLowerCase().trim();
+      return v === 'true' || v === 'yes' || v === '1' || v === 'y' || v === 't';
+    };
+
+    const data: TravelData[] = rows.map((row) => ({
+      location: row.get('location'),
+      country: row.get('country'),
+      travelTimeToHere: row.get('travelTimeToHere'),
+      timeZone: row.get('timeZone'),
+      arrivalDate: row.get('arrivalDate'),
+      departureDate: row.get('departureDate'),
+      daysAtPlace: parseInt(row.get('daysAtPlace') || '0'),
+      residing: parseBoolean(row.get('residing')),
+      booked: parseBoolean(row.get('booked')),
+      vacationStart: row.get('vacationStart'),
+      vacationEnd: row.get('vacationEnd'),
+      coordinates: {
+        lat: parseFloat(row.get('lat')),
+        lon: parseFloat(row.get('lon')),
+      },
+    }));
+
+    travelDataCache = { data, timestamp: Date.now() };
+    return data;
+  });
 };
 
 export const addTrip = async (trip: TravelData) => {
-  const doc = await getDoc();
-  const sheet = doc.sheetsById[parseInt(SHEET_ID)];
+  return withRetry(async () => {
+    const doc = await getDoc();
+    const sheet = doc.sheetsById[parseInt(SHEET_ID)];
 
-  await sheet.addRow({
-    location: trip.location,
-    country: trip.country,
-    travelTimeToHere: trip.travelTimeToHere,
-    timeZone: trip.timeZone,
-    arrivalDate: trip.arrivalDate,
-    departureDate: trip.departureDate,
-    daysAtPlace: trip.daysAtPlace,
-    residing: trip.residing,
-    booked: trip.booked,
-    vacationStart: trip.vacationStart ?? '',
-    vacationEnd: trip.vacationEnd ?? '',
-    lat: trip.coordinates?.lat ?? 0,
-    lon: trip.coordinates?.lon ?? 0,
+    await sheet.addRow({
+      location: trip.location,
+      country: trip.country,
+      travelTimeToHere: trip.travelTimeToHere,
+      timeZone: trip.timeZone,
+      arrivalDate: trip.arrivalDate,
+      departureDate: trip.departureDate,
+      daysAtPlace: trip.daysAtPlace,
+      residing: trip.residing,
+      booked: trip.booked,
+      vacationStart: trip.vacationStart ?? '',
+      vacationEnd: trip.vacationEnd ?? '',
+      lat: trip.coordinates?.lat ?? 0,
+      lon: trip.coordinates?.lon ?? 0,
+    });
+
+    invalidateTravelDataCache();
   });
 };
 
@@ -126,51 +179,54 @@ export interface VisitorData {
 }
 
 export const trackVisit = async (data: VisitorData) => {
-  const doc = await getDoc();
+  return withRetry(async () => {
+    const doc = await getDoc();
 
-  let sheet = doc.sheetsByTitle['Visitors'];
-  if (!sheet) {
-    console.log('Creating Visitors sheet...');
-    sheet = await doc.addSheet({ title: 'Visitors' });
-    await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'path', 'referrer', 'city', 'country']);
-  }
+    let sheet = doc.sheetsByTitle['Visitors'];
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: 'Visitors' });
+      await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'path', 'referrer', 'city', 'country']);
+    }
 
-  await sheet.addRow({
-    timestamp: new Date().toISOString(),
-    ip: data.ip,
-    userAgent: data.userAgent,
-    path: data.path || '/',
-    referrer: data.referrer || '',
-    city: data.city || '',
-    country: data.country || '',
+    await sheet.addRow({
+      timestamp: new Date().toISOString(),
+      ip: data.ip,
+      userAgent: data.userAgent,
+      path: data.path || '/',
+      referrer: data.referrer || '',
+      city: data.city || '',
+      country: data.country || '',
+    });
   });
-  console.log(`Tracked visit from ${data.ip} to ${data.path}`);
 };
 
 export const getVisitors = async (): Promise<VisitorData[]> => {
-  const doc = await getDoc();
-  const sheet = doc.sheetsByTitle['Visitors'];
-  if (!sheet) return [];
+  return withRetry(async () => {
+    const doc = await getDoc();
+    const sheet = doc.sheetsByTitle['Visitors'];
+    if (!sheet) return [];
 
-  const rows = await sheet.getRows();
-  return rows.map(row => ({
-    timestamp: row.get('timestamp'),
-    ip: row.get('ip'),
-    userAgent: row.get('userAgent'),
-    path: row.get('path'),
-    referrer: row.get('referrer'),
-    city: row.get('city'),
-    country: row.get('country'),
-  })).reverse();
+    const rows = await sheet.getRows();
+    return rows.map(row => ({
+      timestamp: row.get('timestamp'),
+      ip: row.get('ip'),
+      userAgent: row.get('userAgent'),
+      path: row.get('path'),
+      referrer: row.get('referrer'),
+      city: row.get('city'),
+      country: row.get('country'),
+    })).reverse();
+  });
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ensureUsersHeader = async (sheet: any) => {
   try {
-    await sheet.loadHeaderRow();
     if (!sheet.headerValues || !sheet.headerValues.includes('mustChangePassword')) {
-      console.log('Upgrading Users sheet header row to include mustChangePassword...');
-      await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
+      await sheet.loadHeaderRow();
+      if (!sheet.headerValues.includes('mustChangePassword')) {
+        await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
+      }
     }
   } catch (e) {
     console.error('Error ensuring Users header row:', e);
@@ -178,29 +234,38 @@ const ensureUsersHeader = async (sheet: any) => {
 };
 
 export const getUsers = async (): Promise<User[]> => {
-  const doc = await getDoc();
-  let sheet = doc.sheetsByTitle['Users'];
-
-  if (!sheet) {
-    console.log('Creating Users sheet...');
-    sheet = await doc.addSheet({ title: 'Users' });
-    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
-    return [];
-  } else {
-    await ensureUsersHeader(sheet);
+  const now = Date.now();
+  if (usersCache && now - usersCache.timestamp < DATA_CACHE_TTL) {
+    return usersCache.data;
   }
 
-  const rows = await sheet.getRows();
-  return rows.map(row => ({
-    id: row.get('id'),
-    name: row.get('name'),
-    email: row.get('email'),
-    password: row.get('password'),
-    role: row.get('role'),
-    mustChangePassword: String(row.get('mustChangePassword')).toLowerCase() === 'true',
-    createdAt: row.get('createdAt'),
-    updatedAt: row.get('updatedAt'),
-  }));
+  return withRetry(async () => {
+    const doc = await getDoc();
+    let sheet = doc.sheetsByTitle['Users'];
+
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: 'Users' });
+      await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
+      return [];
+    } else {
+      await ensureUsersHeader(sheet);
+    }
+
+    const rows = await sheet.getRows();
+    const data: User[] = rows.map(row => ({
+      id: row.get('id'),
+      name: row.get('name'),
+      email: row.get('email'),
+      password: row.get('password'),
+      role: row.get('role'),
+      mustChangePassword: String(row.get('mustChangePassword')).toLowerCase() === 'true',
+      createdAt: row.get('createdAt'),
+      updatedAt: row.get('updatedAt'),
+    }));
+
+    usersCache = { data, timestamp: Date.now() };
+    return data;
+  });
 };
 
 export const getUserByEmail = async (email: string): Promise<User | null> => {
@@ -209,83 +274,92 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 };
 
 export const createUser = async (user: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User> => {
-  const doc = await getDoc();
-  let sheet = doc.sheetsByTitle['Users'];
+  return withRetry(async () => {
+    const doc = await getDoc();
+    let sheet = doc.sheetsByTitle['Users'];
 
-  if (!sheet) {
-    sheet = await doc.addSheet({ title: 'Users' });
-    await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
-  } else {
-    await ensureUsersHeader(sheet);
-  }
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: 'Users' });
+      await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
+    } else {
+      await ensureUsersHeader(sheet);
+    }
 
-  const timestamp = new Date().toISOString();
-  const newUser = {
-    ...user,
-    mustChangePassword: user.mustChangePassword ?? true,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
+    const timestamp = new Date().toISOString();
+    const newUser = {
+      ...user,
+      mustChangePassword: user.mustChangePassword ?? true,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
 
-  await sheet.addRow({
-    id: newUser.id,
-    name: newUser.name,
-    email: newUser.email,
-    password: newUser.password || '',
-    role: newUser.role,
-    mustChangePassword: newUser.mustChangePassword ? 'true' : 'false',
-    createdAt: newUser.createdAt,
-    updatedAt: newUser.updatedAt,
+    await sheet.addRow({
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      password: newUser.password || '',
+      role: newUser.role,
+      mustChangePassword: newUser.mustChangePassword ? 'true' : 'false',
+      createdAt: newUser.createdAt,
+      updatedAt: newUser.updatedAt,
+    });
+
+    invalidateUsersCache();
+    return newUser;
   });
-
-  return newUser;
 };
 
 export const updateUser = async (email: string, updates: Partial<User>): Promise<User | null> => {
-  const doc = await getDoc();
-  const sheet = doc.sheetsByTitle['Users'];
-  if (!sheet) return null;
+  return withRetry(async () => {
+    const doc = await getDoc();
+    const sheet = doc.sheetsByTitle['Users'];
+    if (!sheet) return null;
 
-  await ensureUsersHeader(sheet);
+    await ensureUsersHeader(sheet);
 
-  const rows = await sheet.getRows();
-  const row = rows.find(r => r.get('email')?.toLowerCase() === email.toLowerCase());
+    const rows = await sheet.getRows();
+    const row = rows.find(r => r.get('email')?.toLowerCase() === email.toLowerCase());
 
-  if (!row) return null;
+    if (!row) return null;
 
-  const timestamp = new Date().toISOString();
+    const timestamp = new Date().toISOString();
 
-  Object.entries(updates).forEach(([key, value]) => {
-    if (key !== 'email' && key !== 'id' && key !== 'createdAt') {
-      if (key === 'mustChangePassword') {
-        row.set(key, value ? 'true' : 'false');
-      } else {
-        row.set(key, value);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (key !== 'email' && key !== 'id' && key !== 'createdAt') {
+        if (key === 'mustChangePassword') {
+          row.set(key, value ? 'true' : 'false');
+        } else {
+          row.set(key, value);
+        }
       }
-    }
+    });
+
+    row.set('updatedAt', timestamp);
+    await row.save();
+
+    invalidateUsersCache();
+
+    return {
+      id: row.get('id'),
+      name: row.get('name'),
+      email: row.get('email'),
+      password: row.get('password'),
+      role: row.get('role'),
+      mustChangePassword: String(row.get('mustChangePassword')).toLowerCase() === 'true',
+      createdAt: row.get('createdAt'),
+      updatedAt: timestamp,
+    };
   });
-
-  row.set('updatedAt', timestamp);
-  await row.save();
-
-  return {
-    id: row.get('id'),
-    name: row.get('name'),
-    email: row.get('email'),
-    password: row.get('password'),
-    role: row.get('role'),
-    mustChangePassword: String(row.get('mustChangePassword')).toLowerCase() === 'true',
-    createdAt: row.get('createdAt'),
-    updatedAt: timestamp,
-  };
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ensureSheetHeaders = async (sheet: any, defaultHeaders: string[]) => {
   try {
-    await sheet.loadHeaderRow();
     if (!sheet.headerValues || sheet.headerValues.length === 0) {
-      await sheet.setHeaderRow(defaultHeaders);
+      await sheet.loadHeaderRow();
+      if (!sheet.headerValues || sheet.headerValues.length === 0) {
+        await sheet.setHeaderRow(defaultHeaders);
+      }
     }
   } catch (e) {
     console.log('Sheet header row empty or missing, initializing headers...', e);
@@ -294,22 +368,27 @@ const ensureSheetHeaders = async (sheet: any, defaultHeaders: string[]) => {
 };
 
 export const getPhotos = async (): Promise<Photo[]> => {
-  const doc = await getDoc();
-  let sheet = doc.sheetsByTitle['Photos'];
-  const photoHeaders = ['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt'];
-
-  if (!sheet) {
-    console.log('Creating Photos sheet...');
-    sheet = await doc.addSheet({ title: 'Photos' });
-    await sheet.setHeaderRow(photoHeaders);
-    return [];
-  } else {
-    await ensureSheetHeaders(sheet, photoHeaders);
+  const now = Date.now();
+  if (photosCache && now - photosCache.timestamp < DATA_CACHE_TTL) {
+    return photosCache.data;
   }
 
-  try {
+  return withRetry(async () => {
+    const doc = await getDoc();
+    let sheet = doc.sheetsByTitle['Photos'];
+    const photoHeaders = ['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt'];
+
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: 'Photos' });
+      await sheet.setHeaderRow(photoHeaders);
+      photosCache = { data: [], timestamp: Date.now() };
+      return [];
+    } else {
+      await ensureSheetHeaders(sheet, photoHeaders);
+    }
+
     const rows = await sheet.getRows();
-    return rows.map(row => ({
+    const data: Photo[] = rows.map(row => ({
       id: row.get('id'),
       location: row.get('location'),
       country: row.get('country'),
@@ -319,64 +398,69 @@ export const getPhotos = async (): Promise<Photo[]> => {
       uploadedBy: row.get('uploadedBy') || '',
       uploadedAt: row.get('uploadedAt') || '',
     })).reverse();
-  } catch (e) {
-    console.error('Error getting photo rows:', e);
-    return [];
-  }
+
+    photosCache = { data, timestamp: Date.now() };
+    return data;
+  });
 };
 
 export const addPhoto = async (photo: Omit<Photo, 'id' | 'uploadedAt'> & { id?: string; uploadedAt?: string }): Promise<Photo> => {
-  const doc = await getDoc();
-  let sheet = doc.sheetsByTitle['Photos'];
-  const photoHeaders = ['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt'];
+  return withRetry(async () => {
+    const doc = await getDoc();
+    let sheet = doc.sheetsByTitle['Photos'];
+    const photoHeaders = ['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt'];
 
-  if (!sheet) {
-    console.log('Creating Photos sheet...');
-    sheet = await doc.addSheet({ title: 'Photos' });
-    await sheet.setHeaderRow(photoHeaders);
-  } else {
-    await ensureSheetHeaders(sheet, photoHeaders);
-  }
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: 'Photos' });
+      await sheet.setHeaderRow(photoHeaders);
+    } else {
+      await ensureSheetHeaders(sheet, photoHeaders);
+    }
 
-  const timestamp = new Date().toISOString();
-  const newPhoto: Photo = {
-    id: photo.id || `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    location: photo.location,
-    country: photo.country,
-    url: photo.url,
-    source: photo.source || 'file_upload',
-    caption: photo.caption || '',
-    uploadedBy: photo.uploadedBy,
-    uploadedAt: photo.uploadedAt || timestamp,
-  };
+    const timestamp = new Date().toISOString();
+    const newPhoto: Photo = {
+      id: photo.id || `photo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      location: photo.location,
+      country: photo.country,
+      url: photo.url,
+      source: photo.source || 'file_upload',
+      caption: photo.caption || '',
+      uploadedBy: photo.uploadedBy,
+      uploadedAt: photo.uploadedAt || timestamp,
+    };
 
-  await sheet.addRow({
-    id: newPhoto.id,
-    location: newPhoto.location,
-    country: newPhoto.country,
-    url: newPhoto.url,
-    source: newPhoto.source,
-    caption: newPhoto.caption || '',
-    uploadedBy: newPhoto.uploadedBy,
-    uploadedAt: newPhoto.uploadedAt,
+    await sheet.addRow({
+      id: newPhoto.id,
+      location: newPhoto.location,
+      country: newPhoto.country,
+      url: newPhoto.url,
+      source: newPhoto.source,
+      caption: newPhoto.caption || '',
+      uploadedBy: newPhoto.uploadedBy,
+      uploadedAt: newPhoto.uploadedAt,
+    });
+
+    invalidatePhotosCache();
+    return newPhoto;
   });
-
-  return newPhoto;
 };
 
 export const deletePhoto = async (id: string): Promise<boolean> => {
-  const doc = await getDoc();
-  const sheet = doc.sheetsByTitle['Photos'];
-  if (!sheet) return false;
+  return withRetry(async () => {
+    const doc = await getDoc();
+    const sheet = doc.sheetsByTitle['Photos'];
+    if (!sheet) return false;
 
-  const rows = await sheet.getRows();
-  const row = rows.find(r => r.get('id') === id);
+    const rows = await sheet.getRows();
+    const row = rows.find(r => r.get('id') === id);
 
-  if (row) {
-    await row.delete();
-    return true;
-  }
-  return false;
+    if (row) {
+      await row.delete();
+      invalidatePhotosCache();
+      return true;
+    }
+    return false;
+  });
 };
 
 export interface AlbumData {
@@ -392,22 +476,27 @@ export interface AlbumData {
 }
 
 export const getAlbums = async (): Promise<AlbumData[]> => {
-  const doc = await getDoc();
-  let sheet = doc.sheetsByTitle['Albums'];
-  const albumHeaders = ['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt'];
-
-  if (!sheet) {
-    console.log('Creating Albums sheet...');
-    sheet = await doc.addSheet({ title: 'Albums' });
-    await sheet.setHeaderRow(albumHeaders);
-    return [];
-  } else {
-    await ensureSheetHeaders(sheet, albumHeaders);
+  const now = Date.now();
+  if (albumsCache && now - albumsCache.timestamp < DATA_CACHE_TTL) {
+    return albumsCache.data;
   }
 
-  try {
+  return withRetry(async () => {
+    const doc = await getDoc();
+    let sheet = doc.sheetsByTitle['Albums'];
+    const albumHeaders = ['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt'];
+
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: 'Albums' });
+      await sheet.setHeaderRow(albumHeaders);
+      albumsCache = { data: [], timestamp: Date.now() };
+      return [];
+    } else {
+      await ensureSheetHeaders(sheet, albumHeaders);
+    }
+
     const rows = await sheet.getRows();
-    return rows.map(row => ({
+    const data: AlbumData[] = rows.map(row => ({
       id: row.get('id'),
       location: row.get('location'),
       country: row.get('country'),
@@ -418,59 +507,64 @@ export const getAlbums = async (): Promise<AlbumData[]> => {
       createdBy: row.get('createdBy'),
       createdAt: row.get('createdAt'),
     })).reverse();
-  } catch (e) {
-    console.error('Error getting album rows:', e);
-    return [];
-  }
+
+    albumsCache = { data, timestamp: Date.now() };
+    return data;
+  });
 };
 
 export const addAlbum = async (album: Omit<AlbumData, 'id' | 'createdAt'>): Promise<AlbumData> => {
-  const doc = await getDoc();
-  let sheet = doc.sheetsByTitle['Albums'];
-  const albumHeaders = ['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt'];
+  return withRetry(async () => {
+    const doc = await getDoc();
+    let sheet = doc.sheetsByTitle['Albums'];
+    const albumHeaders = ['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt'];
 
-  if (!sheet) {
-    console.log('Creating Albums sheet...');
-    sheet = await doc.addSheet({ title: 'Albums' });
-    await sheet.setHeaderRow(albumHeaders);
-  } else {
-    await ensureSheetHeaders(sheet, albumHeaders);
-  }
+    if (!sheet) {
+      sheet = await doc.addSheet({ title: 'Albums' });
+      await sheet.setHeaderRow(albumHeaders);
+    } else {
+      await ensureSheetHeaders(sheet, albumHeaders);
+    }
 
-  const timestamp = new Date().toISOString();
-  const newAlbum: AlbumData = {
-    id: `album_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    ...album,
-    createdAt: timestamp,
-    lastSyncedAt: timestamp,
-  };
+    const timestamp = new Date().toISOString();
+    const newAlbum: AlbumData = {
+      id: `album_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ...album,
+      createdAt: timestamp,
+      lastSyncedAt: timestamp,
+    };
 
-  await sheet.addRow({
-    id: newAlbum.id,
-    location: newAlbum.location,
-    country: newAlbum.country,
-    albumUrl: newAlbum.albumUrl,
-    title: newAlbum.title,
-    photoCount: String(newAlbum.photoCount),
-    lastSyncedAt: newAlbum.lastSyncedAt || timestamp,
-    createdBy: newAlbum.createdBy || '',
-    createdAt: newAlbum.createdAt || timestamp,
+    await sheet.addRow({
+      id: newAlbum.id,
+      location: newAlbum.location,
+      country: newAlbum.country,
+      albumUrl: newAlbum.albumUrl,
+      title: newAlbum.title,
+      photoCount: String(newAlbum.photoCount),
+      lastSyncedAt: newAlbum.lastSyncedAt || timestamp,
+      createdBy: newAlbum.createdBy || '',
+      createdAt: newAlbum.createdAt || timestamp,
+    });
+
+    invalidateAlbumsCache();
+    return newAlbum;
   });
-
-  return newAlbum;
 };
 
 export const deleteAlbum = async (id: string): Promise<boolean> => {
-  const doc = await getDoc();
-  const sheet = doc.sheetsByTitle['Albums'];
-  if (!sheet) return false;
+  return withRetry(async () => {
+    const doc = await getDoc();
+    const sheet = doc.sheetsByTitle['Albums'];
+    if (!sheet) return false;
 
-  const rows = await sheet.getRows();
-  const row = rows.find(r => r.get('id') === id);
+    const rows = await sheet.getRows();
+    const row = rows.find(r => r.get('id') === id);
 
-  if (row) {
-    await row.delete();
-    return true;
-  }
-  return false;
+    if (row) {
+      await row.delete();
+      invalidateAlbumsCache();
+      return true;
+    }
+    return false;
+  });
 };
