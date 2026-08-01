@@ -38,22 +38,6 @@ export const fetchTravelData = async (): Promise<TravelData[]> => {
   const maxAttempts = 3;
   const baseDelay = 1000;
 
-  // SIMULATION FOR TESTING
-  // This is a temporary variable to simulate failures
-  // In a real scenario, this would not exist.
-  // We use a random check to simulate intermittent failure, 
-  // or we could use a counter if we could persist it, but locally this helper is re-executed.
-  // Let's force a failure on the first 2 attempts of this specific function call? 
-  // No, 'attempts' is local to the function. 
-  // To test "intermittent" failure effectively without global state:
-  // We'll just rely on the fact that we've implemented the loop.
-  // But to satisfy the plan, let's add a log that we are in strict mode.
-  // Actually, let's skip the code modification if I'm confident.
-  // But I promised to do it.
-
-  // Let's add a global var outside the function
-  // globalThis._simulated_attempts = (globalThis._simulated_attempts || 0);
-
   while (attempts < maxAttempts) {
     try {
       console.log(`Starting fetchTravelData (attempt ${attempts + 1})...`);
@@ -69,10 +53,6 @@ export const fetchTravelData = async (): Promise<TravelData[]> => {
 
       const rows = await sheet.getRows();
       console.log(`Found ${rows.length} rows`);
-
-      if (rows.length > 0) {
-        // console.log('First row headers:', rows[0].toObject());
-      }
 
       return rows.map((row) => {
         const parseBoolean = (value: string | undefined): boolean => {
@@ -148,7 +128,6 @@ export interface VisitorData {
 export const trackVisit = async (data: VisitorData) => {
   const doc = await getDoc();
 
-  // Check if "Visitors" sheet exists, if not create it
   let sheet = doc.sheetsByTitle['Visitors'];
   if (!sheet) {
     console.log('Creating Visitors sheet...');
@@ -156,7 +135,6 @@ export const trackVisit = async (data: VisitorData) => {
     await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'path', 'referrer', 'city', 'country']);
   }
 
-  // Add the visit
   await sheet.addRow({
     timestamp: new Date().toISOString(),
     ip: data.ip,
@@ -175,8 +153,6 @@ export const getVisitors = async (): Promise<VisitorData[]> => {
   if (!sheet) return [];
 
   const rows = await sheet.getRows();
-  // Reverse to get newest first, limit to last 1000 for performance?
-  // For now just return all
   return rows.map(row => ({
     timestamp: row.get('timestamp'),
     ip: row.get('ip'),
@@ -192,7 +168,7 @@ export const getVisitors = async (): Promise<VisitorData[]> => {
 const ensureUsersHeader = async (sheet: any) => {
   try {
     await sheet.loadHeaderRow();
-    if (!sheet.headerValues.includes('mustChangePassword')) {
+    if (!sheet.headerValues || !sheet.headerValues.includes('mustChangePassword')) {
       console.log('Upgrading Users sheet header row to include mustChangePassword...');
       await sheet.setHeaderRow(['id', 'name', 'email', 'password', 'role', 'mustChangePassword', 'createdAt', 'updatedAt']);
     }
@@ -304,38 +280,62 @@ export const updateUser = async (email: string, updates: Partial<User>): Promise
   };
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ensureSheetHeaders = async (sheet: any, defaultHeaders: string[]) => {
+  try {
+    await sheet.loadHeaderRow();
+    if (!sheet.headerValues || sheet.headerValues.length === 0) {
+      await sheet.setHeaderRow(defaultHeaders);
+    }
+  } catch (e) {
+    console.log('Sheet header row empty or missing, initializing headers...', e);
+    await sheet.setHeaderRow(defaultHeaders);
+  }
+};
+
 export const getPhotos = async (): Promise<Photo[]> => {
   const doc = await getDoc();
   let sheet = doc.sheetsByTitle['Photos'];
+  const photoHeaders = ['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt'];
 
   if (!sheet) {
     console.log('Creating Photos sheet...');
     sheet = await doc.addSheet({ title: 'Photos' });
-    await sheet.setHeaderRow(['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt']);
+    await sheet.setHeaderRow(photoHeaders);
     return [];
+  } else {
+    await ensureSheetHeaders(sheet, photoHeaders);
   }
 
-  const rows = await sheet.getRows();
-  return rows.map(row => ({
-    id: row.get('id'),
-    location: row.get('location'),
-    country: row.get('country'),
-    url: row.get('url'),
-    source: (row.get('source') as Photo['source']) || 'file_upload',
-    caption: row.get('caption') || '',
-    uploadedBy: row.get('uploadedBy') || '',
-    uploadedAt: row.get('uploadedAt') || '',
-  })).reverse(); // Return newest photos first
+  try {
+    const rows = await sheet.getRows();
+    return rows.map(row => ({
+      id: row.get('id'),
+      location: row.get('location'),
+      country: row.get('country'),
+      url: row.get('url'),
+      source: (row.get('source') as Photo['source']) || 'file_upload',
+      caption: row.get('caption') || '',
+      uploadedBy: row.get('uploadedBy') || '',
+      uploadedAt: row.get('uploadedAt') || '',
+    })).reverse();
+  } catch (e) {
+    console.error('Error getting photo rows:', e);
+    return [];
+  }
 };
 
 export const addPhoto = async (photo: Omit<Photo, 'id' | 'uploadedAt'> & { id?: string; uploadedAt?: string }): Promise<Photo> => {
   const doc = await getDoc();
   let sheet = doc.sheetsByTitle['Photos'];
+  const photoHeaders = ['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt'];
 
   if (!sheet) {
     console.log('Creating Photos sheet...');
     sheet = await doc.addSheet({ title: 'Photos' });
-    await sheet.setHeaderRow(['id', 'location', 'country', 'url', 'source', 'caption', 'uploadedBy', 'uploadedAt']);
+    await sheet.setHeaderRow(photoHeaders);
+  } else {
+    await ensureSheetHeaders(sheet, photoHeaders);
   }
 
   const timestamp = new Date().toISOString();
@@ -394,35 +394,47 @@ export interface AlbumData {
 export const getAlbums = async (): Promise<AlbumData[]> => {
   const doc = await getDoc();
   let sheet = doc.sheetsByTitle['Albums'];
+  const albumHeaders = ['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt'];
 
   if (!sheet) {
     console.log('Creating Albums sheet...');
     sheet = await doc.addSheet({ title: 'Albums' });
-    await sheet.setHeaderRow(['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt']);
+    await sheet.setHeaderRow(albumHeaders);
     return [];
+  } else {
+    await ensureSheetHeaders(sheet, albumHeaders);
   }
 
-  const rows = await sheet.getRows();
-  return rows.map(row => ({
-    id: row.get('id'),
-    location: row.get('location'),
-    country: row.get('country'),
-    albumUrl: row.get('albumUrl'),
-    title: row.get('title') || 'Google Photos Album',
-    photoCount: parseInt(row.get('photoCount') || '0', 10),
-    lastSyncedAt: row.get('lastSyncedAt'),
-    createdBy: row.get('createdBy'),
-    createdAt: row.get('createdAt'),
-  })).reverse();
+  try {
+    const rows = await sheet.getRows();
+    return rows.map(row => ({
+      id: row.get('id'),
+      location: row.get('location'),
+      country: row.get('country'),
+      albumUrl: row.get('albumUrl'),
+      title: row.get('title') || 'Google Photos Album',
+      photoCount: parseInt(row.get('photoCount') || '0', 10),
+      lastSyncedAt: row.get('lastSyncedAt'),
+      createdBy: row.get('createdBy'),
+      createdAt: row.get('createdAt'),
+    })).reverse();
+  } catch (e) {
+    console.error('Error getting album rows:', e);
+    return [];
+  }
 };
 
 export const addAlbum = async (album: Omit<AlbumData, 'id' | 'createdAt'>): Promise<AlbumData> => {
   const doc = await getDoc();
   let sheet = doc.sheetsByTitle['Albums'];
+  const albumHeaders = ['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt'];
 
   if (!sheet) {
+    console.log('Creating Albums sheet...');
     sheet = await doc.addSheet({ title: 'Albums' });
-    await sheet.setHeaderRow(['id', 'location', 'country', 'albumUrl', 'title', 'photoCount', 'lastSyncedAt', 'createdBy', 'createdAt']);
+    await sheet.setHeaderRow(albumHeaders);
+  } else {
+    await ensureSheetHeaders(sheet, albumHeaders);
   }
 
   const timestamp = new Date().toISOString();
