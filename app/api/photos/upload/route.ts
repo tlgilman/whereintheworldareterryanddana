@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { addPhoto } from "@/lib/google-sheets";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
@@ -50,7 +51,7 @@ async function resolveGooglePhotosUrl(inputUrl: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

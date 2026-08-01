@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { getAlbums, addAlbum, deleteAlbum } from "@/lib/google-sheets";
 import { extractAlbumPhotos } from "@/lib/google-photos-album";
 
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -64,15 +65,16 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(newAlbum, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error adding album:", error);
-    return NextResponse.json({ error: "Failed to add album" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Failed to add album";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
