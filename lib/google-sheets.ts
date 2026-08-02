@@ -171,31 +171,56 @@ export const addTrip = async (trip: TravelData) => {
 export interface VisitorData {
   ip: string;
   userAgent: string;
+  device?: string;
   path?: string;
   referrer?: string;
   city?: string;
+  state?: string;
   country?: string;
+  isp?: string;
   timestamp?: string;
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ensureVisitorsHeader = async (sheet: any) => {
+  try {
+    if (!sheet.headerValues || !sheet.headerValues.includes('state')) {
+      await sheet.loadHeaderRow();
+      if (!sheet.headerValues.includes('state')) {
+        await sheet.setHeaderRow(['timestamp', 'ip', 'device', 'city', 'state', 'country', 'isp', 'path', 'referrer', 'userAgent']);
+      }
+    }
+  } catch (e) {
+    console.error('Error ensuring Visitors header:', e);
+    await sheet.setHeaderRow(['timestamp', 'ip', 'device', 'city', 'state', 'country', 'isp', 'path', 'referrer', 'userAgent']);
+  }
+};
 
 export const trackVisit = async (data: VisitorData) => {
   return withRetry(async () => {
     const doc = await getDoc();
 
     let sheet = doc.sheetsByTitle['Visitors'];
+    const visitorHeaders = ['timestamp', 'ip', 'device', 'city', 'state', 'country', 'isp', 'path', 'referrer', 'userAgent'];
+
     if (!sheet) {
       sheet = await doc.addSheet({ title: 'Visitors' });
-      await sheet.setHeaderRow(['timestamp', 'ip', 'userAgent', 'path', 'referrer', 'city', 'country']);
+      await sheet.setHeaderRow(visitorHeaders);
+    } else {
+      await ensureVisitorsHeader(sheet);
     }
 
     await sheet.addRow({
       timestamp: new Date().toISOString(),
       ip: data.ip,
-      userAgent: data.userAgent,
+      device: data.device || '',
+      city: data.city || '',
+      state: data.state || '',
+      country: data.country || '',
+      isp: data.isp || '',
       path: data.path || '/',
       referrer: data.referrer || '',
-      city: data.city || '',
-      country: data.country || '',
+      userAgent: data.userAgent || '',
     });
   });
 };
@@ -206,15 +231,20 @@ export const getVisitors = async (): Promise<VisitorData[]> => {
     const sheet = doc.sheetsByTitle['Visitors'];
     if (!sheet) return [];
 
+    await ensureVisitorsHeader(sheet);
+
     const rows = await sheet.getRows();
     return rows.map(row => ({
       timestamp: row.get('timestamp'),
       ip: row.get('ip'),
-      userAgent: row.get('userAgent'),
-      path: row.get('path'),
-      referrer: row.get('referrer'),
-      city: row.get('city'),
-      country: row.get('country'),
+      device: row.get('device') || '',
+      city: row.get('city') || '',
+      state: row.get('state') || '',
+      country: row.get('country') || '',
+      isp: row.get('isp') || '',
+      path: row.get('path') || '/',
+      referrer: row.get('referrer') || '',
+      userAgent: row.get('userAgent') || '',
     })).reverse();
   });
 };
