@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JAMES BOND ADVENTURE</title>
+<style>
+  :root{ --scr:#e8e8e8; --bg:#0a0a0a; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:#111;color:var(--scr);
+       font-family:"Courier New",ui-monospace,monospace;
+       display:flex;align-items:center;justify-content:center;padding:16px}
+  #case{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:14px;
+        width:min(96vw,880px);height:min(94vh,700px);display:flex;flex-direction:column;
+        box-shadow:0 10px 40px #000}
+  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;
+          padding:12px 14px;overflow:hidden;font-size:16px;line-height:1.28;
+          white-space:pre-wrap;word-break:break-word}
+  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:hidden}
+  #bar{height:3px;background:var(--scr);margin:8px 0}
+  #log{flex:1;overflow-y:auto;scrollbar-width:thin}
+  #log::-webkit-scrollbar{width:8px}
+  #log::-webkit-scrollbar-thumb{background:#444}
+  #inline{display:flex}
+  #cmd{background:transparent;border:0;outline:0;color:var(--scr);
+       font:inherit;flex:1;padding:0;caret-color:var(--scr)}
+  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  button,label.btn{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
+          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer}
+  button:hover,label.btn:hover{background:#2c352a}
+  input[type=file]{display:none}
+  .hint{color:#6f7a6c;font-size:11px;margin-left:auto}
+  #mapwrap{display:none;flex:1;overflow:auto;background:var(--bg);padding:6px}
+  #mapwrap.on{display:block}
+  #screen.hide{display:none}
+  #mapsvg{display:block;margin:0 auto}
+  .nd{fill:#141a12;stroke:#3f5c39;stroke-width:1.5}
+  .nd.here{fill:#26361f;stroke:#e8e8e8;stroke-width:2.5}
+  .nd.goal{stroke:#e8c35a;stroke-dasharray:4 3}
+  .nl{fill:#cfe6c8;font:11px "Courier New",monospace;text-anchor:middle}
+  .nl.here{fill:#fff;font-weight:bold}
+  .eg{stroke:#3f5c39;stroke-width:1.6;fill:none}
+  .eg.sp{stroke:#e8c35a;stroke-dasharray:5 4}
+  .el{fill:#9fd18f;font:10px "Courier New",monospace;text-anchor:middle;
+      paint-order:stroke;stroke:#0a0a0a;stroke-width:4px;stroke-linejoin:round}
+  .el.sp{fill:#e8c35a}
+  .pz{fill:#e8c35a}
+  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px}
+  b{font-weight:bold}
+</style>
+</head>
+<body>
+<div id="case">
+  <div id="mapwrap"><svg id="mapsvg"></svg><div class="mapfoot" id="mapfoot"></div></div>
+  <div id="screen">
+    <div id="room"></div>
+    <div id="bar"></div>
+    <div id="log"></div>
+  </div>
+  <div id="bottom">
+    <button id="bMap">Map</button>
+    <button id="bRestart">Restart</button>
+    <button id="bSave">Save</button>
+    <button id="bLoad">Load</button>
+    <button id="bResume" style="display:none">Resume</button>
+    <input type="file" id="fRestore" accept=".json,.sav">
+    <label class="btn" for="fGame">Load another ADVENT/Qn</label><input type="file" id="fGame">
+    <span class="hint">two-word commands &middot; N S E W U D to move</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------
+   A Scott Adams adventure interpreter.
+   Faithful to the original TRS-80 ADV/CMD semantics: the same
+   condition codes (0-19), the same action codes (0-101 and 102+),
+   the same hard-wired verb numbers (1=GO, 10=GET, 18=DROP) and the
+   same light source (item 9).
+   ------------------------------------------------------------------ */
+
+const CARRIED = 255, DARKBIT = 15, LIGHTOUT = 16, LIGHT_SOURCE = 9;
+
+/* ---------- database parser: reads the raw ADVENT/Qn text format ---------- */
+function parseDatabase(text){
+  let i = 0;
+  const n = text.length;
+  function tok(){
+    while(i<n && /\s/.test(text[i])) i++;
+    if(i>=n) return null;
+    if(text[i]==='"'){
+      const j = text.indexOf('"', i+1);
+      const s = text.slice(i+1, j<0?n:j);
+      i = (j<0?n:j+1);
+      return {s};
+    }
+    let j=i; while(j<n && !/\s/.test(text[j])) j++;
+    const w = text.slice(i,j); i=j;
+    const v = parseInt(w,10);
+    return isNaN(v) ? {s:w} : {v};
+  }
+  const num = ()=>tok().v, str = ()=>tok().s;
+  const g = {};
+  [g.unk,g.nItems,g.nActions,g.nWords,g.nRooms,g.maxCarry,g.startRoom,
+   g.treasures,g.wordLen,g.lightTime,g.nMessages,g.treasureRoom] =
+     Array.from({length:12}, num);
+  g.actions = [];
+  for(let k=0;k<=g.nActions;k++){
+    const a = Array.from({length:8}, num);
+    g.actions.push({vocab:a[0], cond:a.slice(1,6), act:[a[6],a[7]]});
+  }
+  g.verbs=[]; g.nouns=[];
+  for(let k=0;k<=g.nWords;k++){ g.verbs.push(str()); g.nouns.push(str()); }
+  g.rooms=[];
+  for(let k=0;k<=g.nRooms;k++){
+    const ex = Array.from({length:6}, num);
+    g.rooms.push({exits:ex, text:str()});
+  }
+  g.messages = Array.from({length:g.nMessages+1}, str);
+  g.items=[];
+  for(let k=0;k<=g.nItems;k++){
+    const d = str(), loc = num();
+    const cut = d.indexOf('/');
+    g.items.push({
+      text: cut>=0 ? d.slice(0,cut) : d,
+      word: cut>=0 ? d.slice(cut+1).replace(/\/$/,'') : null,
+      loc, initLoc: loc
+    });
+  }
+  g.comments = Array.from({length:g.nActions+1}, str);
+  g.version = num(); g.advNum = num();
+  return g;
+}
+
+/* ---------- screen ---------- */
+const COLS = 64;
+const elRoom = document.getElementById('room');
+const elLog  = document.getElementById('log');
+const elCmd  = document.getElementById('cmd');
+
+function wrap(s){
+  const out=[];
+  for(const para of String(s).split('\n')){
+    const m = para.match(/^(\s*)([\s\S]*)$/);
+    const ind = m[1], body = m[2];
+    if(!body){ out.push(''); continue; }
+    let line = ind;
+    for(const w of body.split(/\s+/)){
+      if(line.trim() && (line+' '+w).length>COLS){ out.push(line); line = ind+w; }
+      else line = line.trim() ? line+' '+w : line+w;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+let pending = '';
+function out(s){ pending += s; }
+function flush(){
+  if(!pending) return;
+  const d=document.createElement('div');
+  d.textContent = wrap(pending.replace(/\n+$/,''));
+  elLog.appendChild(d);
+  pending='';
+  elLog.scrollTop = elLog.scrollHeight;
+}
+function echo(s){
+  const d=document.createElement('div');
+  d.textContent = s;
+  elLog.appendChild(d);
+  elLog.scrollTop = elLog.scrollHeight;
+}
+
+/* ---------- automap ---------- */
+/* The room graph is known up front, so the layout is computed once and then
+   revealed a room at a time. An edge appears only when you actually walk it,
+   labelled at the end you left from - so the letter beside a room is the
+   direction you took OUT of that room. */
+const MAPLAYOUT = null;
+let MP=null, compassMove=false, mapOn=false;
+const elMapWrap=document.getElementById('mapwrap');
+const elMapSvg =document.getElementById('mapsvg');
+const elMapFoot=document.getElementById('mapfoot');
+const DIRL='NSEWUD';
+
+function buildLayout(){
+  if(MAPLAYOUT && MAPLAYOUT.pos) return MAPLAYOUT;
+  /* fall back to walking the graph from the start room */
+  const pos={}, taken=new Set();
+  const D=[[0,-1],[0,1],[1,0],[-1,0],[1,-1],[1,1]];
+  const put=(r,x,y)=>{ while(taken.has(x+','+y)) x++; pos[r]=[x,y]; taken.add(x+','+y); };
+  put(G.startRoom,0,0);
+  const q=[G.startRoom], done=new Set([G.startRoom]);
+  while(q.length){
+    const r=q.shift(), [x,y]=pos[r];
+    G.rooms[r].exits.forEach((tg,d)=>{
+      if(!tg||tg===r||done.has(tg)) return;
+      done.add(tg); put(tg, x+D[d][0], y+D[d][1]); q.push(tg);
+    });
+  }
+  let k=0;
+  for(let r=1;r<G.rooms.length;r++) if(!(r in pos)) put(r,-4,k++);
+  const names={};
+  for(let r=1;r<G.rooms.length;r++){
+    let s=G.rooms[r].text.replace(/^\*/,'').replace(/^I am (in|at|on) (a |an |the )?/i,'');
+    names[r]=s.split(/[.,]/)[0].slice(0,16).toUpperCase();
+  }
+  return {pos, names};
+}
+function recordEdge(from,dir,to){
+  const L=DIRL[dir], k=from+'>'+to;
+  if(from===to){ const cur=S.link[k]||''; if(!cur.includes(L)) S.link[k]=cur+L; }
+  else S.link[k]=L;
+  S.seen[to]=1; compassMove=true;
+}
+function recordSpecial(from,to){ if(from!==to && !S.link[from+'>'+to]) S.link[from+'>'+to]='~'; S.seen[to]=1; }
+
+function drawMap(){
+  if(!MP) MP=buildLayout();
+  const pos=MP.pos, nm=MP.names;
+  const seen=Object.keys(S.seen).map(Number).filter(r=>pos[r]);
+  if(!seen.length){ elMapSvg.innerHTML=''; return; }
+  const SX=150, SY=96, NW=112, NH=34, PAD=44;
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  seen.forEach(r=>{const p=pos[r]; a=Math.min(a,p[0]); c=Math.max(c,p[0]);
+                                   b=Math.min(b,p[1]); d=Math.max(d,p[1]);});
+  const X=r=>(pos[r][0]-a)*SX+PAD+NW/2, Y=r=>(pos[r][1]-b)*SY+PAD+NH/2;
+  const W=(c-a)*SX+NW+PAD*2, H=(d-b)*SY+NH+PAD*2;
+  const g=[];
+  const seenSet=new Set(seen);
+
+  /* edges */
+  const pairs={}, loops={};
+  for(const k in S.link){
+    const [f,to]=k.split('>').map(Number);
+    if(!seenSet.has(f)||!seenSet.has(to)) continue;
+    if(f===to){ loops[f]=S.link[k]; continue; }
+    const key=Math.min(f,to)+'|'+Math.max(f,to);
+    (pairs[key]=pairs[key]||{})[f+'>'+to]=S.link[k];
+  }
+  for(const key in pairs){
+    const [p,qq]=key.split('|').map(Number);
+    const x1=X(p), y1=Y(p), x2=X(qq), y2=Y(qq);
+    const ab=pairs[key][p+'>'+qq], ba=pairs[key][qq+'>'+p];
+    const sp=(ab==='~'||ba==='~');
+    g.push(`<line class="eg${sp?' sp':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
+    const at=(t)=>[x1+(x2-x1)*t, y1+(y2-y1)*t];
+    if(ab){ const [lx,ly]=at(0.26);
+            g.push(`<text class="el${ab==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ab}</text>`); }
+    if(ba){ const [lx,ly]=at(0.74);
+            g.push(`<text class="el${ba==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ba}</text>`); }
+  }
+  /* self loops */
+  for(const r in loops){
+    const x=X(r), y=Y(r)-NH/2;
+    g.push(`<path class="eg" d="M${x-16},${y} C${x-26},${y-34} ${x+26},${y-34} ${x+16},${y}"/>`);
+    g.push(`<text class="el" x="${x}" y="${y-24}">${loops[r]}</text>`);
+  }
+  /* nodes */
+  seen.forEach(r=>{
+    const x=X(r)-NW/2, y=Y(r)-NH/2;
+    const here=(r===S.loc);
+    const goal=(r===G.treasureRoom);
+    g.push(`<rect class="nd${here?' here':''}${goal?' goal':''}" x="${x}" y="${y}" `+
+           `width="${NW}" height="${NH}" rx="4"/>`);
+    const label=(nm[r]||('ROOM '+r));
+    g.push(`<text class="nl${here?' here':''}" x="${X(r)}" y="${Y(r)+4}">${label}</text>`);
+    const prizes=G.items.filter((it,k)=>S.itemLoc[k]===r && it.text.startsWith('*')).length;
+    if(prizes) g.push(`<text class="pz" x="${x+NW-7}" y="${y+11}" `+
+                      `style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
+  });
+  elMapSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  elMapSvg.setAttribute('width', Math.min(W,1600));
+  elMapSvg.setAttribute('height', Math.min(W,1600)*H/W);
+  elMapSvg.innerHTML=g.join('');
+  const total=G.rooms.length-1;
+  elMapFoot.textContent=`${seen.length} of ${total} places found`+
+    `   |   letters show the way OUT of the room they sit beside`+
+    `   |   * = prize here   |   dashed gold = not a compass move`;
+}
+function toggleMap(on){
+  mapOn = (on===undefined) ? !mapOn : on;
+  elMapWrap.classList.toggle('on', mapOn);
+  document.getElementById('screen').classList.toggle('hide', mapOn);
+  if(mapOn) drawMap(); else document.querySelector('#cmd')?.focus();
+}
+
+/* ---------- game state ---------- */
+let G=null, S=null, over=false;
+
+function newGame(db){
+  G = db;
+  S = {
+    loc: G.startRoom,
+    itemLoc: G.items.map(it=>it.loc),
+    bits: 0,
+    counter: 0,
+    savedRoom: 0,
+    counters: new Array(16).fill(0),
+    roomSaved: new Array(16).fill(0),
+    lightTime: G.lightTime,
+    seen: {}, link: {}
+  };
+  S.seen[S.loc]=1; MP=null; toggleMap(false);
+  over=false;
+  elLog.innerHTML='';
+  echo('*** JAMES BOND ADVENTURE ***');
+  echo('');
+  echo('Adventure 13 - SPECTRE headquarters');
+  echo('');
+  echo('Two words at a time. Type MAP to see where you have been.');
+  echo('Say HELP if you get stuck.');
+  echo('');
+  look();
+  prompt_();
+}
+
+const carried = ()=> S.itemLoc.filter(l=>l===CARRIED).length;
+const isDark  = ()=> (S.bits & (1<<DARKBIT)) &&
+                     S.itemLoc[LIGHT_SOURCE]!==CARRIED &&
+                     S.itemLoc[LIGHT_SOURCE]!==S.loc;
+
+/* ---------- room display (top pane) ---------- */
+function look(){
+  if(isDark()){ elRoom.textContent = wrap('Its too dark to see!'); return; }
+  const r = G.rooms[S.loc];
+  let t = r.text.startsWith('*') ? r.text.slice(1) : 'I am in a '+r.text;
+  let s = t + '. Visible items:\n\n';
+  const here = G.items.map((it,k)=>[it,k])
+                      .filter(([it,k])=>S.itemLoc[k]===S.loc)
+                      .map(([it])=>it.text);
+  s += here.length ? here.join('. ')+'.\n' : '\n';
+  const names=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
+  const ex = r.exits.map((v,k)=>v?names[k]:null).filter(Boolean);
+  s += '\n     Some obvious exits are: ' + (ex.length?ex.join(' '):'none');
+  elRoom.textContent = wrap(s);
+}
+
+function prompt_(){
+  document.getElementById('inline')?.remove();
+  const line=document.createElement('div');
+  line.id='inline';
+  line.innerHTML='<span>  -------&gt; Tell me what to do? </span>';
+  const inp=document.createElement('input');
+  inp.id='cmd'; inp.autocomplete='off'; inp.spellcheck=false;
+  line.appendChild(inp);
+  elLog.appendChild(line);
+  inp.focus();
+  elLog.scrollTop = elLog.scrollHeight;
+  inp.addEventListener('keydown', e=>{
+    if(e.key!=='Enter') return;
+    const txt = inp.value;
+    line.remove();
+    echo('  -------> Tell me what to do? '+txt);
+    handle(txt);
+  });
+}
+
+/* ---------- vocabulary matching ---------- */
+function whichWord(word, list){
+  if(!word) return -1;
+  const raw = word.toUpperCase();
+  const L = Math.min(raw.length, G.wordLen);
+  const w = raw.slice(0, L);
+  let owner = -1;
+  for(let k=0;k<list.length;k++){
+    let e = list[k];
+    if(!e) continue;
+    if(e[0]==='*'){ e = e.slice(1); } else { owner = k; }
+    if(e.toUpperCase().slice(0,L) === w) return owner<0?k:owner;
+  }
+  return -1;
+}
+function matchItem(word, where){
+  if(!word) return -1;
+  const raw = word.toUpperCase();
+  const L = Math.min(raw.length, G.wordLen);
+  const w = raw.slice(0,L);
+  for(let k=0;k<G.items.length;k++){
+    const it=G.items[k];
+    if(it.word && S.itemLoc[k]===where && it.word.toUpperCase().slice(0,L)===w) return k;
+  }
+  return -1;
+}
+
+/* ---------- the engine ---------- */
+let nounText = '';
+
+function performActions(vb, no){
+  let fl = -1, again = false;
+  for(let ct=0; ct<G.actions.length; ct++){
+    const A = G.actions[ct];
+    const vv = Math.floor(A.vocab/150), nv = A.vocab%150;
+    if(vb !== 0){
+      if(again){ if(A.vocab!==0) break; }
+      else{
+        if(fl===0) break;
+        if(vv!==vb) continue;
+        if(nv!==0 && nv!==no) continue;
+      }
+    }else{
+      if(vv!==0) continue;
+      if(nv!==0 && Math.random()*100 >= nv) continue;
+    }
+    /* conditions */
+    const par=[]; let ok=true;
+    for(const c of A.cond){
+      const op = c%20, dv = Math.floor(c/20);
+      switch(op){
+        case 0: par.push(dv); break;
+        case 1: if(S.itemLoc[dv]!==CARRIED) ok=false; break;
+        case 2: if(S.itemLoc[dv]!==S.loc) ok=false; break;
+        case 3: if(S.itemLoc[dv]!==CARRIED && S.itemLoc[dv]!==S.loc) ok=false; break;
+        case 4: if(S.loc!==dv) ok=false; break;
+        case 5: if(S.itemLoc[dv]===S.loc) ok=false; break;
+        case 6: if(S.itemLoc[dv]===CARRIED) ok=false; break;
+        case 7: if(S.loc===dv) ok=false; break;
+        case 8: if(!(S.bits & (1<<dv))) ok=false; break;
+        case 9: if(S.bits & (1<<dv)) ok=false; break;
+        case 10: if(carried()===0) ok=false; break;
+        case 11: if(carried()!==0) ok=false; break;
+        case 12: if(S.itemLoc[dv]===CARRIED || S.itemLoc[dv]===S.loc) ok=false; break;
+        case 13: if(S.itemLoc[dv]===0) ok=false; break;
+        case 14: if(S.itemLoc[dv]!==0) ok=false; break;
+        case 15: if(S.counter > dv) ok=false; break;
+        case 16: if(S.counter <= dv) ok=false; break;
+        case 17: if(S.itemLoc[dv]!==G.items[dv].initLoc) ok=false; break;
+        case 18: if(S.itemLoc[dv]===G.items[dv].initLoc) ok=false; break;
+        case 19: if(S.counter !== dv) ok=false; break;
+      }
+      if(!ok) break;
+    }
+    if(!ok){ if(fl===-1) fl=-2; continue; }
+
+    /* actions: two ints pack four codes */
+    const codes=[Math.floor(A.act[0]/150), A.act[0]%150,
+                 Math.floor(A.act[1]/150), A.act[1]%150];
+    let p=0; again=false;
+    for(const c of codes){
+      if(c===0) continue;
+      if(c>=1 && c<=51){ out(G.messages[c]+'\n'); continue; }
+      if(c>=102){ out(G.messages[c-50]+'\n'); continue; }
+      switch(c){
+        case 52: if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); p++; }
+                 else S.itemLoc[par[p++]]=CARRIED; break;
+        case 53: S.itemLoc[par[p++]]=S.loc; break;
+        case 54: S.loc=par[p++]; break;
+        case 55: case 59: S.itemLoc[par[p++]]=0; break;
+        case 56: S.bits |= (1<<DARKBIT); break;
+        case 57: S.bits &= ~(1<<DARKBIT); break;
+        case 58: S.bits |= (1<<par[p++]); break;
+        case 60: S.bits &= ~(1<<par[p++]); break;
+        case 61: out("I am dead.\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
+        case 62: { const it=par[p++], rm=par[p++]; S.itemLoc[it]=rm; } break;
+        case 63: out("The Adventure is over.\n"); over=true; break;
+        case 64: case 76: break;
+        case 65: doScore(); break;
+        case 66: doInventory(); break;
+        case 67: S.bits |= 1; break;
+        case 68: S.bits &= ~1; break;
+        case 69: S.lightTime=G.lightTime; S.itemLoc[LIGHT_SOURCE]=CARRIED; S.bits &= ~(1<<LIGHTOUT); break;
+        case 70: elLog.innerHTML=''; break;
+        case 71: out("Use the 'Save to file' button below.\n"); break;
+        case 72: { const a=par[p++], b=par[p++]; const t=S.itemLoc[a]; S.itemLoc[a]=S.itemLoc[b]; S.itemLoc[b]=t; } break;
+        case 73: again=true; break;
+        case 74: S.itemLoc[par[p++]]=CARRIED; break;
+        case 75: { const a=par[p++], b=par[p++]; S.itemLoc[a]=S.itemLoc[b]; } break;
+        case 77: if(S.counter>=0) S.counter--; break;
+        case 78: out(String(S.counter)+' '); break;
+        case 79: S.counter=par[p++]; break;
+        case 80: { const t=S.loc; S.loc=S.savedRoom; S.savedRoom=t; } break;
+        case 81: { const k=par[p++]; const t=S.counter; S.counter=S.counters[k]; S.counters[k]=t; } break;
+        case 82: S.counter += par[p++]; break;
+        case 83: S.counter -= par[p++]; if(S.counter<-1) S.counter=-1; break;
+        case 84: out(nounText); break;
+        case 85: out(nounText+'\n'); break;
+        case 86: out('\n'); break;
+        case 87: { const k=par[p++]; const t=S.loc; S.loc=S.roomSaved[k]; S.roomSaved[k]=t; } break;
+        case 88: break;
+      }
+    }
+    fl=0;
+    if(again) continue;
+  }
+
+  /* built-in GET / DROP when no table entry handled it */
+  if(fl!==0){
+    if(vb===10){
+      if(no<0){ out('What ? \n'); return 0; }
+      if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
+      const it=matchItem(nounText, S.loc);
+      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
+      S.itemLoc[it]=CARRIED; out('OK\n'); return 0;
+    }
+    if(vb===18){
+      if(no<0){ out('What ? \n'); return 0; }
+      const it=matchItem(nounText, CARRIED);
+      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
+      S.itemLoc[it]=S.loc; out('OK\n'); return 0;
+    }
+  }
+  return fl;
+}
+
+function doScore(){
+  let n=0;
+  G.items.forEach((it,k)=>{ if(it.text.startsWith('*') && S.itemLoc[k]===G.treasureRoom) n++; });
+  if(G.treasures>0){
+    out('I stored '+n+' TREASURES.  On a scale of 0 to 100 that rates: '+
+        Math.floor(n*100/G.treasures)+'\n');
+    if(n===G.treasures){ out('Well done.\nThe Adventure is over.\n'); over=true; }
+  }else{
+    /* several of these games are not treasure hunts - they finish on an
+       action instead, so there is no percentage to report */
+    out('I stored '+n+' TREASURES.\n');
+  }
+}
+function doInventory(){
+  out('I am carrying the following:\n');
+  const l=G.items.filter((it,k)=>S.itemLoc[k]===CARRIED).map(it=>it.text);
+  out((l.length?l.join('. ')+'.':'Nothing At All')+'\n');
+}
+
+/* ---------- turn ---------- */
+function handle(line){
+  if(over){ prompt_(); return; }
+  const words = line.trim().split(/\s+/).filter(Boolean);
+  if(words.length===1 && /^MAP$/i.test(words[0])){ toggleMap(); prompt_(); return; }
+  const startLoc = S.loc; compassMove=false;
+  if(!words.length){ flush(); prompt_(); return; }
+  if(words.length>2){ echo('Use no more than 2 words'); prompt_(); return; }
+
+  let vb, no;
+  nounText = words[1] || '';
+  if(words.length===1){
+    const d = whichWord(words[0], G.nouns);
+    if(d>=1 && d<=6){ vb=1; no=d; nounText=words[0]; }
+    else { vb = whichWord(words[0], G.verbs); no = -1; }
+  }else{
+    vb = whichWord(words[0], G.verbs);
+    no = whichWord(words[1], G.nouns);
+  }
+  if(vb<0){ echo("I don't know how to \"" + words[0].toUpperCase() + "\" something"); prompt_(); return; }
+  if(words.length===2 && no<0){ echo("I don't know what \"" + words[1].toUpperCase() + "\" is"); prompt_(); return; }
+
+  /* movement is hard-wired, exactly as in the original */
+  if(vb===1 && no>=1 && no<=6){
+    const dark = isDark();
+    if(dark) out('Dangerous to move in the dark!\n');
+    const nl = G.rooms[S.loc].exits[no-1];
+    if(nl){ recordEdge(S.loc, no-1, nl); S.loc = nl; }
+    else if(dark){ out('I fell down and broke my neck.\n'); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
+    else out("I can't go in that direction\n");
+  }else if(vb===1 && no<0){
+    out('Give me a direction too.\n');
+  }else{
+    const r = performActions(vb, no);
+    if(r===-1) out("I must be stupid, but I just don't understand what you mean.\n");
+    else if(r===-2) out("I can't do that...yet!\n");
+  }
+
+  if(!over) performActions(0,0);
+
+  /* lamp burn-down */
+  if(!over && S.itemLoc[LIGHT_SOURCE]!==0 && S.lightTime>=0){
+    S.lightTime--;
+    if(S.lightTime<1){
+      S.bits |= (1<<LIGHTOUT);
+      if(S.itemLoc[LIGHT_SOURCE]===CARRIED || S.itemLoc[LIGHT_SOURCE]===S.loc)
+        out('Light has run out\n');
+      S.itemLoc[LIGHT_SOURCE]=0;
+    }else if(S.lightTime<25 &&
+             (S.itemLoc[LIGHT_SOURCE]===CARRIED || S.itemLoc[LIGHT_SOURCE]===S.loc)){
+      out('Light runs out in '+S.lightTime+' turns\n');
+    }
+  }
+
+  if(S.loc!==startLoc && !compassMove) recordSpecial(startLoc, S.loc);
+  S.seen[S.loc]=1;
+  autosave();
+  if(mapOn) drawMap();
+  flush();
+  look();
+  if(over){ echo(''); echo('--- press Restart to play again ---'); return; }
+  prompt_();
+}
+
+/* ---------- buttons ---------- */
+/* ---------- saving ----------
+   Save and Load share one File-System-Access id, which is what makes the
+   browser open BOTH dialogs in the same folder - pick a folder once and it
+   stays picked. Browsers without that API fall back to a download plus a
+   file box, which cannot be pointed anywhere, so we also autosave into the
+   browser every turn and offer Resume. */
+const FS_ID='adventure-saves';
+const gameKey = ()=> (document.title||'adventure')+'#'+(G?G.advNum:'x');
+const autoKey = ()=> 'adv-auto-'+gameKey();
+const saveText = ()=> JSON.stringify({game:gameKey(), adv:G.advNum, state:S}, null, 1);
+const saveName = ()=> (document.title||'adventure').toLowerCase()
+                        .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.save.json';
+function applySave(txt){
+  try{
+    const j=JSON.parse(txt);
+    if(j.game!==undefined && j.game!==gameKey()){ echo('That save belongs to '+j.game+'.'); prompt_(); return; }
+    if(j.game===undefined && j.adv!==undefined && G && j.adv!==G.advNum){
+      echo('That save is for a different game.'); prompt_(); return; }
+    S=j.state; over=false; MP=null; toggleMap(false);
+    elLog.innerHTML=''; echo('Game restored.'); look(); prompt_();
+  }catch(err){ echo('BAD SAVE FILE'); prompt_(); }
+}
+async function doSave(){
+  const data=saveText();
+  if(window.showSaveFilePicker){
+    try{
+      const h=await showSaveFilePicker({ id:FS_ID, suggestedName:saveName(),
+        types:[{description:'Adventure save', accept:{'application/json':['.json']}}] });
+      const w=await h.createWritable(); await w.write(data); await w.close();
+      echo('Saved as '+h.name+'.'); prompt_(); return;
+    }catch(err){ if(err && err.name==='AbortError'){ return; } }
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  a.download=saveName(); a.click();
+  echo('Saved to your browser download folder as '+saveName()+'.'); prompt_();
+}
+async function doLoad(){
+  if(window.showOpenFilePicker){
+    try{
+      const [h]=await showOpenFilePicker({ id:FS_ID, multiple:false,
+        types:[{description:'Adventure save', accept:{'application/json':['.json']}}] });
+      applySave(await (await h.getFile()).text()); return;
+    }catch(err){ if(err && err.name==='AbortError'){ return; } }
+  }
+  document.getElementById('fRestore').click();
+}
+function autosave(){ try{ localStorage.setItem(autoKey(), saveText()); }catch(e){} }
+function hasAuto(){ try{ return !!localStorage.getItem(autoKey()); }catch(e){ return false; } }
+function offerResume(){
+  const b=document.getElementById('bResume');
+  if(hasAuto()){ b.style.display=''; echo('(An earlier position was found - click Resume to pick it up.)'); echo(''); }
+  else b.style.display='none';
+}
+document.getElementById('bMap').onclick = ()=>toggleMap();
+document.getElementById('bRestart').onclick = ()=>{ newGame(G); offerResume(); };
+document.getElementById('bSave').onclick = doSave;
+document.getElementById('bLoad').onclick = doLoad;
+document.getElementById('bResume').onclick = ()=>{
+  try{ const tx=localStorage.getItem(autoKey()); if(tx) applySave(tx); }catch(e){}
+};
+document.getElementById('fRestore').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>applySave(r.result); r.readAsText(f);
+};
+document.getElementById('fGame').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ newGame(parseDatabase(r.result)); }
+                 catch(err){ echo('Could not read that database: '+err.message); prompt_(); } };
+  r.readAsText(f,'ISO-8859-1');
+};
+
+/* ---------- boot ---------- */
+const EMBEDDED = "6196\n60\n131\n69\n55\n7\n1\n0\n3\n30000\n69\n0\n100\n764\n169\n160\n780\n780\n6058\n9300\n100\n622\n1024\n100\n0\n0\n8700\n0\n100\n168\n724\n0\n0\n0\n6238\n9213\n25\n49\n773\n428\n0\n0\n5938\n9213\n100\n349\n340\n0\n0\n0\n16408\n11850\n100\n284\n0\n0\n0\n0\n8614\n0\n100\n864\n0\n0\n0\n0\n8464\n0\n100\n188\n507\n180\n0\n0\n12064\n9000\n100\n564\n140\n560\n360\n140\n8180\n8162\n100\n544\n660\n540\n360\n660\n8180\n8162\n100\n524\n340\n520\n360\n340\n8180\n8162\n25\n234\n200\n140\n0\n0\n9300\n0\n30\n234\n202\n365\n229\n0\n6667\n13200\n20\n234\n8\n0\n0\n0\n9213\n63\n1\n234\n205\n147\n388\n200\n6503\n0\n100\n220\n420\n0\n0\n0\n10260\n8700\n100\n234\n144\n200\n140\n0\n9300\n0\n100\n202\n380\n0\n0\n0\n8700\n0\n4238\n521\n520\n20\n0\n0\n205\n12300\n4247\n641\n640\n20\n0\n0\n205\n12300\n4258\n821\n820\n20\n0\n0\n205\n12300\n1969\n202\n120\n220\n0\n0\n6667\n8158\n4060\n922\n920\n1140\n0\n0\n6972\n0\n3900\n444\n89\n0\n0\n0\n6838\n9213\n3900\n444\n460\n0\n0\n0\n204\n0\n3900\n464\n440\n0\n0\n0\n204\n0\n3900\n1022\n1060\n0\n0\n0\n204\n0\n3051\n702\n10\n0\n0\n0\n6300\n0\n3060\n881\n202\n0\n0\n0\n5550\n0\n3060\n881\n0\n0\n0\n0\n5400\n0\n3052\n742\n765\n49\n760\n420\n5135\n8010\n3052\n742\n765\n760\n0\n0\n5153\n0\n3052\n742\n762\n760\n0\n0\n5005\n0\n3051\n702\n560\n200\n180\n0\n4854\n8760\n3050\n682\n0\n0\n0\n0\n4738\n13238\n3038\n522\n108\n1064\n520\n1020\n4412\n0\n3038\n522\n1064\n520\n840\n0\n4562\n0\n3038\n522\n0\n0\n0\n0\n150\n0\n3037\n1022\n1073\n1060\n0\n0\n203\n0\n3037\n1022\n0\n0\n0\n0\n150\n0\n3032\n29\n402\n99\n148\n20\n4258\n0\n3032\n402\n0\n0\n0\n0\n4050\n0\n3031\n382\n980\n380\n140\n0\n222\n8700\n3031\n982\n980\n380\n140\n0\n222\n9000\n3010\n922\n0\n0\n0\n0\n300\n0\n1357\n22\n0\n0\n0\n0\n3450\n0\n1383\n421\n280\n0\n0\n0\n3808\n0\n1379\n341\n0\n0\n0\n0\n3600\n0\n1385\n461\n0\n0\n0\n0\n3900\n0\n5100\n41\n0\n0\n0\n0\n3300\n0\n1098\n661\n660\n0\n0\n0\n203\n0\n1098\n1101\n765\n0\n0\n0\n538\n9213\n1098\n1101\n762\n1100\n40\n0\n3205\n8700\n1074\n261\n202\n260\n0\n0\n3053\n0\n1074\n261\n260\n0\n0\n0\n203\n0\n1050\n0\n0\n0\n0\n0\n2850\n0\n7950\n0\n0\n0\n0\n0\n9900\n0\n1535\n462\n460\n0\n0\n0\n202\n0\n1542\n562\n560\n0\n0\n0\n202\n0\n1548\n662\n660\n0\n0\n0\n202\n0\n2742\n561\n585\n560\n0\n0\n203\n0\n2721\n221\n447\n220\n0\n0\n203\n0\n2714\n121\n725\n120\n0\n0\n203\n0\n1537\n502\n500\n0\n0\n0\n202\n0\n2742\n561\n582\n560\n1080\n600\n2753\n10800\n2721\n221\n444\n80\n220\n840\n2608\n9300\n2714\n121\n722\n120\n720\n60\n2455\n8308\n1561\n882\n880\n0\n0\n0\n2302\n0\n1548\n1102\n1100\n0\n0\n0\n202\n0\n1542\n1122\n560\n540\n1120\n0\n2174\n10800\n1538\n1062\n0\n0\n0\n0\n17400\n0\n1538\n522\n520\n0\n0\n0\n2002\n0\n1543\n582\n0\n0\n0\n0\n1111\n9450\n2004\n782\n784\n0\n0\n0\n1800\n0\n4226\n301\n300\n20\n0\n0\n205\n12300\n1535\n1002\n460\n1000\n440\n0\n202\n10800\n7500\n0\n0\n0\n0\n0\n1650\n0\n1517\n162\n0\n0\n0\n0\n1500\n0\n1512\n182\n180\n0\n0\n0\n1402\n0\n213\n902\n120\n420\n400\n160\n204\n9355\n203\n762\n49\n0\n0\n0\n1288\n9213\n203\n762\n740\n0\n0\n0\n204\n0\n194\n602\n0\n0\n0\n0\n1138\n9213\n194\n1082\n884\n900\n1080\n900\n204\n9300\n194\n1082\n904\n880\n1080\n880\n204\n9300\n190\n521\n542\n0\n0\n0\n750\n0\n190\n542\n820\n0\n0\n0\n204\n8614\n187\n526\n1042\n860\n0\n0\n204\n0\n187\n526\n1022\n1020\n0\n0\n204\n0\n181\n382\n28\n700\n320\n0\n204\n7950\n181\n382\n120\n0\n0\n0\n204\n0\n180\n202\n0\n0\n0\n0\n900\n0\n180\n362\n500\n180\n0\n0\n230\n8158\n7865\n0\n0\n0\n0\n0\n10650\n0\n7200\n0\n0\n0\n0\n0\n9450\n0\n175\n962\n306\n300\n0\n0\n204\n0\n175\n282\n300\n0\n0\n0\n204\n0\n175\n962\n301\n0\n0\n0\n750\n0\n172\n242\n0\n0\n0\n0\n688\n9213\n160\n1142\n400\n0\n0\n0\n204\n0\n5885\n461\n764\n200\n780\n200\n7704\n9300\n4218\n842\n101\n80\n900\n0\n222\n0\n178\n322\n180\n0\n0\n0\n204\n0\n4200\n261\n61\n260\n260\n0\n17305\n8700\n4512\n181\n242\n240\n0\n0\n7104\n0\n4512\n181\n0\n0\n0\n0\n150\n0\n4964\n121\n120\n140\n0\n0\n7272\n0\n5408\n41\n40\n60\n0\n0\n222\n0\n5461\n881\n880\n820\n0\n0\n209\n7950\n5748\n682\n661\n660\n1100\n0\n7572\n0\n5885\n461\n442\n420\n460\n0\n7704\n8323\n0\n440\n1000\n400\n0\n0\n10858\n0\n6167\n162\n369\n100\n360\n0\n15353\n8700\n6300\n801\n782\n784\n0\n0\n15900\n0\n6300\n801\n782\n204\n780\n160\n15822\n13263\n6300\n801\n0\n0\n0\n0\n15450\n0\n6300\n61\n269\n0\n0\n0\n15600\n0\n6300\n61\n202\n268\n200\n220\n16122\n0\n6637\n0\n0\n0\n0\n0\n16200\n0\n6636\n482\n501\n500\n480\n1020\n205\n10800\n6638\n1042\n522\n1060\n520\n0\n222\n0\n6787\n0\n0\n0\n0\n0\n16200\n0\n6786\n1022\n1065\n500\n1020\n480\n224\n10800\n6788\n1062\n1060\n520\n0\n0\n222\n0\n6900\n524\n69\n0\n0\n0\n16588\n9213\n6900\n208\n180\n500\n200\n0\n208\n8160\n8250\n0\n0\n0\n0\n0\n16650\n0\n7050\n288\n409\n0\n0\n0\n16800\n0\n7050\n0\n0\n0\n0\n0\n16950\n0\n3900\n1042\n0\n0\n0\n0\n17100\n0\n6167\n162\n0\n0\n0\n0\n150\n0\n160\n922\n0\n0\n0\n0\n300\n0\n\"AUT\"\n\"ANY\"\n\"GO\"\n\"NORTH\"\n\"*RUN\"\n\"SOUTH\"\n\"*WAL\"\n\"EAST\"\n\"*JUM\"\n\"WEST\"\n\"*CLI\"\n\"UP\"\n\"*ENT\"\n\"DOWN\"\n\"THR\"\n\"SIG\"\n\"*TOS\"\n\"PEN\"\n\"REA\"\n\"TUB\"\n\"GET\"\n\"DOO\"\n\"*TAK\"\n\"*ROO\"\n\"*REM\"\n\"LIG\"\n\"ATT\"\n\"*FLA\"\n\"*KIL\"\n\"DRI\"\n\"*FIG\"\n\"*VOD\"\n\"*PUN\"\n\"*MAR\"\n\"*HIT\"\n\"GIR\"\n\"DRO\"\n\"CAR\"\n\"*LEA\"\n\"MAN\"\n\"PUL\"\n\"*JAW\"\n\"*PUS\"\n\"BOD\"\n\"*OPE\"\n\"PHO\"\n\"*CLO\"\n\"*PAS\"\n\"*TUR\"\n\"DAR\"\n\"*PRE\"\n\"TUN\"\n\"SWI\"\n\"OXY\"\n\"KIC\"\n\"*TAN\"\n\"INS\"\n\"ROC\"\n\"*LOA\"\n\"PAP\"\n\"AIM\"\n\"HEL\"\n\"*SHI\"\n\"HAT\"\n\"*POI\"\n\"BUT\"\n\"DRI\"\n\"NOT\"\n\"SIG\"\n\"TAB\"\n\"*WRI\"\n\"BOO\"\n\"BRE\"\n\"PIP\"\n\"*DES\"\n\"ROP\"\n\"INF\"\n\"FUE\"\n\"REP\"\n\"*CEL\"\n\"WAD\"\n\"VEN\"\n\"KIS\"\n\"*DUC\"\n\"SHO\"\n\"GRI\"\n\"*BLO\"\n\"WIR\"\n\"TIE\"\n\"FEN\"\n\"UNT\"\n\"CUS\"\n\"LAN\"\n\"*CHA\"\n\"HEL\"\n\"BAT\"\n\"QUI\"\n\"BAL\"\n\"*END\"\n\"*BAS\"\n\"FUC\"\n\"VAL\"\n\"*SCR\"\n\"LEV\"\n\"SAV\"\n\"WHE\"\n\"INV\"\n\"POR\"\n\"*I  \"\n\"DOC\"\n\"EXA\"\n\"*DR.\"\n\"*LOO\"\n\"*YES\"\n\"\"\n\"GUN\"\n\"\"\n\"SPA\"\n\"\"\n\"*PLU\"\n\"\"\n\"SWI\"\n\"\"\n\"CAT\"\n\"\"\n\"*PRO\"\n\"\"\n\"ENT\"\n\"\"\n\"*HAN\"\n\"\"\n\"GAM\"\n\"\"\n\"SLO\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n0\n0\n0\n0\n0\n0\n\"\"\n2\n3\n0\n0\n0\n0\n\"*I am in the entrance hall to SPECTRE headquarters\"\n30\n1\n2\n2\n0\n0\n\"desert\"\n1\n4\n0\n0\n0\n0\n\"reception area\"\n3\n5\n0\n0\n0\n0\n\"corridor\"\n4\n0\n18\n11\n0\n0\n\"pilot's ready room\"\n5\n7\n8\n0\n0\n0\n\"*I am in the north end of a large hanger\"\n6\n0\n0\n0\n0\n0\n\"*I am in the south end of a hanger\"\n0\n0\n0\n6\n0\n0\n\"rocket control room.  A tube is jutting out\nof the wall with the words <-ROCKET SUPPLY TUBE-> painted\non the side\"\n0\n0\n0\n0\n10\n0\n\"rocket\"\n0\n0\n0\n0\n0\n9\n\"cockpit of a rocket.  Most of the instruments have\nbeen removed\"\n0\n0\n5\n13\n0\n0\n\"war room.  On the wall is a stirring tribute to\nGeneral Molitov\"\n0\n11\n0\n0\n0\n0\n\"*I am in an ammunitions supply room.  It appears to have\nbeen emptied quickly\"\n0\n0\n11\n0\n0\n14\n\"*I am in an unfinished portion of the building.  In front of\nme is a recently dug hole\"\n0\n0\n0\n0\n13\n43\n\"crudely built stairwell\"\n0\n0\n14\n16\n0\n0\n\"dimly lit tunnel\"\n17\n0\n0\n0\n0\n0\n\"large rocky pit\"\n0\n16\n0\n0\n0\n0\n\"*I am in the north end of the pit.  The floor has been\ncarefully smoothed out\"\n19\n0\n0\n5\n0\n0\n\"*I am in the private suite of Dr. Yes\"\n0\n18\n0\n0\n0\n0\n\"bar\"\n0\n0\n0\n18\n0\n0\n\"bedroom\"\n0\n0\n0\n0\n20\n22\n\"secret passage under the building\"\n0\n0\n0\n0\n21\n0\n\"*I am on a large concrete patio.  In front of me is an immense\nshallow pond.  It seems harmless except for the rare dwarf\nsharks that Dr. Yes raises\"\n24\n0\n0\n0\n0\n0\n\"small observation deck\"\n0\n23\n0\n0\n0\n0\n\"well furnished guest house\"\n0\n0\n7\n0\n0\n0\n\"helicopter\"\n29\n29\n27\n29\n0\n0\n\"helicopter.  Below I see a large pit.\nGuarding the pit are several radar controlled lasers\"\n29\n29\n28\n26\n0\n0\n\"helicopter.  Directly below is the roof of the\nbuilding\"\n29\n29\n29\n27\n0\n0\n\"helicopter flying high over SPECTRE headquarters.\nTo the west is a large pit\"\n28\n29\n29\n29\n0\n0\n\"helicopter flying over the desert\"\n2\n2\n2\n2\n0\n0\n\"*I am still in a desert!\"\n0\n0\n17\n0\n0\n0\n\" \"\n0\n0\n33\n0\n0\n0\n\" \"\n0\n0\n34\n0\n0\n0\n\"small landing area on the roof\"\n0\n0\n0\n33\n0\n0\n\"*I am on a roof.  The surface is extremely hot\"\n0\n0\n36\n0\n0\n0\n\"landing bay of a space station\"\n0\n0\n0\n35\n0\n0\n\"*I am in an air lock\"\n0\n40\n0\n36\n0\n0\n\"main corridor.  The air has the faint scent of\nnerve gas.\"\n0\n39\n0\n0\n0\n0\n\"private library.  The walls are covered with\nempty book shelves\"\n38\n0\n0\n40\n0\n0\n\"control room\"\n37\n0\n39\n0\n0\n0\n\"main corridor\"\n0\n0\n4\n0\n0\n54\n\"ventilating shaft.  I see a light up ahead\"\n0\n0\n0\n0\n0\n0\n\"\"\n0\n0\n47\n44\n14\n0\n\"*I am on a ledge in front of a steep hole.  I can not see\nthe bottom or what is over on the other side\"\n0\n0\n43\n0\n0\n0\n\"storage area\"\n0\n0\n0\n0\n0\n0\n\"storage pen\"\n0\n0\n0\n0\n0\n0\n\" \"\n0\n0\n48\n43\n0\n0\n\"service tunnel\"\n49\n0\n0\n47\n0\n0\n\"twisting corridor\"\n0\n48\n50\n0\n0\n0\n\"locker room\"\n0\n0\n0\n49\n0\n0\n\"combination torture chamber/rec room\"\n0\n0\n0\n52\n0\n0\n\"*I am at the bottom of the ledge\"\n0\n0\n51\n0\n0\n0\n\"generator room\"\n0\n54\n0\n0\n0\n0\n\"*I am on the other ledge\"\n53\n0\n0\n0\n0\n0\n\"furnace room\"\n0\n0\n0\n0\n0\n0\n\"*I'M DEAD!\"\n\"\"\n\"OK\"\n\"It's locked.\"\n\"The gas escapes!!\"\n\"I'm pin cusioned!!  \"\n\"Something is too big.\"\n\"Tinsel teeth growls and says:\n`Machine only for Dr. Yes and private secretary!`\"\n\"*-*-* Z O R C H *-*-*\nYou have reduced this magnificant body to ashes!\"\n\"The guards let me have it!\"\n\"The light turns on.\"\n\"An interesting thought but not my style (sorry).\"\n\"Hey!  This is PG program.\"\n\"I go right through him!\"\n\"Heavy!\"\n\"With brute force I pull it off.\"\n\"To use: PRESS SWITCH\"\n\"*-*-* B O O M *-*-*\n(Of course my hair remains perfectly combed)\"\n\"It slides into the pond and the sharks begin to feast.\"\n\"*-*-* Z A P *-*-*\"\n\"I can't throw that.\"\n\"Boing.  It just bounces off him.\"\n\"It bounces through the portal.\"\n\"Hmm... the pen is empty.\"\n\"--- WELCOME TO SPECTRE HEADQUARTERS ---\nAll visitors must sign in!\"\n\"To launch the rocket the following items must be\n<INSERTED> into the tube:\n   OXYGEN TANK\n   FUEL CELLS\n   BATTERY\n   SPARK PLUG\"\n\"Dear James,\n   I am sorry but I must rejoin SPECTRE.  Defection would\ncost me my pension.  I must now try to replace my heart\nand leave you.\n                Love,\n                Scantily Clad Girl\"\n\"It's a sleezy romance titled MY HEART.\"\n\"Not ready for lift off.\"\n\"*-*-* W O O S H *-*-*\nRocket lifts off and docks with a small\norbitting space station (congratulation!).\"\n\"Thump\"\n\"It slides over the edge and shatters\ninto a million pieces!\"\n\"Nerve gas begins to hiss into the room!\"\n\"Helicopter takes off!\"\n\"Portal closes.\"\n\"A portal open.\"\n\"I see a hall crawling with guards.\"\n\"Prod emits a huge spark!\"\n\"It tickles him.\"\n\"It automatically shuts off (whew!).\"\n\"Guards storm in!!\"\n\"I hear fiendish laughter in the next room.\"\n\"Rocket takes off as I enter the bay!\nI hear more fiendish laughter over a loud speaker.\"\n\"I need both hands.\"\n\"Oh oh, better leave!\"\n\"I'm thrown across the room!\"\n\"I was nice little snack.\"\n\"Crunch.\"\n\"I shine it on the photocells and walk through.\"\n\"WOW!! That was powerful.  It almost tasted like gasoline.\"\n\" \"\n\"SSSSSSS\"\n\"I fall through a trap door!\"\n\"The girl swoons!  She says she sees the error in her\nways and will now join in the fight for truth and justice.\nShe also drops something.\n(When you've got it you've got it!)\"\n\"Bang\"\n\"It's not loaded.\"\n\"BANG. Got him!\nThe rocket takes off on its\nLONG voyage home...\n\"\n\"Shots go right through him?!\"\n\"A perfect shot! I guess he got the point.\"\n\"Be more specific.\"\n\"Welcome to Adventure 13, `James Bond Adventure`\"\n\"The lasers blast me out of the sky.\"\n\"I see nothing special.\"\n\"Hmm... I wonder what she was trying\nto say in that letter.\"\n\"Hmm... now what would I do in this situation.\"\n\"Wee!!\"\n\"Tube is loaded.\"\n\"It's tied to the pipe.\"\n\"\"\n\"\"\n\"\"\n\"\"0\n\"A sign\"3\n\"A large fountain pen/PEN/\"3\n\"A hollow tube/TUB/\"0\n\"A large metal hanger door\"5\n\"A small metal card/CAR/\"0\n\"A vodka martini (shaken not stirred)/DRI/\"19\n\"An empty glass/GLA/\"0\n\"A scantily clad girl\"20\n\"A flashlight/LIG/\"21\n\"A large man with metal teeth\"7\n\"A body/BOD/\"0\n\"A spiked passage lined with a photocell\"11\n\"A poisoned blow dart/DAR/\"12\n\"A westward tunnel\"14\n\"An oxygen tank/OXY/\"16\n\"A small transport rocket\"6\n\"A slip of paper/PAP/\"8\n\"A helicopter\"7\n\"An open hatch\"9\n\"A small firing button\"10\n\"A note/NOT/\"0\n\"A night table\"0\n\"A book/BOO/\"0\n\"Some piping running overhead\"43\n\"Some coiled rope/ROP/\"49\n\"Large fuel cells/FUE/\"53\n\"An open ventilating duct\"0\n\"A heavy metal grill\"0\n\"Two bare live wires\"52\n\"An electrified fence\"44\n\"A large bean bag chair/CUS/\"24\n\"A battery/BAT/\"45\n\"A deflated basket ball/BAL/\"24\n\"A valve\"50\n\"A lever\"25\n\"A radar\"34\n\"A large wheel attached to the wall\"36\n\"A portal\"0\n\"The Fiendish Dr. Yes\"0\n\"A golden gun/GUN/\"38\n\"A large spark plug/SPA/\"42\n\"A slot in the wall\"5\n\"\"0\n\"A cattle prod/CAT/\"50\n\"The entrance to the hanger\"0\n\"A door\"18\n\"\"0\n\"A tunnel\"16\n\"A closed hatch\"0\n\"A book on a night table\"20\n\"Piping with rope tied to it\"0\n\"A rope hanging down from the ledge\"51\n\"Fuel cells tied to a rope\"42\n\"A fence\"0\n\"An inflated basket ball/BAL/\"0\n\"A ventilating duct with a metal grill\"54\n\"An open door hanging ajar\"0\n\"\"0\n\"\"0\n\"\"0\n\"LAUPHTER\"\n\"CHAIR CHECK\"\n\"\"\n\"TROOP STORM\"\n\"OFF WE GO!!\"\n\"DARK CHECK\"\n\"\"\n\"EXIT HELIC\"\n\"PREP. LAND\"\n\"\"\n\"\"\n\"JAWS LEAVES\"\n\"JAWS ATTACKS\"\n\"JAWS KILLS\"\n\"JAWS APPEARS\"\n\"\"\n\"JAWS CHECK\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"ATT JAW\"\n\"\"\n\"SWIM (WADE)\"\n\"\"\n\"\"\n\"\"\n\"PUL\"\n\"PUL\"\n\"\"\n\"OPEN PORT\"\n\"\"\n\"CLOSE PORT\"\n\"TAKE OFF!!\"\n\"PUL\"\n\"FUEL SHTUFF\"\n\"PUL\"\n\"POSS OPTIONAL\"\n\"PULL FOPE\"\n\"\"\n\"PUL\"\n\"\"\n\"CLOSE HATCH\"\n\"\"\n\"PUL\"\n\"READ SIGN\"\n\"\"\n\"\"\n\"READ BOOK\"\n\"\"\n\"THROW BALL\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"ZAP GENERATOR\"\n\"SAFE LAKE\"\n\"BYE BYE RADAR\"\n\"\"\n\"GET INFL BALL\"\n\"\"\n\"GET FUEL\"\n\"\"\n\"GET WIRE\"\n\"ATT YVOL\"\n\"INS OXY\"\n\"GET BOOK\"\n\"DIRTY DIRTY\"\n\"\"\n\"\"\n\"GO HANGER\"\n\"GO PORTAL\"\n\"\"\n\"GO FENCE\"\n\"\"\n\"GO\"\n\"GO DUCT\"\n\"\"\n\"GO ROPE\"\n\"\"\n\"\"\n\"\"\n\"GO HELICOPTER\"\n\"\"\n\"SAVE GAME\"\n\"END\"\n\"GO TUNNEL\"\n\"\"\n\"\"\n\"PIN CUSION\"\n\"\"\n\"\"\n\"\"\n\"CONT\"\n\"HERE GOES\"\n\"SHINE LIGHT\"\n\"\"\n\"GLUG\"\n\"\"\n\"\"\n\"\"\n\"REPLACE BOOK\"\n\"REP\"\n\"KISS\"\n\"HA HA\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"TIES\"\n\"TIE PIPE\"\n\"\"\n\"\"\n\"\"\n\"UNT\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n149\n13\n471\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
+newGame(parseDatabase(EMBEDDED));
+offerResume();
+</script>
+</body>
+</html>

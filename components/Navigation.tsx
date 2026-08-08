@@ -4,7 +4,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, User, LogOut, Image as ImageIcon, Shield, Camera } from "lucide-react";
+import { Menu, X, User, LogOut, Image as ImageIcon, Shield, Camera, Gamepad2 } from "lucide-react";
 import WeatherIndicator from "./WeatherIndicator";
 
 export default function Navigation() {
@@ -61,6 +61,16 @@ export default function Navigation() {
                         <ImageIcon className="mr-3 h-4 w-4 text-blue-600" />
                         Picture Book
                       </Link>
+
+                      <a
+                        href="/games/index.html"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        role="menuitem"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Gamepad2 className="mr-3 h-4 w-4 text-purple-600" />
+                        Retro Games
+                      </a>
 
                       {session.user?.role === 'admin' && (
                         <Link

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GHOST TOWN</title>
+<style>
+  :root{ --scr:#e8e8e8; --bg:#0a0a0a; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:#111;color:var(--scr);
+       font-family:"Courier New",ui-monospace,monospace;
+       display:flex;align-items:center;justify-content:center;padding:16px}
+  #case{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:14px;
+        width:min(96vw,880px);height:min(94vh,700px);display:flex;flex-direction:column;
+        box-shadow:0 10px 40px #000}
+  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;
+          padding:12px 14px;overflow:hidden;font-size:16px;line-height:1.28;
+          white-space:pre-wrap;word-break:break-word}
+  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:hidden}
+  #bar{height:3px;background:var(--scr);margin:8px 0}
+  #log{flex:1;overflow-y:auto;scrollbar-width:thin}
+  #log::-webkit-scrollbar{width:8px}
+  #log::-webkit-scrollbar-thumb{background:#444}
+  #inline{display:flex}
+  #cmd{background:transparent;border:0;outline:0;color:var(--scr);
+       font:inherit;flex:1;padding:0;caret-color:var(--scr)}
+  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  button,label.btn{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
+          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer}
+  button:hover,label.btn:hover{background:#2c352a}
+  input[type=file]{display:none}
+  .hint{color:#6f7a6c;font-size:11px;margin-left:auto}
+  #mapwrap{display:none;flex:1;overflow:auto;background:var(--bg);padding:6px}
+  #mapwrap.on{display:block}
+  #screen.hide{display:none}
+  #mapsvg{display:block;margin:0 auto}
+  .nd{fill:#141a12;stroke:#3f5c39;stroke-width:1.5}
+  .nd.here{fill:#26361f;stroke:#e8e8e8;stroke-width:2.5}
+  .nd.goal{stroke:#e8c35a;stroke-dasharray:4 3}
+  .nl{fill:#cfe6c8;font:11px "Courier New",monospace;text-anchor:middle}
+  .nl.here{fill:#fff;font-weight:bold}
+  .eg{stroke:#3f5c39;stroke-width:1.6;fill:none}
+  .eg.sp{stroke:#e8c35a;stroke-dasharray:5 4}
+  .el{fill:#9fd18f;font:10px "Courier New",monospace;text-anchor:middle;
+      paint-order:stroke;stroke:#0a0a0a;stroke-width:4px;stroke-linejoin:round}
+  .el.sp{fill:#e8c35a}
+  .pz{fill:#e8c35a}
+  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px}
+  b{font-weight:bold}
+</style>
+</head>
+<body>
+<div id="case">
+  <div id="mapwrap"><svg id="mapsvg"></svg><div class="mapfoot" id="mapfoot"></div></div>
+  <div id="screen">
+    <div id="room"></div>
+    <div id="bar"></div>
+    <div id="log"></div>
+  </div>
+  <div id="bottom">
+    <button id="bMap">Map</button>
+    <button id="bRestart">Restart</button>
+    <button id="bSave">Save</button>
+    <button id="bLoad">Load</button>
+    <button id="bResume" style="display:none">Resume</button>
+    <input type="file" id="fRestore" accept=".json,.sav">
+    <label class="btn" for="fGame">Load another ADVENT/Qn</label><input type="file" id="fGame">
+    <span class="hint">two-word commands &middot; N S E W U D to move</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------
+   A Scott Adams adventure interpreter.
+   Faithful to the original TRS-80 ADV/CMD semantics: the same
+   condition codes (0-19), the same action codes (0-101 and 102+),
+   the same hard-wired verb numbers (1=GO, 10=GET, 18=DROP) and the
+   same light source (item 9).
+   ------------------------------------------------------------------ */
+
+const CARRIED = 255, DARKBIT = 15, LIGHTOUT = 16, LIGHT_SOURCE = 9;
+
+/* ---------- database parser: reads the raw ADVENT/Qn text format ---------- */
+function parseDatabase(text){
+  let i = 0;
+  const n = text.length;
+  function tok(){
+    while(i<n && /\s/.test(text[i])) i++;
+    if(i>=n) return null;
+    if(text[i]==='"'){
+      const j = text.indexOf('"', i+1);
+      const s = text.slice(i+1, j<0?n:j);
+      i = (j<0?n:j+1);
+      return {s};
+    }
+    let j=i; while(j<n && !/\s/.test(text[j])) j++;
+    const w = text.slice(i,j); i=j;
+    const v = parseInt(w,10);
+    return isNaN(v) ? {s:w} : {v};
+  }
+  const num = ()=>tok().v, str = ()=>tok().s;
+  const g = {};
+  [g.unk,g.nItems,g.nActions,g.nWords,g.nRooms,g.maxCarry,g.startRoom,
+   g.treasures,g.wordLen,g.lightTime,g.nMessages,g.treasureRoom] =
+     Array.from({length:12}, num);
+  g.actions = [];
+  for(let k=0;k<=g.nActions;k++){
+    const a = Array.from({length:8}, num);
+    g.actions.push({vocab:a[0], cond:a.slice(1,6), act:[a[6],a[7]]});
+  }
+  g.verbs=[]; g.nouns=[];
+  for(let k=0;k<=g.nWords;k++){ g.verbs.push(str()); g.nouns.push(str()); }
+  g.rooms=[];
+  for(let k=0;k<=g.nRooms;k++){
+    const ex = Array.from({length:6}, num);
+    g.rooms.push({exits:ex, text:str()});
+  }
+  g.messages = Array.from({length:g.nMessages+1}, str);
+  g.items=[];
+  for(let k=0;k<=g.nItems;k++){
+    const d = str(), loc = num();
+    const cut = d.indexOf('/');
+    g.items.push({
+      text: cut>=0 ? d.slice(0,cut) : d,
+      word: cut>=0 ? d.slice(cut+1).replace(/\/$/,'') : null,
+      loc, initLoc: loc
+    });
+  }
+  g.comments = Array.from({length:g.nActions+1}, str);
+  g.version = num(); g.advNum = num();
+  return g;
+}
+
+/* ---------- screen ---------- */
+const COLS = 64;
+const elRoom = document.getElementById('room');
+const elLog  = document.getElementById('log');
+const elCmd  = document.getElementById('cmd');
+
+function wrap(s){
+  const out=[];
+  for(const para of String(s).split('\n')){
+    const m = para.match(/^(\s*)([\s\S]*)$/);
+    const ind = m[1], body = m[2];
+    if(!body){ out.push(''); continue; }
+    let line = ind;
+    for(const w of body.split(/\s+/)){
+      if(line.trim() && (line+' '+w).length>COLS){ out.push(line); line = ind+w; }
+      else line = line.trim() ? line+' '+w : line+w;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+let pending = '';
+function out(s){ pending += s; }
+function flush(){
+  if(!pending) return;
+  const d=document.createElement('div');
+  d.textContent = wrap(pending.replace(/\n+$/,''));
+  elLog.appendChild(d);
+  pending='';
+  elLog.scrollTop = elLog.scrollHeight;
+}
+function echo(s){
+  const d=document.createElement('div');
+  d.textContent = s;
+  elLog.appendChild(d);
+  elLog.scrollTop = elLog.scrollHeight;
+}
+
+/* ---------- automap ---------- */
+/* The room graph is known up front, so the layout is computed once and then
+   revealed a room at a time. An edge appears only when you actually walk it,
+   labelled at the end you left from - so the letter beside a room is the
+   direction you took OUT of that room. */
+const MAPLAYOUT = null;
+let MP=null, compassMove=false, mapOn=false;
+const elMapWrap=document.getElementById('mapwrap');
+const elMapSvg =document.getElementById('mapsvg');
+const elMapFoot=document.getElementById('mapfoot');
+const DIRL='NSEWUD';
+
+function buildLayout(){
+  if(MAPLAYOUT && MAPLAYOUT.pos) return MAPLAYOUT;
+  /* fall back to walking the graph from the start room */
+  const pos={}, taken=new Set();
+  const D=[[0,-1],[0,1],[1,0],[-1,0],[1,-1],[1,1]];
+  const put=(r,x,y)=>{ while(taken.has(x+','+y)) x++; pos[r]=[x,y]; taken.add(x+','+y); };
+  put(G.startRoom,0,0);
+  const q=[G.startRoom], done=new Set([G.startRoom]);
+  while(q.length){
+    const r=q.shift(), [x,y]=pos[r];
+    G.rooms[r].exits.forEach((tg,d)=>{
+      if(!tg||tg===r||done.has(tg)) return;
+      done.add(tg); put(tg, x+D[d][0], y+D[d][1]); q.push(tg);
+    });
+  }
+  let k=0;
+  for(let r=1;r<G.rooms.length;r++) if(!(r in pos)) put(r,-4,k++);
+  const names={};
+  for(let r=1;r<G.rooms.length;r++){
+    let s=G.rooms[r].text.replace(/^\*/,'').replace(/^I am (in|at|on) (a |an |the )?/i,'');
+    names[r]=s.split(/[.,]/)[0].slice(0,16).toUpperCase();
+  }
+  return {pos, names};
+}
+function recordEdge(from,dir,to){
+  const L=DIRL[dir], k=from+'>'+to;
+  if(from===to){ const cur=S.link[k]||''; if(!cur.includes(L)) S.link[k]=cur+L; }
+  else S.link[k]=L;
+  S.seen[to]=1; compassMove=true;
+}
+function recordSpecial(from,to){ if(from!==to && !S.link[from+'>'+to]) S.link[from+'>'+to]='~'; S.seen[to]=1; }
+
+function drawMap(){
+  if(!MP) MP=buildLayout();
+  const pos=MP.pos, nm=MP.names;
+  const seen=Object.keys(S.seen).map(Number).filter(r=>pos[r]);
+  if(!seen.length){ elMapSvg.innerHTML=''; return; }
+  const SX=150, SY=96, NW=112, NH=34, PAD=44;
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  seen.forEach(r=>{const p=pos[r]; a=Math.min(a,p[0]); c=Math.max(c,p[0]);
+                                   b=Math.min(b,p[1]); d=Math.max(d,p[1]);});
+  const X=r=>(pos[r][0]-a)*SX+PAD+NW/2, Y=r=>(pos[r][1]-b)*SY+PAD+NH/2;
+  const W=(c-a)*SX+NW+PAD*2, H=(d-b)*SY+NH+PAD*2;
+  const g=[];
+  const seenSet=new Set(seen);
+
+  /* edges */
+  const pairs={}, loops={};
+  for(const k in S.link){
+    const [f,to]=k.split('>').map(Number);
+    if(!seenSet.has(f)||!seenSet.has(to)) continue;
+    if(f===to){ loops[f]=S.link[k]; continue; }
+    const key=Math.min(f,to)+'|'+Math.max(f,to);
+    (pairs[key]=pairs[key]||{})[f+'>'+to]=S.link[k];
+  }
+  for(const key in pairs){
+    const [p,qq]=key.split('|').map(Number);
+    const x1=X(p), y1=Y(p), x2=X(qq), y2=Y(qq);
+    const ab=pairs[key][p+'>'+qq], ba=pairs[key][qq+'>'+p];
+    const sp=(ab==='~'||ba==='~');
+    g.push(`<line class="eg${sp?' sp':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
+    const at=(t)=>[x1+(x2-x1)*t, y1+(y2-y1)*t];
+    if(ab){ const [lx,ly]=at(0.26);
+            g.push(`<text class="el${ab==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ab}</text>`); }
+    if(ba){ const [lx,ly]=at(0.74);
+            g.push(`<text class="el${ba==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ba}</text>`); }
+  }
+  /* self loops */
+  for(const r in loops){
+    const x=X(r), y=Y(r)-NH/2;
+    g.push(`<path class="eg" d="M${x-16},${y} C${x-26},${y-34} ${x+26},${y-34} ${x+16},${y}"/>`);
+    g.push(`<text class="el" x="${x}" y="${y-24}">${loops[r]}</text>`);
+  }
+  /* nodes */
+  seen.forEach(r=>{
+    const x=X(r)-NW/2, y=Y(r)-NH/2;
+    const here=(r===S.loc);
+    const goal=(r===G.treasureRoom);
+    g.push(`<rect class="nd${here?' here':''}${goal?' goal':''}" x="${x}" y="${y}" `+
+           `width="${NW}" height="${NH}" rx="4"/>`);
+    const label=(nm[r]||('ROOM '+r));
+    g.push(`<text class="nl${here?' here':''}" x="${X(r)}" y="${Y(r)+4}">${label}</text>`);
+    const prizes=G.items.filter((it,k)=>S.itemLoc[k]===r && it.text.startsWith('*')).length;
+    if(prizes) g.push(`<text class="pz" x="${x+NW-7}" y="${y+11}" `+
+                      `style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
+  });
+  elMapSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  elMapSvg.setAttribute('width', Math.min(W,1600));
+  elMapSvg.setAttribute('height', Math.min(W,1600)*H/W);
+  elMapSvg.innerHTML=g.join('');
+  const total=G.rooms.length-1;
+  elMapFoot.textContent=`${seen.length} of ${total} places found`+
+    `   |   letters show the way OUT of the room they sit beside`+
+    `   |   * = prize here   |   dashed gold = not a compass move`;
+}
+function toggleMap(on){
+  mapOn = (on===undefined) ? !mapOn : on;
+  elMapWrap.classList.toggle('on', mapOn);
+  document.getElementById('screen').classList.toggle('hide', mapOn);
+  if(mapOn) drawMap(); else document.querySelector('#cmd')?.focus();
+}
+
+/* ---------- game state ---------- */
+let G=null, S=null, over=false;
+
+function newGame(db){
+  G = db;
+  S = {
+    loc: G.startRoom,
+    itemLoc: G.items.map(it=>it.loc),
+    bits: 0,
+    counter: 0,
+    savedRoom: 0,
+    counters: new Array(16).fill(0),
+    roomSaved: new Array(16).fill(0),
+    lightTime: G.lightTime,
+    seen: {}, link: {}
+  };
+  S.seen[S.loc]=1; MP=null; toggleMap(false);
+  over=false;
+  elLog.innerHTML='';
+  echo('*** GHOST TOWN ***');
+  echo('');
+  echo('Scott Adams Adventure #9');
+  echo('');
+  echo('Two words at a time. Type MAP to see where you have been.');
+  echo('Say HELP if you get stuck.');
+  echo('');
+  look();
+  prompt_();
+}
+
+const carried = ()=> S.itemLoc.filter(l=>l===CARRIED).length;
+const isDark  = ()=> (S.bits & (1<<DARKBIT)) &&
+                     S.itemLoc[LIGHT_SOURCE]!==CARRIED &&
+                     S.itemLoc[LIGHT_SOURCE]!==S.loc;
+
+/* ---------- room display (top pane) ---------- */
+function look(){
+  if(isDark()){ elRoom.textContent = wrap('Its too dark to see!'); return; }
+  const r = G.rooms[S.loc];
+  let t = r.text.startsWith('*') ? r.text.slice(1) : 'I am in a '+r.text;
+  let s = t + '. Visible items:\n\n';
+  const here = G.items.map((it,k)=>[it,k])
+                      .filter(([it,k])=>S.itemLoc[k]===S.loc)
+                      .map(([it])=>it.text);
+  s += here.length ? here.join('. ')+'.\n' : '\n';
+  const names=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
+  const ex = r.exits.map((v,k)=>v?names[k]:null).filter(Boolean);
+  s += '\n     Some obvious exits are: ' + (ex.length?ex.join(' '):'none');
+  elRoom.textContent = wrap(s);
+}
+
+function prompt_(){
+  document.getElementById('inline')?.remove();
+  const line=document.createElement('div');
+  line.id='inline';
+  line.innerHTML='<span>  -------&gt; Tell me what to do? </span>';
+  const inp=document.createElement('input');
+  inp.id='cmd'; inp.autocomplete='off'; inp.spellcheck=false;
+  line.appendChild(inp);
+  elLog.appendChild(line);
+  inp.focus();
+  elLog.scrollTop = elLog.scrollHeight;
+  inp.addEventListener('keydown', e=>{
+    if(e.key!=='Enter') return;
+    const txt = inp.value;
+    line.remove();
+    echo('  -------> Tell me what to do? '+txt);
+    handle(txt);
+  });
+}
+
+/* ---------- vocabulary matching ---------- */
+function whichWord(word, list){
+  if(!word) return -1;
+  const raw = word.toUpperCase();
+  const L = Math.min(raw.length, G.wordLen);
+  const w = raw.slice(0, L);
+  let owner = -1;
+  for(let k=0;k<list.length;k++){
+    let e = list[k];
+    if(!e) continue;
+    if(e[0]==='*'){ e = e.slice(1); } else { owner = k; }
+    if(e.toUpperCase().slice(0,L) === w) return owner<0?k:owner;
+  }
+  return -1;
+}
+function matchItem(word, where){
+  if(!word) return -1;
+  const raw = word.toUpperCase();
+  const L = Math.min(raw.length, G.wordLen);
+  const w = raw.slice(0,L);
+  for(let k=0;k<G.items.length;k++){
+    const it=G.items[k];
+    if(it.word && S.itemLoc[k]===where && it.word.toUpperCase().slice(0,L)===w) return k;
+  }
+  return -1;
+}
+
+/* ---------- the engine ---------- */
+let nounText = '';
+
+function performActions(vb, no){
+  let fl = -1, again = false;
+  for(let ct=0; ct<G.actions.length; ct++){
+    const A = G.actions[ct];
+    const vv = Math.floor(A.vocab/150), nv = A.vocab%150;
+    if(vb !== 0){
+      if(again){ if(A.vocab!==0) break; }
+      else{
+        if(fl===0) break;
+        if(vv!==vb) continue;
+        if(nv!==0 && nv!==no) continue;
+      }
+    }else{
+      if(vv!==0) continue;
+      if(nv!==0 && Math.random()*100 >= nv) continue;
+    }
+    /* conditions */
+    const par=[]; let ok=true;
+    for(const c of A.cond){
+      const op = c%20, dv = Math.floor(c/20);
+      switch(op){
+        case 0: par.push(dv); break;
+        case 1: if(S.itemLoc[dv]!==CARRIED) ok=false; break;
+        case 2: if(S.itemLoc[dv]!==S.loc) ok=false; break;
+        case 3: if(S.itemLoc[dv]!==CARRIED && S.itemLoc[dv]!==S.loc) ok=false; break;
+        case 4: if(S.loc!==dv) ok=false; break;
+        case 5: if(S.itemLoc[dv]===S.loc) ok=false; break;
+        case 6: if(S.itemLoc[dv]===CARRIED) ok=false; break;
+        case 7: if(S.loc===dv) ok=false; break;
+        case 8: if(!(S.bits & (1<<dv))) ok=false; break;
+        case 9: if(S.bits & (1<<dv)) ok=false; break;
+        case 10: if(carried()===0) ok=false; break;
+        case 11: if(carried()!==0) ok=false; break;
+        case 12: if(S.itemLoc[dv]===CARRIED || S.itemLoc[dv]===S.loc) ok=false; break;
+        case 13: if(S.itemLoc[dv]===0) ok=false; break;
+        case 14: if(S.itemLoc[dv]!==0) ok=false; break;
+        case 15: if(S.counter > dv) ok=false; break;
+        case 16: if(S.counter <= dv) ok=false; break;
+        case 17: if(S.itemLoc[dv]!==G.items[dv].initLoc) ok=false; break;
+        case 18: if(S.itemLoc[dv]===G.items[dv].initLoc) ok=false; break;
+        case 19: if(S.counter !== dv) ok=false; break;
+      }
+      if(!ok) break;
+    }
+    if(!ok){ if(fl===-1) fl=-2; continue; }
+
+    /* actions: two ints pack four codes */
+    const codes=[Math.floor(A.act[0]/150), A.act[0]%150,
+                 Math.floor(A.act[1]/150), A.act[1]%150];
+    let p=0; again=false;
+    for(const c of codes){
+      if(c===0) continue;
+      if(c>=1 && c<=51){ out(G.messages[c]+'\n'); continue; }
+      if(c>=102){ out(G.messages[c-50]+'\n'); continue; }
+      switch(c){
+        case 52: if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); p++; }
+                 else S.itemLoc[par[p++]]=CARRIED; break;
+        case 53: S.itemLoc[par[p++]]=S.loc; break;
+        case 54: S.loc=par[p++]; break;
+        case 55: case 59: S.itemLoc[par[p++]]=0; break;
+        case 56: S.bits |= (1<<DARKBIT); break;
+        case 57: S.bits &= ~(1<<DARKBIT); break;
+        case 58: S.bits |= (1<<par[p++]); break;
+        case 60: S.bits &= ~(1<<par[p++]); break;
+        case 61: out("I am dead.\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
+        case 62: { const it=par[p++], rm=par[p++]; S.itemLoc[it]=rm; } break;
+        case 63: out("The Adventure is over.\n"); over=true; break;
+        case 64: case 76: break;
+        case 65: doScore(); break;
+        case 66: doInventory(); break;
+        case 67: S.bits |= 1; break;
+        case 68: S.bits &= ~1; break;
+        case 69: S.lightTime=G.lightTime; S.itemLoc[LIGHT_SOURCE]=CARRIED; S.bits &= ~(1<<LIGHTOUT); break;
+        case 70: elLog.innerHTML=''; break;
+        case 71: out("Use the 'Save to file' button below.\n"); break;
+        case 72: { const a=par[p++], b=par[p++]; const t=S.itemLoc[a]; S.itemLoc[a]=S.itemLoc[b]; S.itemLoc[b]=t; } break;
+        case 73: again=true; break;
+        case 74: S.itemLoc[par[p++]]=CARRIED; break;
+        case 75: { const a=par[p++], b=par[p++]; S.itemLoc[a]=S.itemLoc[b]; } break;
+        case 77: if(S.counter>=0) S.counter--; break;
+        case 78: out(String(S.counter)+' '); break;
+        case 79: S.counter=par[p++]; break;
+        case 80: { const t=S.loc; S.loc=S.savedRoom; S.savedRoom=t; } break;
+        case 81: { const k=par[p++]; const t=S.counter; S.counter=S.counters[k]; S.counters[k]=t; } break;
+        case 82: S.counter += par[p++]; break;
+        case 83: S.counter -= par[p++]; if(S.counter<-1) S.counter=-1; break;
+        case 84: out(nounText); break;
+        case 85: out(nounText+'\n'); break;
+        case 86: out('\n'); break;
+        case 87: { const k=par[p++]; const t=S.loc; S.loc=S.roomSaved[k]; S.roomSaved[k]=t; } break;
+        case 88: break;
+      }
+    }
+    fl=0;
+    if(again) continue;
+  }
+
+  /* built-in GET / DROP when no table entry handled it */
+  if(fl!==0){
+    if(vb===10){
+      if(no<0){ out('What ? \n'); return 0; }
+      if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
+      const it=matchItem(nounText, S.loc);
+      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
+      S.itemLoc[it]=CARRIED; out('OK\n'); return 0;
+    }
+    if(vb===18){
+      if(no<0){ out('What ? \n'); return 0; }
+      const it=matchItem(nounText, CARRIED);
+      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
+      S.itemLoc[it]=S.loc; out('OK\n'); return 0;
+    }
+  }
+  return fl;
+}
+
+function doScore(){
+  let n=0;
+  G.items.forEach((it,k)=>{ if(it.text.startsWith('*') && S.itemLoc[k]===G.treasureRoom) n++; });
+  if(G.treasures>0){
+    out('I stored '+n+' TREASURES.  On a scale of 0 to 100 that rates: '+
+        Math.floor(n*100/G.treasures)+'\n');
+    if(n===G.treasures){ out('Well done.\nThe Adventure is over.\n'); over=true; }
+  }else{
+    /* several of these games are not treasure hunts - they finish on an
+       action instead, so there is no percentage to report */
+    out('I stored '+n+' TREASURES.\n');
+  }
+}
+function doInventory(){
+  out('I am carrying the following:\n');
+  const l=G.items.filter((it,k)=>S.itemLoc[k]===CARRIED).map(it=>it.text);
+  out((l.length?l.join('. ')+'.':'Nothing At All')+'\n');
+}
+
+/* ---------- turn ---------- */
+function handle(line){
+  if(over){ prompt_(); return; }
+  const words = line.trim().split(/\s+/).filter(Boolean);
+  if(words.length===1 && /^MAP$/i.test(words[0])){ toggleMap(); prompt_(); return; }
+  const startLoc = S.loc; compassMove=false;
+  if(!words.length){ flush(); prompt_(); return; }
+  if(words.length>2){ echo('Use no more than 2 words'); prompt_(); return; }
+
+  let vb, no;
+  nounText = words[1] || '';
+  if(words.length===1){
+    const d = whichWord(words[0], G.nouns);
+    if(d>=1 && d<=6){ vb=1; no=d; nounText=words[0]; }
+    else { vb = whichWord(words[0], G.verbs); no = -1; }
+  }else{
+    vb = whichWord(words[0], G.verbs);
+    no = whichWord(words[1], G.nouns);
+  }
+  if(vb<0){ echo("I don't know how to \"" + words[0].toUpperCase() + "\" something"); prompt_(); return; }
+  if(words.length===2 && no<0){ echo("I don't know what \"" + words[1].toUpperCase() + "\" is"); prompt_(); return; }
+
+  /* movement is hard-wired, exactly as in the original */
+  if(vb===1 && no>=1 && no<=6){
+    const dark = isDark();
+    if(dark) out('Dangerous to move in the dark!\n');
+    const nl = G.rooms[S.loc].exits[no-1];
+    if(nl){ recordEdge(S.loc, no-1, nl); S.loc = nl; }
+    else if(dark){ out('I fell down and broke my neck.\n'); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
+    else out("I can't go in that direction\n");
+  }else if(vb===1 && no<0){
+    out('Give me a direction too.\n');
+  }else{
+    const r = performActions(vb, no);
+    if(r===-1) out("I must be stupid, but I just don't understand what you mean.\n");
+    else if(r===-2) out("I can't do that...yet!\n");
+  }
+
+  if(!over) performActions(0,0);
+
+  /* lamp burn-down */
+  if(!over && S.itemLoc[LIGHT_SOURCE]!==0 && S.lightTime>=0){
+    S.lightTime--;
+    if(S.lightTime<1){
+      S.bits |= (1<<LIGHTOUT);
+      if(S.itemLoc[LIGHT_SOURCE]===CARRIED || S.itemLoc[LIGHT_SOURCE]===S.loc)
+        out('Light has run out\n');
+      S.itemLoc[LIGHT_SOURCE]=0;
+    }else if(S.lightTime<25 &&
+             (S.itemLoc[LIGHT_SOURCE]===CARRIED || S.itemLoc[LIGHT_SOURCE]===S.loc)){
+      out('Light runs out in '+S.lightTime+' turns\n');
+    }
+  }
+
+  if(S.loc!==startLoc && !compassMove) recordSpecial(startLoc, S.loc);
+  S.seen[S.loc]=1;
+  autosave();
+  if(mapOn) drawMap();
+  flush();
+  look();
+  if(over){ echo(''); echo('--- press Restart to play again ---'); return; }
+  prompt_();
+}
+
+/* ---------- buttons ---------- */
+/* ---------- saving ----------
+   Save and Load share one File-System-Access id, which is what makes the
+   browser open BOTH dialogs in the same folder - pick a folder once and it
+   stays picked. Browsers without that API fall back to a download plus a
+   file box, which cannot be pointed anywhere, so we also autosave into the
+   browser every turn and offer Resume. */
+const FS_ID='adventure-saves';
+const gameKey = ()=> (document.title||'adventure')+'#'+(G?G.advNum:'x');
+const autoKey = ()=> 'adv-auto-'+gameKey();
+const saveText = ()=> JSON.stringify({game:gameKey(), adv:G.advNum, state:S}, null, 1);
+const saveName = ()=> (document.title||'adventure').toLowerCase()
+                        .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.save.json';
+function applySave(txt){
+  try{
+    const j=JSON.parse(txt);
+    if(j.game!==undefined && j.game!==gameKey()){ echo('That save belongs to '+j.game+'.'); prompt_(); return; }
+    if(j.game===undefined && j.adv!==undefined && G && j.adv!==G.advNum){
+      echo('That save is for a different game.'); prompt_(); return; }
+    S=j.state; over=false; MP=null; toggleMap(false);
+    elLog.innerHTML=''; echo('Game restored.'); look(); prompt_();
+  }catch(err){ echo('BAD SAVE FILE'); prompt_(); }
+}
+async function doSave(){
+  const data=saveText();
+  if(window.showSaveFilePicker){
+    try{
+      const h=await showSaveFilePicker({ id:FS_ID, suggestedName:saveName(),
+        types:[{description:'Adventure save', accept:{'application/json':['.json']}}] });
+      const w=await h.createWritable(); await w.write(data); await w.close();
+      echo('Saved as '+h.name+'.'); prompt_(); return;
+    }catch(err){ if(err && err.name==='AbortError'){ return; } }
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  a.download=saveName(); a.click();
+  echo('Saved to your browser download folder as '+saveName()+'.'); prompt_();
+}
+async function doLoad(){
+  if(window.showOpenFilePicker){
+    try{
+      const [h]=await showOpenFilePicker({ id:FS_ID, multiple:false,
+        types:[{description:'Adventure save', accept:{'application/json':['.json']}}] });
+      applySave(await (await h.getFile()).text()); return;
+    }catch(err){ if(err && err.name==='AbortError'){ return; } }
+  }
+  document.getElementById('fRestore').click();
+}
+function autosave(){ try{ localStorage.setItem(autoKey(), saveText()); }catch(e){} }
+function hasAuto(){ try{ return !!localStorage.getItem(autoKey()); }catch(e){ return false; } }
+function offerResume(){
+  const b=document.getElementById('bResume');
+  if(hasAuto()){ b.style.display=''; echo('(An earlier position was found - click Resume to pick it up.)'); echo(''); }
+  else b.style.display='none';
+}
+document.getElementById('bMap').onclick = ()=>toggleMap();
+document.getElementById('bRestart').onclick = ()=>{ newGame(G); offerResume(); };
+document.getElementById('bSave').onclick = doSave;
+document.getElementById('bLoad').onclick = doLoad;
+document.getElementById('bResume').onclick = ()=>{
+  try{ const tx=localStorage.getItem(autoKey()); if(tx) applySave(tx); }catch(e){}
+};
+document.getElementById('fRestore').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>applySave(r.result); r.readAsText(f);
+};
+document.getElementById('fGame').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ newGame(parseDatabase(r.result)); }
+                 catch(err){ echo('Could not read that database: '+err.message); prompt_(); } };
+  r.readAsText(f,'ISO-8859-1');
+};
+
+/* ---------- boot ---------- */
+const EMBEDDED = " 4727 \n 77 \n 237 \n 119 \n 38 \n 7 \n 1 \n 13 \n 4 \n 175 \n 97 \n 15 \n 3 \n 193 \n 180 \n 520 \n 0 \n 0 \n 5472 \n 11400 \n 100 \n 1402 \n 183 \n 1400 \n 0 \n 0 \n 8926 \n 1647 \n 100 \n 29 \n 0 \n 40 \n 240 \n 0 \n 11923 \n 12229 \n 0 \n 120 \n 0 \n 0 \n 0 \n 0 \n 12153 \n 600 \n 0 \n 20 \n 500 \n 60 \n 3400 \n 0 \n 8779 \n 12229 \n 0 \n 140 \n 480 \n 220 \n 0 \n 0 \n 12204 \n 12054 \n 0 \n 20 \n 20 \n 20 \n 0 \n 0 \n 11937 \n 8100 \n 100 \n 20 \n 140 \n 0 \n 0 \n 0 \n 12381 \n 11027 \n 0 \n 515 \n 309 \n 16 \n 0 \n 0 \n 15720 \n 0 \n 0 \n 15 \n 340 \n 349 \n 0 \n 0 \n 15806 \n 11458 \n 0 \n 140 \n 60 \n 60 \n 0 \n 0 \n 12231 \n 11631 \n 0 \n 204 \n 349 \n 0 \n 0 \n 0 \n 8626 \n 0 \n 100 \n 348 \n 1414 \n 224 \n 192 \n 1400 \n 7950 \n 0 \n 100 \n 348 \n 227 \n 1414 \n 1400 \n 220 \n 9300 \n 0 \n 20 \n 4516 \n 120 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 20 \n 60 \n 249 \n 0 \n 0 \n 0 \n 12223 \n 0 \n 0 \n 15 \n 460 \n 220 \n 0 \n 0 \n 4229 \n 9300 \n 0 \n 15 \n 600 \n 80 \n 200 \n 80 \n 11931 \n 11931 \n 0 \n 60 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 100 \n 349 \n 1413 \n 1400 \n 0 \n 0 \n 8850 \n 0 \n 100 \n 473 \n 80 \n 0 \n 0 \n 0 \n 12227 \n 10950 \n 0 \n 15 \n 460 \n 0 \n 0 \n 0 \n 8920 \n 0 \n 0 \n 80 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 4 \n 494 \n 0 \n 0 \n 0 \n 0 \n 7551 \n 0 \n 100 \n 368 \n 360 \n 120 \n 0 \n 0 \n 9081 \n 11623 \n 0 \n 15 \n 280 \n 840 \n 0 \n 0 \n 10800 \n 0 \n 0 \n 120 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 100 \n 1221 \n 181 \n 0 \n 0 \n 0 \n 19176 \n 9150 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15 \n 44 \n 1434 \n 1413 \n 0 \n 0 \n 6160 \n 21900 \n 100 \n 721 \n 706 \n 720 \n 0 \n 0 \n 8250 \n 0 \n 100 \n 328 \n 320 \n 180 \n 0 \n 0 \n 9059 \n 11400 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 100 \n 901 \n 0 \n 0 \n 0 \n 0 \n 18361 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 100 \n 764 \n 160 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 168 \n 180 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 188 \n 180 \n 40 \n 0 \n 0 \n 9073 \n 12150 \n 0 \n 40 \n 0 \n 0 \n 0 \n 0 \n 2028 \n 2181 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 11716 \n 9750 \n 100 \n 168 \n 0 \n 0 \n 0 \n 0 \n 9450 \n 0 \n 100 \n 40 \n 0 \n 0 \n 0 \n 0 \n 12223 \n 0 \n 0 \n 128 \n 60 \n 120 \n 0 \n 0 \n 12510 \n 0 \n 0 \n 48 \n 60 \n 40 \n 0 \n 0 \n 12360 \n 0 \n 0 \n 68 \n 200 \n 60 \n 0 \n 0 \n 12360 \n 0 \n 0 \n 108 \n 20 \n 100 \n 0 \n 0 \n 12360 \n 0 \n 0 \n 40 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 6100 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 226 \n 0 \n 0 \n 0 \n 0 \n 0 \n 16200 \n 0 \n 4507 \n 40 \n 40 \n 40 \n 0 \n 0 \n 12233 \n 12221 \n 4650 \n 160 \n 180 \n 0 \n 0 \n 0 \n 8758 \n 0 \n 5700 \n 146 \n 0 \n 0 \n 0 \n 0 \n 905 \n 0 \n 5710 \n 141 \n 122 \n 160 \n 174 \n 0 \n 1060 \n 7950 \n 1510 \n 122 \n 420 \n 120 \n 0 \n 0 \n 1351 \n 7858 \n 257 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 6465 \n 203 \n 0 \n 0 \n 0 \n 0 \n 162 \n 21600 \n 6000 \n 163 \n 203 \n 223 \n 160 \n 200 \n 223 \n 8909 \n 0 \n 220 \n 240 \n 0 \n 0 \n 0 \n 8903 \n 0 \n 0 \n 1615 \n 60 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 253 \n 164 \n 209 \n 0 \n 0 \n 0 \n 915 \n 0 \n 253 \n 164 \n 208 \n 200 \n 0 \n 0 \n 204 \n 10500 \n 6900 \n 164 \n 209 \n 200 \n 283 \n 360 \n 167 \n 8758 \n 10971 \n 302 \n 0 \n 0 \n 0 \n 0 \n 2868 \n 9150 \n 3771 \n 302 \n 0 \n 0 \n 0 \n 0 \n 187 \n 0 \n 5067 \n 1502 \n 600 \n 0 \n 0 \n 0 \n 7342 \n 8173 \n 0 \n 2015 \n 60 \n 0 \n 0 \n 0 \n 11458 \n 0 \n 211 \n 362 \n 240 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 3772 \n 383 \n 403 \n 0 \n 0 \n 0 \n 171 \n 3300 \n 193 \n 42 \n 229 \n 0 \n 0 \n 0 \n 923 \n 0 \n 9176 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 9900 \n 462 \n 240 \n 460 \n 480 \n 40 \n 8772 \n 8731 \n 1531 \n 482 \n 745 \n 0 \n 0 \n 0 \n 4800 \n 0 \n 193 \n 42 \n 228 \n 260 \n 1133 \n 0 \n 204 \n 11400 \n 9600 \n 482 \n 269 \n 0 \n 0 \n 0 \n 183 \n 1534 \n 9600 \n 482 \n 268 \n 0 \n 0 \n 0 \n 187 \n 0 \n 7565 \n 42 \n 229 \n 0 \n 0 \n 0 \n 3625 \n 0 \n 8723 \n 42 \n 229 \n 403 \n 220 \n 0 \n 10976 \n 8809 \n 0 \n 615 \n 40 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 9175 \n 443 \n 544 \n 860 \n 874 \n 0 \n 18752 \n 1553 \n 8700 \n 42 \n 229 \n 0 \n 0 \n 0 \n 12627 \n 0 \n 7587 \n 482 \n 260 \n 500 \n 269 \n 0 \n 1535 \n 8753 \n 6934 \n 523 \n 283 \n 520 \n 180 \n 360 \n 222 \n 11458 \n 10384 \n 183 \n 520 \n 180 \n 0 \n 0 \n 222 \n 11400 \n 10650 \n 462 \n 0 \n 0 \n 0 \n 0 \n 5550 \n 0 \n 9175 \n 443 \n 0 \n 0 \n 0 \n 0 \n 178 \n 7551 \n 8439 \n 563 \n 0 \n 0 \n 0 \n 0 \n 189 \n 0 \n 192 \n 642 \n 300 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 10245 \n 663 \n 0 \n 0 \n 0 \n 0 \n 190 \n 0 \n 7565 \n 622 \n 620 \n 580 \n 743 \n 0 \n 222 \n 0 \n 215 \n 582 \n 280 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 7565 \n 622 \n 0 \n 0 \n 0 \n 0 \n 17100 \n 0 \n 4800 \n 180 \n 0 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 159 \n 82 \n 100 \n 0 \n 0 \n 0 \n 8176 \n 150 \n 214 \n 62 \n 220 \n 0 \n 0 \n 0 \n 8176 \n 150 \n 3772 \n 383 \n 0 \n 0 \n 0 \n 0 \n 171 \n 3000 \n 196 \n 22 \n 320 \n 0 \n 0 \n 0 \n 8176 \n 150 \n 10650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 191 \n 1650 \n 8799 \n 1203 \n 1243 \n 1240 \n 1200 \n 1180 \n 8922 \n 150 \n 11503 \n 164 \n 360 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 253 \n 364 \n 0 \n 0 \n 0 \n 0 \n 943 \n 0 \n 11503 \n 364 \n 160 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 7598 \n 0 \n 0 \n 0 \n 0 \n 0 \n 5850 \n 0 \n 6460 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1356 \n 0 \n 12068 \n 703 \n 754 \n 740 \n 40 \n 0 \n 8008 \n 1535 \n 1531 \n 743 \n 740 \n 0 \n 0 \n 0 \n 7801 \n 0 \n 12518 \n 701 \n 720 \n 0 \n 0 \n 0 \n 11101 \n 10950 \n 0 \n 754 \n 0 \n 0 \n 0 \n 0 \n 4960 \n 6600 \n 12321 \n 763 \n 302 \n 300 \n 780 \n 0 \n 222 \n 0 \n 10971 \n 782 \n 780 \n 340 \n 360 \n 0 \n 222 \n 7950 \n 3818 \n 703 \n 0 \n 0 \n 0 \n 0 \n 152 \n 6750 \n 213 \n 102 \n 380 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 16676 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 16737 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 13200 \n 164 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 5744 \n 143 \n 464 \n 814 \n 800 \n 0 \n 7957 \n 1573 \n 0 \n 1615 \n 60 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 10233 \n 503 \n 0 \n 0 \n 0 \n 0 \n 199 \n 0 \n 223 \n 823 \n 480 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 225 \n 322 \n 500 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 1575 \n 322 \n 0 \n 0 \n 0 \n 0 \n 6306 \n 16950 \n 173 \n 322 \n 500 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 6918 \n 283 \n 120 \n 360 \n 0 \n 0 \n 12223 \n 8700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15388 \n 13200 \n 0 \n 308 \n 280 \n 0 \n 0 \n 0 \n 8626 \n 8700 \n 0 \n 288 \n 0 \n 0 \n 0 \n 0 \n 13288 \n 13200 \n 0 \n 288 \n 280 \n 0 \n 0 \n 0 \n 9056 \n 11400 \n 0 \n 120 \n 0 \n 0 \n 0 \n 0 \n 12253 \n 0 \n 5005 \n 504 \n 409 \n 0 \n 0 \n 0 \n 235 \n 17700 \n 200 \n 262 \n 420 \n 0 \n 0 \n 0 \n 8454 \n 11401 \n 13350 \n 140 \n 3500 \n 140 \n 0 \n 0 \n 12229 \n 12223 \n 0 \n 340 \n 0 \n 0 \n 0 \n 0 \n 17460 \n 13288 \n 0 \n 524 \n 0 \n 0 \n 0 \n 0 \n 17356 \n 8626 \n 0 \n 527 \n 0 \n 0 \n 0 \n 0 \n 16111 \n 0 \n 0 \n 14 \n 0 \n 220 \n 0 \n 0 \n 9300 \n 0 \n 1505 \n 524 \n 540 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 202 \n 862 \n 520 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 203 \n 882 \n 560 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 8550 \n 903 \n 563 \n 900 \n 0 \n 0 \n 8888 \n 16460 \n 9827 \n 903 \n 0 \n 0 \n 0 \n 0 \n 16650 \n 0 \n 5700 \n 903 \n 0 \n 0 \n 0 \n 0 \n 16650 \n 0 \n 5700 \n 905 \n 920 \n 404 \n 0 \n 0 \n 203 \n 0 \n 164 \n 922 \n 580 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 9829 \n 963 \n 960 \n 980 \n 100 \n 0 \n 222 \n 16858 \n 1531 \n 1003 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 13981 \n 1054 \n 0 \n 0 \n 0 \n 0 \n 161 \n 7050 \n 13541 \n 1023 \n 1020 \n 1040 \n 0 \n 0 \n 222 \n 10950 \n 0 \n 615 \n 60 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 13970 \n 1020 \n 1082 \n 1034 \n 1054 \n 1074 \n 203 \n 0 \n 1520 \n 1082 \n 0 \n 0 \n 0 \n 0 \n 1013 \n 0 \n 7520 \n 1082 \n 0 \n 0 \n 0 \n 0 \n 1014 \n 0 \n 1541 \n 1063 \n 1060 \n 0 \n 0 \n 0 \n 7801 \n 0 \n 13970 \n 1082 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 14025 \n 322 \n 0 \n 0 \n 0 \n 0 \n 17700 \n 0 \n 5700 \n 184 \n 254 \n 214 \n 200 \n 0 \n 203 \n 1060 \n 193 \n 42 \n 228 \n 1134 \n 260 \n 0 \n 7554 \n 11446 \n 14639 \n 1134 \n 1120 \n 1143 \n 0 \n 0 \n 8000 \n 16350 \n 14037 \n 482 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 1541 \n 1023 \n 1020 \n 1060 \n 0 \n 0 \n 8924 \n 150 \n 7565 \n 42 \n 228 \n 0 \n 0 \n 0 \n 5850 \n 0 \n 14700 \n 900 \n 140 \n 900 \n 140 \n 0 \n 12381 \n 12531 \n 12517 \n 681 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 14850 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 3768 \n 283 \n 120 \n 120 \n 0 \n 0 \n 12228 \n 17931 \n 11400 \n 0 \n 0 \n 0 \n 0 \n 0 \n 6300 \n 0 \n 6933 \n 283 \n 360 \n 500 \n 503 \n 0 \n 8759 \n 150 \n 6933 \n 183 \n 503 \n 500 \n 0 \n 0 \n 209 \n 0 \n 6913 \n 242 \n 183 \n 240 \n 0 \n 0 \n 209 \n 18750 \n 6913 \n 242 \n 283 \n 360 \n 240 \n 0 \n 8701 \n 8975 \n 6913 \n 1223 \n 183 \n 0 \n 0 \n 0 \n 277 \n 18961 \n 6913 \n 1223 \n 283 \n 0 \n 0 \n 0 \n 277 \n 18961 \n 13981 \n 1053 \n 1002 \n 0 \n 0 \n 0 \n 19629 \n 19273 \n 0 \n 1223 \n 0 \n 0 \n 0 \n 0 \n 19477 \n 18961 \n 0 \n 243 \n 240 \n 0 \n 0 \n 0 \n 19475 \n 8850 \n 5005 \n 504 \n 408 \n 0 \n 0 \n 0 \n 235 \n 11090 \n 0 \n 400 \n 0 \n 0 \n 0 \n 0 \n 18741 \n 9000 \n 0 \n 720 \n 320 \n 0 \n 0 \n 0 \n 8176 \n 8850 \n 1562 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 9000 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 12750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 8713 \n 1203 \n 243 \n 1200 \n 240 \n 1220 \n 8922 \n 150 \n 4950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 235 \n 0 \n 4350 \n 0 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 6900 \n 283 \n 0 \n 0 \n 0 \n 0 \n 17550 \n 0 \n 6900 \n 183 \n 0 \n 0 \n 0 \n 0 \n 17550 \n 0 \n 6900 \n 0 \n 0 \n 0 \n 0 \n 0 \n 905 \n 0 \n 8550 \n 563 \n 0 \n 0 \n 0 \n 0 \n 188 \n 0 \n 17250 \n 681 \n 504 \n 600 \n 1160 \n 380 \n 18654 \n 9300 \n 2719 \n 0 \n 0 \n 0 \n 0 \n 0 \n 8 \n 0 \n 9687 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 15077 \n 902 \n 703 \n 0 \n 0 \n 0 \n 271 \n 18361 \n 14002 \n 862 \n 760 \n 389 \n 380 \n 0 \n 203 \n 8700 \n 171 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1023 \n 0 \n 15548 \n 1183 \n 1200 \n 1180 \n 1240 \n 0 \n 222 \n 7950 \n 15548 \n 1223 \n 1200 \n 1220 \n 240 \n 0 \n 222 \n 7950 \n 1513 \n 243 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 9900 \n 0 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 14002 \n 862 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 13981 \n 1263 \n 1053 \n 0 \n 0 \n 0 \n 19580 \n 10950 \n 0 \n 1222 \n 820 \n 1280 \n 1040 \n 0 \n 10927 \n 8850 \n 0 \n 242 \n 240 \n 0 \n 0 \n 0 \n 8850 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 12076 \n 0 \n 13981 \n 1263 \n 1054 \n 0 \n 0 \n 0 \n 1697 \n 0 \n 12101 \n 0 \n 0 \n 0 \n 0 \n 0 \n 19650 \n 0 \n 10950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 225 \n 504 \n 0 \n 0 \n 0 \n 0 \n 20850 \n 0 \n 3815 \n 42 \n 0 \n 0 \n 0 \n 0 \n 19800 \n 0 \n 16650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 161 \n 7050 \n 12300 \n 763 \n 0 \n 0 \n 0 \n 0 \n 19977 \n 0 \n 211 \n 1162 \n 620 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 255 \n 1302 \n 660 \n 0 \n 0 \n 0 \n 204 \n 11534 \n 3858 \n 664 \n 1334 \n 0 \n 0 \n 0 \n 152 \n 20250 \n 1609 \n 1334 \n 1320 \n 1340 \n 0 \n 0 \n 11153 \n 150 \n 1609 \n 1323 \n 1320 \n 0 \n 0 \n 0 \n 7801 \n 0 \n 211 \n 1342 \n 680 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 6545 \n 163 \n 0 \n 0 \n 0 \n 0 \n 162 \n 20400 \n 269 \n 1382 \n 700 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 1505 \n 604 \n 100 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 15750 \n 1402 \n 1434 \n 1420 \n 0 \n 0 \n 224 \n 5687 \n 15750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 187 \n 1697 \n 3770 \n 1282 \n 1454 \n 1440 \n 0 \n 0 \n 203 \n 1060 \n 16500 \n 1243 \n 322 \n 403 \n 400 \n 1463 \n 209 \n 10950 \n 0 \n 1240 \n 400 \n 0 \n 0 \n 0 \n 8908 \n 0 \n 16500 \n 322 \n 1183 \n 0 \n 0 \n 0 \n 1038 \n 0 \n 5700 \n 141 \n 0 \n 0 \n 0 \n 0 \n 1061 \n 0 \n 265 \n 1482 \n 740 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 9266 \n 1523 \n 1514 \n 1500 \n 0 \n 0 \n 19177 \n 8059 \n 9266 \n 1523 \n 1513 \n 0 \n 0 \n 0 \n 127 \n 19050 \n 16500 \n 322 \n 0 \n 0 \n 0 \n 0 \n 910 \n 21450 \n 9176 \n 1502 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 16148 \n 1203 \n 0 \n 0 \n 0 \n 0 \n 174 \n 0 \n 3750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 152 \n 1726 \n 6000 \n 0 \n 0 \n 0 \n 0 \n 0 \n 910 \n 21450 \n 173 \n 504 \n 0 \n 0 \n 0 \n 0 \n 20850 \n 0 \n 17250 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1697 \n 0 \n 8700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 984 \n 4050 \n 160 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1356 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"AUTO\"\n\"ANY\"\n\"GO\"\n\"NORTH\"\n\"*WALK\"\n\"SOUTH\"\n\"*RUN\"\n\"EAST\"\n\"*CLIM\"\n\"WEST\"\n\"*ENTE\"\n\"UP\"\n\"*MOUN\"\n\"DOWN\"\n\"*RIDE\"\n\"GAME\"\n\".\"\n\"AROU\"\n\".\"\n\"STAB\"\n\"GET\"\n\"MANU\"\n\"*TAKE\"\n\"*PILE\"\n\"*PICK\"\n\"HILL\"\n\"*GRAB\"\n\"GUNP\"\n\"*COLL\"\n\"GRAV\"\n\"*LIFT\"\n\"SULF\"\n\".\"\n\"*POWD\"\n\".\"\n\"CHAR\"\n\"DROP\"\n\"MATC\"\n\"*PUT\"\n\"ON\"\n\"*THRO\"\n\"SAFE\"\n\"*LEAV\"\n\"MIRR\"\n\"*REMO\"\n\"COMP\"\n\"*TOSS\"\n\"HORS\"\n\".\"\n\"*MAGN\"\n\"LOOK\"\n\"BELL\"\n\"*EXAM\"\n\"GHOS\"\n\"*DESC\"\n\"*FIGU\"\n\"*CHEC\"\n\"HAND\"\n\"HELP\"\n\"*FEET\"\n\"SAVE\"\n\"HEAD\"\n\"QUIT\"\n\"KEY\"\n\"SCOR\"\n\"*KEYS\"\n\"SAY\"\n\"MAP\"\n\"*YELL\"\n\"CAND\"\n\"*SCRE\"\n\"*LIGH\"\n\"*WHIS\"\n\"MUSI\"\n\"*SING\"\n\"BULL\"\n\"DIG\"\n\"STAB\"\n\"*SHOV\"\n\"DERR\"\n\"MIX\"\n\"*GUN\"\n\"*MAKE\"\n\"WIRE\"\n\".\"\n\"STOR\"\n\"SMEL\"\n\"JAIL\"\n\"*TAST\"\n\"ROOF\"\n\"*EAT\"\n\"SIGN\"\n\"BURN\"\n\"BARB\"\n\"*IGNI\"\n\"TUMB\"\n\"*LIGH\"\n\"*SAGE\"\n\".\"\n\"*BRUS\"\n\"OPEN\"\n\"MINE\"\n\"*UNLO\"\n\"*ENTR\"\n\"LOCK\"\n\"BED\"\n\".\"\n\"HOTE\"\n\"CLOS\"\n\"ROOM\"\n\"*SHUT\"\n\"GIDD\"\n\"LOAD\"\n\"*GITT\"\n\"SHOO\"\n\"*GIDY\"\n\"WITH\"\n\"*GITY\"\n\"*USE\"\n\"COIN\"\n\"INVE\"\n\"TOWN\"\n\"HIT\"\n\"HOLE\"\n\"*RING\"\n\"INVE\"\n\"*BEAT\"\n\"STAL\"\n\"PLAY\"\n\"SALO\"\n\"KILL\"\n\"DOOR\"\n\"CLAP\"\n\"WIND\"\n\"*APPL\"\n\"SPUR\"\n\"READ\"\n\"HAT\"\n\"UNLI\"\n\"STRI\"\n\"*EXTI\"\n\"TAPE\"\n\"LIST\"\n\"*ROLL\"\n\"*HEAR\"\n\"WALL\"\n\"BREA\"\n\"TELE\"\n\"*SMAS\"\n\"*OFFI\"\n\"*BUST\"\n\"PAIN\"\n\"JUMP\"\n\"SLEE\"\n\"*LEAP\"\n\"SNAK\"\n\"CUT\"\n\"*RATT\"\n\"*SLIC\"\n\"WORM\"\n\"SHAK\"\n\"*SLIM\"\n\"*WAVE\"\n\"SHOV\"\n\"TAPE\"\n\"BOX\"\n\"WEAR\"\n\"*CASH\"\n\"*PUTO\"\n\"ROAD\"\n\"FIND\"\n\"FORK\"\n\"*LOCA\"\n\"VAIN\"\n\"*SEEK\"\n\"PIAN\"\n\"CROS\"\n\"$200\"\n\"SLEE\"\n\"GO\"\n\"CONN\"\n\"*BOAR\"\n\"*SPLI\"\n\"PATH\"\n\"*REPA\"\n\"HELL\"\n\"MOVE\"\n\"HI\"\n\"*PUSH\"\n\"FIEL\"\n\"*PRES\"\n\"CRYS\"\n\"*TAP\"\n\"GOLD\"\n\"PASS\"\n\"*NUGG\"\n\"WAIT\"\n\"KEG\"\n\"CLEA\"\n\"NAIL\"\n\"COVE\"\n\"FUSE\"\n\"\"\n\"TOPP\"\n\".\"\n\"LOBB\"\n\"EMPT\"\n\"RAVI\"\n\"*SPIL\"\n\"*RIDG\"\n\"DANC\"\n\"SHAC\"\n\"\"\n\"TRAI\"\n\"FILL\"\n\"MOUN\"\n\"\"\n\"FLOO\"\n\"\"\n\"PLAN\"\n\"SHOE\"\n\"PELT\"\n\"KNOC\"\n\"CUP\"\n\"*TOUC\"\n\"BAG\"\n\"*FEEL\"\n\"*DUST\"\n\"*KISS\"\n\"HAMM\"\n\"SPUR\"\n\"TEEP\"\n\"*KICK\"\n\"TOM\"\n\"\"\n\"HOW\"\n\"\"\n\"NECK\"\n\"\"\n\"COUN\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"\"\n 0 \n 0 \n 17 \n 2 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 0 \n 1 \n 3 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 0 \n 2 \n 4 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 0 \n 3 \n 6 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 4 \n 0 \n 0 \n 0 \n 0 \n\"stable\"\n 0 \n 0 \n 4 \n 7 \n 0 \n 0 \n\"road\"\n 9 \n 8 \n 6 \n 0 \n 0 \n 0 \n\"fork in the road\"\n 7 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm on a ridge above a narrow ravine I see\nmountains in the distance\"\n 0 \n 7 \n 0 \n 0 \n 0 \n 0 \n\"large field\"\n 0 \n 0 \n 0 \n 0 \n 8 \n 0 \n\"ravine\"\n 0 \n 2 \n 0 \n 0 \n 0 \n 0 \n\"saloon\"\n 0 \n 0 \n 11 \n 0 \n 0 \n 0 \n\"hidden office\"\n 1 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"Jail\"\n 13 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"cell\"\n 2 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"Dry Goods store\"\n 0 \n 1 \n 0 \n 0 \n 0 \n 0 \n\"Barbershop\"\n 0 \n 0 \n 20 \n 1 \n 0 \n 0 \n\"road\"\n 0 \n 0 \n 0 \n 32 \n 0 \n 0 \n\"*I'm on a ridge above a ravine\"\n 0 \n 5 \n 0 \n 0 \n 0 \n 0 \n\"stall\"\n 0 \n 0 \n 0 \n 17 \n 0 \n 0 \n\"*I'm on Boot hill\"\n 0 \n 0 \n 0 \n 0 \n 10 \n 22 \n\"Mine\"\n 0 \n 23 \n 0 \n 0 \n 21 \n 0 \n\"Mine\"\n 22 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"Mine\"\n 0 \n 3 \n 0 \n 0 \n 0 \n 0 \n\"Telegraph office\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 19 \n\"*I'm on back of 'Ole Paint\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"warm bed\"\n 0 \n 0 \n 0 \n 28 \n 0 \n 0 \n\"hotel room\"\n 3 \n 0 \n 27 \n 0 \n 0 \n 0 \n\"lobby\"\n 0 \n 0 \n 0 \n 0 \n 20 \n 0 \n\"grave\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm flat on my back in a manure pile\"\n 19 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"storeroom\"\n 0 \n 0 \n 18 \n 0 \n 0 \n 0 \n\"mountain trail\"\n 0 \n 32 \n 0 \n 0 \n 0 \n 0 \n\"line shack\"\n 0 \n 0 \n 0 \n 0 \n 33 \n 0 \n\"root cellar\"\n 28 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm behind the counter\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"hidden canyon\"\n 36 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"teepee\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"lot of trouble!\"\n\"\"\n\"OK\"\n\"I see\"\n\"Welcome to Adventure 9 `GHOST TOWN`\"\n\"by Scott Adams dedicated: the Cherens\"\n\"I've nothing to do that with\"\n\"Sorry I can't\"\n\"I found\"\n\"Wear?\"\n\"BARF!\"\n\"something\"\n\"nothing special\"\n\"reminds me of\"\n\"You've made\"\n\"BONUS points out of a possible 50 in\"\n\"its full of sage brush, tumbleweed & is impassable\"\n\"moves\"\n\"The dry wash is burnt clear\"\n\"flying glass slices me up\"\n\"Crack!\"\n\"north\"\n\"its pointing to the\"\n\"horseshoe\"\n\"Doors closed, windows barred!\"\n\"with what?\"\n\"Inside bolt is latched!\"\n\"Magnet!\"\n\" doesn't seem to do it!\"\n\"Ding-Ding\"\n\"Bell rings somewhere\"\n\"My hand passes thru!\"\n\"Ghost stands, bows, vanishes!\"\n\"Silly, wrong type keys!\"\n\"Odd\"\n\"goes thunk!\"\n\"falls out\"\n\"Candle blew out!\"\n\"very pretty\"\n\"shoots stream of water\"\n\"it already is\"\n\"Drop *TREASURES* then SCORE\"\n\"I hear\"\n\"What?\"\n\"Too steep!\"\n\"feels strange\"\n\"its my size\"\n\"Don't collect $200 then don't pass GO! CONTRAPOSITIVE.\"\n\"happens\"\n\"How?\"\n\"Its mine, dig roof!\"\n\"Ghostly voice whispers:\"\n\"Vain...\"\n\"Match flares up...\"\n\"...and then goes out\"\n\"Its getting\"\n\"Sunset!\"\n\"I feel refreshed\"\n\"Nights are cold! I caught Pneumonia\"\n\"Try: SLEEP\"\n\"it worked!\"\n\"its gone\"\n\"snake won't let me\"\n\"That felt good!\"\n\"Too big!\"\n\"its locked!\"\n\"Good Morning\"\n\"Good night\"\n\"Its fireproof\"\n\"He won't budge\"\n\"left!\"\n\"dark!\"\n\"Thru the Hat!\"\n\"I'm snake bit\"\n\"I'm not Alice!\"\n\"He bucks, I'm thrown\"\n\"Whoosh!\"\n\"TOO CLOSE! Pieces of me rain down for days!\"\n\"Boom!\"\n\"... .... .-  -.-  .  - ---  .--.  .--.  .  .-.\"\n\"SPARK! * * * *\"\n\"Click\"\n\"Is he a ghost? Anyway wrong idea.\"\n\"There's not even a keyhole!\"\n\"masking tape\"\n\"Floorboards sure are creaky\"\n\"Loose plank here\"\n\"salt peter\"\n\"I won a prize!\"\n\"reach a nail\"\n\"may need to say a magic word here\"\n\"after a long ride\"\n\"he rides off without me\"\n\"Geronimo says: `Its easy! Happy Landings!`\"\n\"is missing\"\n\"rotten eggs\"\n\".\"\n\"in saloon\"\n\"scared them off!\"\n\"Worn out fiddle strings/STRI/\" 0 \n\"Barbershop\" 1 \n\"Jail\" 1 \n\"Saloon\" 2 \n\"Stable\" 4 \n\"Stall\" 5 \n\"Manure pile\" 5 \n\"Shovel/SHOV/\" 15 \n\"White crystals/CRYS/\" 0 \n\"Lit candle/CAND/\" 0 \n\"Yellow powder/SULF/\" 0 \n\"Sagebrush charcoal/CHAR/\" 10 \n\"Pile of gunpowder\" 0 \n\"Entrance to a mine\" 10 \n\"Matches/MATC/\" 15 \n\"Mirror\" 11 \n\"'ole Paint\" 19 \n\"Broken mirror\" 0 \n\"Hole in the wall\" 0 \n\"Compass/COMP/\" 15 \n\"Horseshoe/HORS/\" 19 \n\"Male cow manure/MANU/\" 0 \n\"Large bell/BELL/\" 11 \n\"Wraithlike figure playing equally ghostly piano\" 0 \n\"Piano with set of keys\" 0 \n\"Map/MAP/\" 0 \n\"Unlit candle/CAND/\" 22 \n\"*SILVER BULLET*/BULL/\" 21 \n\"*GOLDEN DERRINGER*/DERR/\" 13 \n\"Open door\" 0 \n\"Sign-`Ring for ROOM service`/SIGN/\" 35 \n\"Locked door\" 13 \n\"Dry-Goods store\" 2 \n\"Sign/SIGN/\" 15 \n\"*SILVER SPURS*/SPUR/\" 25 \n\"Stetson hat/HAT/\" 16 \n\"Which I'm wearing\" 0 \n\"Small key/KEY/\" 0 \n\"Roll of tape/TAPE/\" 0 \n\"Taped up mirror\" 0 \n\"*GOLD NUGGET*/GOLD/\" 0 \n\"Telegraph office\" 3 \n\"Empty matchbook/MATC/\" 0 \n\"Bed\" 0 \n\"Hotel\" 3 \n\"Rattlesnake/SNAK/\" 20 \n\"Open grave\" 0 \n\"*GOLD COIN*/COIN/\" 29 \n\"Purple worm/WORM/\" 29 \n\"Purple Slime/WORM/\" 0 \n\"Telegraph key\" 24 \n\"2 loose wires\" 0 \n\"Spliced wire\" 0 \n\"Pieces of wire/WIRE/\" 0 \n\"Large safe\" 24 \n\"*CASHBOX*/BOX/\" 35 \n\"* $200 */$200/\" 0 \n\"*ORIENTAL GO BOARD*/GO/\" 12 \n\"Hole kicked in wall & bare hoof print\" 0 \n\"Keg of nails/KEG/\" 31 \n\"Empty keg/KEG/\" 0 \n\"Keg of gunpowder/KEG/\" 0 \n\"Nails/NAIL/\" 0 \n\"Telegraph key\" 33 \n\"Smoking open safe\" 0 \n\"Line shack\" 32 \n\"Plank/PLAN/\" 0 \n\"Hole in floor\" 0 \n\"*PELTS*/PELT/\" 34 \n\"Counter\" 28 \n\"Ghostly square dance\" 0 \n\"*SILVER CUP*/CUP/\" 0 \n\"*BAG GOLD DUST*/BAG/\" 0 \n\"Hammer/HAMM/\" 14 \n\"TeePee\" 36 \n\"Indian ghost\" 0 \n\"*SACRED TOM TOM*/TOM/\" 37 \n\"*TURQUOISE NECKLACE*/NECK/\" 37 \n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n 223 \n 9 \n 774 \n\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
+newGame(parseDatabase(EMBEDDED));
+offerResume();
+</script>
+</body>
+</html>

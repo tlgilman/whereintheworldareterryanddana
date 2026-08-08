@@ -174,6 +174,14 @@ const TravelWebsite: React.FC<TravelWebsiteProps> = ({
                     Interactive Map
                   </Link>
                 </li>
+                <li>
+                  <a
+                    href="/games/index.html"
+                    className="text-gray-300 hover:text-white transition-colors"
+                  >
+                    🕹️ Retro Games
+                  </a>
+                </li>
               </ul>
             </div>
             <div>

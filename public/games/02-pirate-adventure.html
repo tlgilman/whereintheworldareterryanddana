@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PIRATE ADVENTURE</title>
+<style>
+  :root{ --scr:#e8e8e8; --bg:#0a0a0a; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:#111;color:var(--scr);
+       font-family:"Courier New",ui-monospace,monospace;
+       display:flex;align-items:center;justify-content:center;padding:16px}
+  #case{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:14px;
+        width:min(96vw,880px);height:min(94vh,700px);display:flex;flex-direction:column;
+        box-shadow:0 10px 40px #000}
+  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;
+          padding:12px 14px;overflow:hidden;font-size:16px;line-height:1.28;
+          white-space:pre-wrap;word-break:break-word}
+  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:hidden}
+  #bar{height:3px;background:var(--scr);margin:8px 0}
+  #log{flex:1;overflow-y:auto;scrollbar-width:thin}
+  #log::-webkit-scrollbar{width:8px}
+  #log::-webkit-scrollbar-thumb{background:#444}
+  #inline{display:flex}
+  #cmd{background:transparent;border:0;outline:0;color:var(--scr);
+       font:inherit;flex:1;padding:0;caret-color:var(--scr)}
+  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  button,label.btn{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
+          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer}
+  button:hover,label.btn:hover{background:#2c352a}
+  input[type=file]{display:none}
+  .hint{color:#6f7a6c;font-size:11px;margin-left:auto}
+  #mapwrap{display:none;flex:1;overflow:auto;background:var(--bg);padding:6px}
+  #mapwrap.on{display:block}
+  #screen.hide{display:none}
+  #mapsvg{display:block;margin:0 auto}
+  .nd{fill:#141a12;stroke:#3f5c39;stroke-width:1.5}
+  .nd.here{fill:#26361f;stroke:#e8e8e8;stroke-width:2.5}
+  .nd.goal{stroke:#e8c35a;stroke-dasharray:4 3}
+  .nl{fill:#cfe6c8;font:11px "Courier New",monospace;text-anchor:middle}
+  .nl.here{fill:#fff;font-weight:bold}
+  .eg{stroke:#3f5c39;stroke-width:1.6;fill:none}
+  .eg.sp{stroke:#e8c35a;stroke-dasharray:5 4}
+  .el{fill:#9fd18f;font:10px "Courier New",monospace;text-anchor:middle;
+      paint-order:stroke;stroke:#0a0a0a;stroke-width:4px;stroke-linejoin:round}
+  .el.sp{fill:#e8c35a}
+  .pz{fill:#e8c35a}
+  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px}
+  b{font-weight:bold}
+</style>
+</head>
+<body>
+<div id="case">
+  <div id="mapwrap"><svg id="mapsvg"></svg><div class="mapfoot" id="mapfoot"></div></div>
+  <div id="screen">
+    <div id="room"></div>
+    <div id="bar"></div>
+    <div id="log"></div>
+  </div>
+  <div id="bottom">
+    <button id="bMap">Map</button>
+    <button id="bRestart">Restart</button>
+    <button id="bSave">Save</button>
+    <button id="bLoad">Load</button>
+    <button id="bResume" style="display:none">Resume</button>
+    <input type="file" id="fRestore" accept=".json,.sav">
+    <label class="btn" for="fGame">Load another ADVENT/Qn</label><input type="file" id="fGame">
+    <span class="hint">two-word commands &middot; N S E W U D to move</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------
+   A Scott Adams adventure interpreter.
+   Faithful to the original TRS-80 ADV/CMD semantics: the same
+   condition codes (0-19), the same action codes (0-101 and 102+),
+   the same hard-wired verb numbers (1=GO, 10=GET, 18=DROP) and the
+   same light source (item 9).
+   ------------------------------------------------------------------ */
+
+const CARRIED = 255, DARKBIT = 15, LIGHTOUT = 16, LIGHT_SOURCE = 9;
+
+/* ---------- database parser: reads the raw ADVENT/Qn text format ---------- */
+function parseDatabase(text){
+  let i = 0;
+  const n = text.length;
+  function tok(){
+    while(i<n && /\s/.test(text[i])) i++;
+    if(i>=n) return null;
+    if(text[i]==='"'){
+      const j = text.indexOf('"', i+1);
+      const s = text.slice(i+1, j<0?n:j);
+      i = (j<0?n:j+1);
+      return {s};
+    }
+    let j=i; while(j<n && !/\s/.test(text[j])) j++;
+    const w = text.slice(i,j); i=j;
+    const v = parseInt(w,10);
+    return isNaN(v) ? {s:w} : {v};
+  }
+  const num = ()=>tok().v, str = ()=>tok().s;
+  const g = {};
+  [g.unk,g.nItems,g.nActions,g.nWords,g.nRooms,g.maxCarry,g.startRoom,
+   g.treasures,g.wordLen,g.lightTime,g.nMessages,g.treasureRoom] =
+     Array.from({length:12}, num);
+  g.actions = [];
+  for(let k=0;k<=g.nActions;k++){
+    const a = Array.from({length:8}, num);
+    g.actions.push({vocab:a[0], cond:a.slice(1,6), act:[a[6],a[7]]});
+  }
+  g.verbs=[]; g.nouns=[];
+  for(let k=0;k<=g.nWords;k++){ g.verbs.push(str()); g.nouns.push(str()); }
+  g.rooms=[];
+  for(let k=0;k<=g.nRooms;k++){
+    const ex = Array.from({length:6}, num);
+    g.rooms.push({exits:ex, text:str()});
+  }
+  g.messages = Array.from({length:g.nMessages+1}, str);
+  g.items=[];
+  for(let k=0;k<=g.nItems;k++){
+    const d = str(), loc = num();
+    const cut = d.indexOf('/');
+    g.items.push({
+      text: cut>=0 ? d.slice(0,cut) : d,
+      word: cut>=0 ? d.slice(cut+1).replace(/\/$/,'') : null,
+      loc, initLoc: loc
+    });
+  }
+  g.comments = Array.from({length:g.nActions+1}, str);
+  g.version = num(); g.advNum = num();
+  return g;
+}
+
+/* ---------- screen ---------- */
+const COLS = 64;
+const elRoom = document.getElementById('room');
+const elLog  = document.getElementById('log');
+const elCmd  = document.getElementById('cmd');
+
+function wrap(s){
+  const out=[];
+  for(const para of String(s).split('\n')){
+    const m = para.match(/^(\s*)([\s\S]*)$/);
+    const ind = m[1], body = m[2];
+    if(!body){ out.push(''); continue; }
+    let line = ind;
+    for(const w of body.split(/\s+/)){
+      if(line.trim() && (line+' '+w).length>COLS){ out.push(line); line = ind+w; }
+      else line = line.trim() ? line+' '+w : line+w;
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+let pending = '';
+function out(s){ pending += s; }
+function flush(){
+  if(!pending) return;
+  const d=document.createElement('div');
+  d.textContent = wrap(pending.replace(/\n+$/,''));
+  elLog.appendChild(d);
+  pending='';
+  elLog.scrollTop = elLog.scrollHeight;
+}
+function echo(s){
+  const d=document.createElement('div');
+  d.textContent = s;
+  elLog.appendChild(d);
+  elLog.scrollTop = elLog.scrollHeight;
+}
+
+/* ---------- automap ---------- */
+/* The room graph is known up front, so the layout is computed once and then
+   revealed a room at a time. An edge appears only when you actually walk it,
+   labelled at the end you left from - so the letter beside a room is the
+   direction you took OUT of that room. */
+const MAPLAYOUT = null;
+let MP=null, compassMove=false, mapOn=false;
+const elMapWrap=document.getElementById('mapwrap');
+const elMapSvg =document.getElementById('mapsvg');
+const elMapFoot=document.getElementById('mapfoot');
+const DIRL='NSEWUD';
+
+function buildLayout(){
+  if(MAPLAYOUT && MAPLAYOUT.pos) return MAPLAYOUT;
+  /* fall back to walking the graph from the start room */
+  const pos={}, taken=new Set();
+  const D=[[0,-1],[0,1],[1,0],[-1,0],[1,-1],[1,1]];
+  const put=(r,x,y)=>{ while(taken.has(x+','+y)) x++; pos[r]=[x,y]; taken.add(x+','+y); };
+  put(G.startRoom,0,0);
+  const q=[G.startRoom], done=new Set([G.startRoom]);
+  while(q.length){
+    const r=q.shift(), [x,y]=pos[r];
+    G.rooms[r].exits.forEach((tg,d)=>{
+      if(!tg||tg===r||done.has(tg)) return;
+      done.add(tg); put(tg, x+D[d][0], y+D[d][1]); q.push(tg);
+    });
+  }
+  let k=0;
+  for(let r=1;r<G.rooms.length;r++) if(!(r in pos)) put(r,-4,k++);
+  const names={};
+  for(let r=1;r<G.rooms.length;r++){
+    let s=G.rooms[r].text.replace(/^\*/,'').replace(/^I am (in|at|on) (a |an |the )?/i,'');
+    names[r]=s.split(/[.,]/)[0].slice(0,16).toUpperCase();
+  }
+  return {pos, names};
+}
+function recordEdge(from,dir,to){
+  const L=DIRL[dir], k=from+'>'+to;
+  if(from===to){ const cur=S.link[k]||''; if(!cur.includes(L)) S.link[k]=cur+L; }
+  else S.link[k]=L;
+  S.seen[to]=1; compassMove=true;
+}
+function recordSpecial(from,to){ if(from!==to && !S.link[from+'>'+to]) S.link[from+'>'+to]='~'; S.seen[to]=1; }
+
+function drawMap(){
+  if(!MP) MP=buildLayout();
+  const pos=MP.pos, nm=MP.names;
+  const seen=Object.keys(S.seen).map(Number).filter(r=>pos[r]);
+  if(!seen.length){ elMapSvg.innerHTML=''; return; }
+  const SX=150, SY=96, NW=112, NH=34, PAD=44;
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  seen.forEach(r=>{const p=pos[r]; a=Math.min(a,p[0]); c=Math.max(c,p[0]);
+                                   b=Math.min(b,p[1]); d=Math.max(d,p[1]);});
+  const X=r=>(pos[r][0]-a)*SX+PAD+NW/2, Y=r=>(pos[r][1]-b)*SY+PAD+NH/2;
+  const W=(c-a)*SX+NW+PAD*2, H=(d-b)*SY+NH+PAD*2;
+  const g=[];
+  const seenSet=new Set(seen);
+
+  /* edges */
+  const pairs={}, loops={};
+  for(const k in S.link){
+    const [f,to]=k.split('>').map(Number);
+    if(!seenSet.has(f)||!seenSet.has(to)) continue;
+    if(f===to){ loops[f]=S.link[k]; continue; }
+    const key=Math.min(f,to)+'|'+Math.max(f,to);
+    (pairs[key]=pairs[key]||{})[f+'>'+to]=S.link[k];
+  }
+  for(const key in pairs){
+    const [p,qq]=key.split('|').map(Number);
+    const x1=X(p), y1=Y(p), x2=X(qq), y2=Y(qq);
+    const ab=pairs[key][p+'>'+qq], ba=pairs[key][qq+'>'+p];
+    const sp=(ab==='~'||ba==='~');
+    g.push(`<line class="eg${sp?' sp':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
+    const at=(t)=>[x1+(x2-x1)*t, y1+(y2-y1)*t];
+    if(ab){ const [lx,ly]=at(0.26);
+            g.push(`<text class="el${ab==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ab}</text>`); }
+    if(ba){ const [lx,ly]=at(0.74);
+            g.push(`<text class="el${ba==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ba}</text>`); }
+  }
+  /* self loops */
+  for(const r in loops){
+    const x=X(r), y=Y(r)-NH/2;
+    g.push(`<path class="eg" d="M${x-16},${y} C${x-26},${y-34} ${x+26},${y-34} ${x+16},${y}"/>`);
+    g.push(`<text class="el" x="${x}" y="${y-24}">${loops[r]}</text>`);
+  }
+  /* nodes */
+  seen.forEach(r=>{
+    const x=X(r)-NW/2, y=Y(r)-NH/2;
+    const here=(r===S.loc);
+    const goal=(r===G.treasureRoom);
+    g.push(`<rect class="nd${here?' here':''}${goal?' goal':''}" x="${x}" y="${y}" `+
+           `width="${NW}" height="${NH}" rx="4"/>`);
+    const label=(nm[r]||('ROOM '+r));
+    g.push(`<text class="nl${here?' here':''}" x="${X(r)}" y="${Y(r)+4}">${label}</text>`);
+    const prizes=G.items.filter((it,k)=>S.itemLoc[k]===r && it.text.startsWith('*')).length;
+    if(prizes) g.push(`<text class="pz" x="${x+NW-7}" y="${y+11}" `+
+                      `style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
+  });
+  elMapSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  elMapSvg.setAttribute('width', Math.min(W,1600));
+  elMapSvg.setAttribute('height', Math.min(W,1600)*H/W);
+  elMapSvg.innerHTML=g.join('');
+  const total=G.rooms.length-1;
+  elMapFoot.textContent=`${seen.length} of ${total} places found`+
+    `   |   letters show the way OUT of the room they sit beside`+
+    `   |   * = prize here   |   dashed gold = not a compass move`;
+}
+function toggleMap(on){
+  mapOn = (on===undefined) ? !mapOn : on;
+  elMapWrap.classList.toggle('on', mapOn);
+  document.getElementById('screen').classList.toggle('hide', mapOn);
+  if(mapOn) drawMap(); else document.querySelector('#cmd')?.focus();
+}
+
+/* ---------- game state ---------- */
+let G=null, S=null, over=false;
+
+function newGame(db){
+  G = db;
+  S = {
+    loc: G.startRoom,
+    itemLoc: G.items.map(it=>it.loc),
+    bits: 0,
+    counter: 0,
+    savedRoom: 0,
+    counters: new Array(16).fill(0),
+    roomSaved: new Array(16).fill(0),
+    lightTime: G.lightTime,
+    seen: {}, link: {}
+  };
+  S.seen[S.loc]=1; MP=null; toggleMap(false);
+  over=false;
+  elLog.innerHTML='';
+  echo('*** PIRATE ADVENTURE ***');
+  echo('');
+  echo('Scott Adams Adventure #2');
+  echo('');
+  echo('Two words at a time. Type MAP to see where you have been.');
+  echo('Say HELP if you get stuck.');
+  echo('');
+  look();
+  prompt_();
+}
+
+const carried = ()=> S.itemLoc.filter(l=>l===CARRIED).length;
+const isDark  = ()=> (S.bits & (1<<DARKBIT)) &&
+                     S.itemLoc[LIGHT_SOURCE]!==CARRIED &&
+                     S.itemLoc[LIGHT_SOURCE]!==S.loc;
+
+/* ---------- room display (top pane) ---------- */
+function look(){
+  if(isDark()){ elRoom.textContent = wrap('Its too dark to see!'); return; }
+  const r = G.rooms[S.loc];
+  let t = r.text.startsWith('*') ? r.text.slice(1) : 'I am in a '+r.text;
+  let s = t + '. Visible items:\n\n';
+  const here = G.items.map((it,k)=>[it,k])
+                      .filter(([it,k])=>S.itemLoc[k]===S.loc)
+                      .map(([it])=>it.text);
+  s += here.length ? here.join('. ')+'.\n' : '\n';
+  const names=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
+  const ex = r.exits.map((v,k)=>v?names[k]:null).filter(Boolean);
+  s += '\n     Some obvious exits are: ' + (ex.length?ex.join(' '):'none');
+  elRoom.textContent = wrap(s);
+}
+
+function prompt_(){
+  document.getElementById('inline')?.remove();
+  const line=document.createElement('div');
+  line.id='inline';
+  line.innerHTML='<span>  -------&gt; Tell me what to do? </span>';
+  const inp=document.createElement('input');
+  inp.id='cmd'; inp.autocomplete='off'; inp.spellcheck=false;
+  line.appendChild(inp);
+  elLog.appendChild(line);
+  inp.focus();
+  elLog.scrollTop = elLog.scrollHeight;
+  inp.addEventListener('keydown', e=>{
+    if(e.key!=='Enter') return;
+    const txt = inp.value;
+    line.remove();
+    echo('  -------> Tell me what to do? '+txt);
+    handle(txt);
+  });
+}
+
+/* ---------- vocabulary matching ---------- */
+function whichWord(word, list){
+  if(!word) return -1;
+  const raw = word.toUpperCase();
+  const L = Math.min(raw.length, G.wordLen);
+  const w = raw.slice(0, L);
+  let owner = -1;
+  for(let k=0;k<list.length;k++){
+    let e = list[k];
+    if(!e) continue;
+    if(e[0]==='*'){ e = e.slice(1); } else { owner = k; }
+    if(e.toUpperCase().slice(0,L) === w) return owner<0?k:owner;
+  }
+  return -1;
+}
+function matchItem(word, where){
+  if(!word) return -1;
+  const raw = word.toUpperCase();
+  const L = Math.min(raw.length, G.wordLen);
+  const w = raw.slice(0,L);
+  for(let k=0;k<G.items.length;k++){
+    const it=G.items[k];
+    if(it.word && S.itemLoc[k]===where && it.word.toUpperCase().slice(0,L)===w) return k;
+  }
+  return -1;
+}
+
+/* ---------- the engine ---------- */
+let nounText = '';
+
+function performActions(vb, no){
+  let fl = -1, again = false;
+  for(let ct=0; ct<G.actions.length; ct++){
+    const A = G.actions[ct];
+    const vv = Math.floor(A.vocab/150), nv = A.vocab%150;
+    if(vb !== 0){
+      if(again){ if(A.vocab!==0) break; }
+      else{
+        if(fl===0) break;
+        if(vv!==vb) continue;
+        if(nv!==0 && nv!==no) continue;
+      }
+    }else{
+      if(vv!==0) continue;
+      if(nv!==0 && Math.random()*100 >= nv) continue;
+    }
+    /* conditions */
+    const par=[]; let ok=true;
+    for(const c of A.cond){
+      const op = c%20, dv = Math.floor(c/20);
+      switch(op){
+        case 0: par.push(dv); break;
+        case 1: if(S.itemLoc[dv]!==CARRIED) ok=false; break;
+        case 2: if(S.itemLoc[dv]!==S.loc) ok=false; break;
+        case 3: if(S.itemLoc[dv]!==CARRIED && S.itemLoc[dv]!==S.loc) ok=false; break;
+        case 4: if(S.loc!==dv) ok=false; break;
+        case 5: if(S.itemLoc[dv]===S.loc) ok=false; break;
+        case 6: if(S.itemLoc[dv]===CARRIED) ok=false; break;
+        case 7: if(S.loc===dv) ok=false; break;
+        case 8: if(!(S.bits & (1<<dv))) ok=false; break;
+        case 9: if(S.bits & (1<<dv)) ok=false; break;
+        case 10: if(carried()===0) ok=false; break;
+        case 11: if(carried()!==0) ok=false; break;
+        case 12: if(S.itemLoc[dv]===CARRIED || S.itemLoc[dv]===S.loc) ok=false; break;
+        case 13: if(S.itemLoc[dv]===0) ok=false; break;
+        case 14: if(S.itemLoc[dv]!==0) ok=false; break;
+        case 15: if(S.counter > dv) ok=false; break;
+        case 16: if(S.counter <= dv) ok=false; break;
+        case 17: if(S.itemLoc[dv]!==G.items[dv].initLoc) ok=false; break;
+        case 18: if(S.itemLoc[dv]===G.items[dv].initLoc) ok=false; break;
+        case 19: if(S.counter !== dv) ok=false; break;
+      }
+      if(!ok) break;
+    }
+    if(!ok){ if(fl===-1) fl=-2; continue; }
+
+    /* actions: two ints pack four codes */
+    const codes=[Math.floor(A.act[0]/150), A.act[0]%150,
+                 Math.floor(A.act[1]/150), A.act[1]%150];
+    let p=0; again=false;
+    for(const c of codes){
+      if(c===0) continue;
+      if(c>=1 && c<=51){ out(G.messages[c]+'\n'); continue; }
+      if(c>=102){ out(G.messages[c-50]+'\n'); continue; }
+      switch(c){
+        case 52: if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); p++; }
+                 else S.itemLoc[par[p++]]=CARRIED; break;
+        case 53: S.itemLoc[par[p++]]=S.loc; break;
+        case 54: S.loc=par[p++]; break;
+        case 55: case 59: S.itemLoc[par[p++]]=0; break;
+        case 56: S.bits |= (1<<DARKBIT); break;
+        case 57: S.bits &= ~(1<<DARKBIT); break;
+        case 58: S.bits |= (1<<par[p++]); break;
+        case 60: S.bits &= ~(1<<par[p++]); break;
+        case 61: out("I am dead.\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
+        case 62: { const it=par[p++], rm=par[p++]; S.itemLoc[it]=rm; } break;
+        case 63: out("The Adventure is over.\n"); over=true; break;
+        case 64: case 76: break;
+        case 65: doScore(); break;
+        case 66: doInventory(); break;
+        case 67: S.bits |= 1; break;
+        case 68: S.bits &= ~1; break;
+        case 69: S.lightTime=G.lightTime; S.itemLoc[LIGHT_SOURCE]=CARRIED; S.bits &= ~(1<<LIGHTOUT); break;
+        case 70: elLog.innerHTML=''; break;
+        case 71: out("Use the 'Save to file' button below.\n"); break;
+        case 72: { const a=par[p++], b=par[p++]; const t=S.itemLoc[a]; S.itemLoc[a]=S.itemLoc[b]; S.itemLoc[b]=t; } break;
+        case 73: again=true; break;
+        case 74: S.itemLoc[par[p++]]=CARRIED; break;
+        case 75: { const a=par[p++], b=par[p++]; S.itemLoc[a]=S.itemLoc[b]; } break;
+        case 77: if(S.counter>=0) S.counter--; break;
+        case 78: out(String(S.counter)+' '); break;
+        case 79: S.counter=par[p++]; break;
+        case 80: { const t=S.loc; S.loc=S.savedRoom; S.savedRoom=t; } break;
+        case 81: { const k=par[p++]; const t=S.counter; S.counter=S.counters[k]; S.counters[k]=t; } break;
+        case 82: S.counter += par[p++]; break;
+        case 83: S.counter -= par[p++]; if(S.counter<-1) S.counter=-1; break;
+        case 84: out(nounText); break;
+        case 85: out(nounText+'\n'); break;
+        case 86: out('\n'); break;
+        case 87: { const k=par[p++]; const t=S.loc; S.loc=S.roomSaved[k]; S.roomSaved[k]=t; } break;
+        case 88: break;
+      }
+    }
+    fl=0;
+    if(again) continue;
+  }
+
+  /* built-in GET / DROP when no table entry handled it */
+  if(fl!==0){
+    if(vb===10){
+      if(no<0){ out('What ? \n'); return 0; }
+      if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
+      const it=matchItem(nounText, S.loc);
+      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
+      S.itemLoc[it]=CARRIED; out('OK\n'); return 0;
+    }
+    if(vb===18){
+      if(no<0){ out('What ? \n'); return 0; }
+      const it=matchItem(nounText, CARRIED);
+      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
+      S.itemLoc[it]=S.loc; out('OK\n'); return 0;
+    }
+  }
+  return fl;
+}
+
+function doScore(){
+  let n=0;
+  G.items.forEach((it,k)=>{ if(it.text.startsWith('*') && S.itemLoc[k]===G.treasureRoom) n++; });
+  if(G.treasures>0){
+    out('I stored '+n+' TREASURES.  On a scale of 0 to 100 that rates: '+
+        Math.floor(n*100/G.treasures)+'\n');
+    if(n===G.treasures){ out('Well done.\nThe Adventure is over.\n'); over=true; }
+  }else{
+    /* several of these games are not treasure hunts - they finish on an
+       action instead, so there is no percentage to report */
+    out('I stored '+n+' TREASURES.\n');
+  }
+}
+function doInventory(){
+  out('I am carrying the following:\n');
+  const l=G.items.filter((it,k)=>S.itemLoc[k]===CARRIED).map(it=>it.text);
+  out((l.length?l.join('. ')+'.':'Nothing At All')+'\n');
+}
+
+/* ---------- turn ---------- */
+function handle(line){
+  if(over){ prompt_(); return; }
+  const words = line.trim().split(/\s+/).filter(Boolean);
+  if(words.length===1 && /^MAP$/i.test(words[0])){ toggleMap(); prompt_(); return; }
+  const startLoc = S.loc; compassMove=false;
+  if(!words.length){ flush(); prompt_(); return; }
+  if(words.length>2){ echo('Use no more than 2 words'); prompt_(); return; }
+
+  let vb, no;
+  nounText = words[1] || '';
+  if(words.length===1){
+    const d = whichWord(words[0], G.nouns);
+    if(d>=1 && d<=6){ vb=1; no=d; nounText=words[0]; }
+    else { vb = whichWord(words[0], G.verbs); no = -1; }
+  }else{
+    vb = whichWord(words[0], G.verbs);
+    no = whichWord(words[1], G.nouns);
+  }
+  if(vb<0){ echo("I don't know how to \"" + words[0].toUpperCase() + "\" something"); prompt_(); return; }
+  if(words.length===2 && no<0){ echo("I don't know what \"" + words[1].toUpperCase() + "\" is"); prompt_(); return; }
+
+  /* movement is hard-wired, exactly as in the original */
+  if(vb===1 && no>=1 && no<=6){
+    const dark = isDark();
+    if(dark) out('Dangerous to move in the dark!\n');
+    const nl = G.rooms[S.loc].exits[no-1];
+    if(nl){ recordEdge(S.loc, no-1, nl); S.loc = nl; }
+    else if(dark){ out('I fell down and broke my neck.\n'); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
+    else out("I can't go in that direction\n");
+  }else if(vb===1 && no<0){
+    out('Give me a direction too.\n');
+  }else{
+    const r = performActions(vb, no);
+    if(r===-1) out("I must be stupid, but I just don't understand what you mean.\n");
+    else if(r===-2) out("I can't do that...yet!\n");
+  }
+
+  if(!over) performActions(0,0);
+
+  /* lamp burn-down */
+  if(!over && S.itemLoc[LIGHT_SOURCE]!==0 && S.lightTime>=0){
+    S.lightTime--;
+    if(S.lightTime<1){
+      S.bits |= (1<<LIGHTOUT);
+      if(S.itemLoc[LIGHT_SOURCE]===CARRIED || S.itemLoc[LIGHT_SOURCE]===S.loc)
+        out('Light has run out\n');
+      S.itemLoc[LIGHT_SOURCE]=0;
+    }else if(S.lightTime<25 &&
+             (S.itemLoc[LIGHT_SOURCE]===CARRIED || S.itemLoc[LIGHT_SOURCE]===S.loc)){
+      out('Light runs out in '+S.lightTime+' turns\n');
+    }
+  }
+
+  if(S.loc!==startLoc && !compassMove) recordSpecial(startLoc, S.loc);
+  S.seen[S.loc]=1;
+  autosave();
+  if(mapOn) drawMap();
+  flush();
+  look();
+  if(over){ echo(''); echo('--- press Restart to play again ---'); return; }
+  prompt_();
+}
+
+/* ---------- buttons ---------- */
+/* ---------- saving ----------
+   Save and Load share one File-System-Access id, which is what makes the
+   browser open BOTH dialogs in the same folder - pick a folder once and it
+   stays picked. Browsers without that API fall back to a download plus a
+   file box, which cannot be pointed anywhere, so we also autosave into the
+   browser every turn and offer Resume. */
+const FS_ID='adventure-saves';
+const gameKey = ()=> (document.title||'adventure')+'#'+(G?G.advNum:'x');
+const autoKey = ()=> 'adv-auto-'+gameKey();
+const saveText = ()=> JSON.stringify({game:gameKey(), adv:G.advNum, state:S}, null, 1);
+const saveName = ()=> (document.title||'adventure').toLowerCase()
+                        .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.save.json';
+function applySave(txt){
+  try{
+    const j=JSON.parse(txt);
+    if(j.game!==undefined && j.game!==gameKey()){ echo('That save belongs to '+j.game+'.'); prompt_(); return; }
+    if(j.game===undefined && j.adv!==undefined && G && j.adv!==G.advNum){
+      echo('That save is for a different game.'); prompt_(); return; }
+    S=j.state; over=false; MP=null; toggleMap(false);
+    elLog.innerHTML=''; echo('Game restored.'); look(); prompt_();
+  }catch(err){ echo('BAD SAVE FILE'); prompt_(); }
+}
+async function doSave(){
+  const data=saveText();
+  if(window.showSaveFilePicker){
+    try{
+      const h=await showSaveFilePicker({ id:FS_ID, suggestedName:saveName(),
+        types:[{description:'Adventure save', accept:{'application/json':['.json']}}] });
+      const w=await h.createWritable(); await w.write(data); await w.close();
+      echo('Saved as '+h.name+'.'); prompt_(); return;
+    }catch(err){ if(err && err.name==='AbortError'){ return; } }
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  a.download=saveName(); a.click();
+  echo('Saved to your browser download folder as '+saveName()+'.'); prompt_();
+}
+async function doLoad(){
+  if(window.showOpenFilePicker){
+    try{
+      const [h]=await showOpenFilePicker({ id:FS_ID, multiple:false,
+        types:[{description:'Adventure save', accept:{'application/json':['.json']}}] });
+      applySave(await (await h.getFile()).text()); return;
+    }catch(err){ if(err && err.name==='AbortError'){ return; } }
+  }
+  document.getElementById('fRestore').click();
+}
+function autosave(){ try{ localStorage.setItem(autoKey(), saveText()); }catch(e){} }
+function hasAuto(){ try{ return !!localStorage.getItem(autoKey()); }catch(e){ return false; } }
+function offerResume(){
+  const b=document.getElementById('bResume');
+  if(hasAuto()){ b.style.display=''; echo('(An earlier position was found - click Resume to pick it up.)'); echo(''); }
+  else b.style.display='none';
+}
+document.getElementById('bMap').onclick = ()=>toggleMap();
+document.getElementById('bRestart').onclick = ()=>{ newGame(G); offerResume(); };
+document.getElementById('bSave').onclick = doSave;
+document.getElementById('bLoad').onclick = doLoad;
+document.getElementById('bResume').onclick = ()=>{
+  try{ const tx=localStorage.getItem(autoKey()); if(tx) applySave(tx); }catch(e){}
+};
+document.getElementById('fRestore').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>applySave(r.result); r.readAsText(f);
+};
+document.getElementById('fGame').onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ newGame(parseDatabase(r.result)); }
+                 catch(err){ echo('Could not read that database: '+err.message); prompt_(); } };
+  r.readAsText(f,'ISO-8859-1');
+};
+
+/* ---------- boot ---------- */
+const EMBEDDED = " 5724 \n 66 \n 177 \n 79 \n 26 \n 6 \n 1 \n 2 \n 3 \n 150 \n 88 \n 1 \n 80 \n 422 \n 342 \n 420 \n 340 \n 0 \n 16559 \n 8850 \n 80 \n 462 \n 482 \n 460 \n 0 \n 0 \n 15712 \n 1705 \n 100 \n 521 \n 552 \n 540 \n 229 \n 220 \n 203 \n 8700 \n 3 \n 483 \n 0 \n 0 \n 0 \n 0 \n 15712 \n 0 \n 100 \n 284 \n 308 \n 0 \n 0 \n 0 \n 8626 \n 0 \n 100 \n 28 \n 663 \n 403 \n 40 \n 0 \n 8700 \n 0 \n 100 \n 48 \n 20 \n 660 \n 740 \n 220 \n 9055 \n 10902 \n 100 \n 28 \n 20 \n 0 \n 0 \n 0 \n 3810 \n 0 \n 100 \n 8 \n 700 \n 720 \n 0 \n 0 \n 10868 \n 0 \n 100 \n 48 \n 40 \n 640 \n 400 \n 300 \n 9055 \n 8305 \n 19 \n 524 \n 0 \n 0 \n 0 \n 0 \n 9778 \n 9450 \n 40 \n 104 \n 886 \n 0 \n 0 \n 0 \n 4411 \n 0 \n 80 \n 242 \n 502 \n 820 \n 80 \n 240 \n 9321 \n 10109 \n 100 \n 8 \n 140 \n 80 \n 500 \n 0 \n 10262 \n 8850 \n 25 \n 421 \n 846 \n 420 \n 200 \n 0 \n 5162 \n 0 \n 100 \n 129 \n 120 \n 0 \n 0 \n 0 \n 6508 \n 0 \n 50 \n 242 \n 982 \n 820 \n 440 \n 240 \n 9321 \n 8850 \n 35 \n 483 \n 69 \n 0 \n 0 \n 0 \n 15705 \n 0 \n 7 \n 483 \n 249 \n 0 \n 0 \n 0 \n 15706 \n 0 \n 50 \n 484 \n 1073 \n 1086 \n 0 \n 0 \n 17661 \n 9150 \n 50 \n 204 \n 1086 \n 0 \n 0 \n 0 \n 16711 \n 0 \n 10 \n 209 \n 1040 \n 1060 \n 300 \n 1100 \n 10872 \n 10050 \n 10 \n 208 \n 1040 \n 1060 \n 89 \n 0 \n 10867 \n 0 \n 100 \n 483 \n 8 \n 0 \n 0 \n 0 \n 15719 \n 10200 \n 100 \n 8 \n 0 \n 0 \n 0 \n 0 \n 10200 \n 0 \n 100 \n 104 \n 308 \n 0 \n 0 \n 0 \n 8626 \n 0 \n 80 \n 462 \n 282 \n 280 \n 1160 \n 0 \n 1422 \n 0 \n 80 \n 342 \n 482 \n 480 \n 260 \n 0 \n 18725 \n 9300 \n 30 \n 483 \n 1212 \n 252 \n 480 \n 1200 \n 18825 \n 0 \n 20 \n 483 \n 1203 \n 0 \n 0 \n 0 \n 18900 \n 0 \n 25 \n 1234 \n 483 \n 63 \n 0 \n 0 \n 15733 \n 0 \n 100 \n 328 \n 1260 \n 180 \n 320 \n 0 \n 10860 \n 11400 \n 1223 \n 107 \n 100 \n 61 \n 0 \n 0 \n 10507 \n 8164 \n 7530 \n 404 \n 242 \n 63 \n 903 \n 0 \n 2829 \n 0 \n 5570 \n 163 \n 203 \n 160 \n 180 \n 0 \n 10870 \n 1264 \n 6170 \n 183 \n 180 \n 160 \n 0 \n 0 \n 10914 \n 11400 \n 6300 \n 104 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 1529 \n 442 \n 465 \n 440 \n 0 \n 0 \n 7914 \n 0 \n 1529 \n 442 \n 462 \n 0 \n 0 \n 0 \n 760 \n 9150 \n 183 \n 322 \n 180 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 1538 \n 262 \n 242 \n 0 \n 0 \n 0 \n 1800 \n 0 \n 1538 \n 262 \n 245 \n 260 \n 0 \n 0 \n 7914 \n 0 \n 5888 \n 262 \n 242 \n 0 \n 0 \n 0 \n 1800 \n 0 \n 5888 \n 262 \n 245 \n 0 \n 0 \n 0 \n 1950 \n 0 \n 6188 \n 262 \n 245 \n 541 \n 260 \n 560 \n 2155 \n 7950 \n 5888 \n 261 \n 0 \n 0 \n 0 \n 0 \n 2400 \n 0 \n 4088 \n 561 \n 0 \n 0 \n 0 \n 0 \n 2400 \n 0 \n 4088 \n 263 \n 0 \n 0 \n 0 \n 0 \n 2713 \n 0 \n 4088 \n 562 \n 580 \n 109 \n 100 \n 249 \n 2303 \n 8700 \n 4088 \n 249 \n 562 \n 108 \n 900 \n 240 \n 6203 \n 8700 \n 4088 \n 248 \n 562 \n 0 \n 0 \n 0 \n 6600 \n 0 \n 4068 \n 103 \n 69 \n 0 \n 0 \n 0 \n 646 \n 0 \n 4068 \n 103 \n 68 \n 0 \n 0 \n 0 \n 6600 \n 0 \n 5887 \n 342 \n 0 \n 0 \n 0 \n 0 \n 2550 \n 0 \n 5887 \n 362 \n 0 \n 0 \n 0 \n 0 \n 2713 \n 0 \n 5887 \n 382 \n 0 \n 0 \n 0 \n 0 \n 2100 \n 0 \n 159 \n 382 \n 320 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 6187 \n 342 \n 362 \n 0 \n 0 \n 0 \n 2550 \n 0 \n 6187 \n 345 \n 362 \n 541 \n 360 \n 380 \n 8303 \n 10164 \n 3461 \n 503 \n 0 \n 0 \n 0 \n 0 \n 19051 \n 3300 \n 3750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 1528 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 4108 \n 1143 \n 1012 \n 0 \n 0 \n 0 \n 646 \n 0 \n 1271 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2853 \n 0 \n 4510 \n 66 \n 0 \n 0 \n 0 \n 0 \n 2720 \n 0 \n 4950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9750 \n 0 \n 5114 \n 0 \n 0 \n 0 \n 0 \n 0 \n 10650 \n 0 \n 7092 \n 592 \n 0 \n 0 \n 0 \n 0 \n 2745 \n 0 \n 185 \n 284 \n 140 \n 0 \n 0 \n 0 \n 8156 \n 10564 \n 4098 \n 1054 \n 0 \n 0 \n 0 \n 0 \n 647 \n 17550 \n 4098 \n 1053 \n 0 \n 0 \n 0 \n 0 \n 647 \n 17400 \n 4083 \n 322 \n 0 \n 0 \n 0 \n 0 \n 647 \n 0 \n 4095 \n 762 \n 0 \n 0 \n 0 \n 0 \n 647 \n 0 \n 195 \n 782 \n 921 \n 0 \n 0 \n 0 \n 2727 \n 0 \n 195 \n 762 \n 261 \n 0 \n 0 \n 0 \n 2727 \n 0 \n 6900 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9450 \n 0 \n 1526 \n 602 \n 0 \n 0 \n 0 \n 0 \n 2723 \n 0 \n 1541 \n 621 \n 602 \n 640 \n 520 \n 600 \n 7853 \n 8364 \n 195 \n 782 \n 661 \n 0 \n 0 \n 0 \n 2727 \n 0 \n 7092 \n 623 \n 583 \n 303 \n 643 \n 20 \n 8700 \n 0 \n 7092 \n 0 \n 0 \n 0 \n 0 \n 0 \n 3750 \n 0 \n 200 \n 722 \n 220 \n 0 \n 0 \n 0 \n 10554 \n 9600 \n 195 \n 762 \n 61 \n 0 \n 0 \n 0 \n 2727 \n 0 \n 1223 \n 104 \n 120 \n 61 \n 0 \n 0 \n 10507 \n 8164 \n 1526 \n 523 \n 520 \n 0 \n 0 \n 0 \n 7914 \n 0 \n 195 \n 762 \n 340 \n 0 \n 0 \n 0 \n 8126 \n 8464 \n 195 \n 782 \n 360 \n 0 \n 0 \n 0 \n 8157 \n 10564 \n 7530 \n 404 \n 242 \n 1053 \n 89 \n 0 \n 17250 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 5868 \n 103 \n 200 \n 69 \n 60 \n 0 \n 4553 \n 8700 \n 5868 \n 68 \n 0 \n 0 \n 0 \n 0 \n 494 \n 0 \n 1546 \n 146 \n 0 \n 0 \n 0 \n 0 \n 4800 \n 0 \n 1546 \n 802 \n 141 \n 140 \n 840 \n 0 \n 8302 \n 17100 \n 2746 \n 841 \n 840 \n 140 \n 0 \n 0 \n 8302 \n 4950 \n 3496 \n 802 \n 0 \n 0 \n 0 \n 0 \n 811 \n 0 \n 3496 \n 841 \n 840 \n 140 \n 0 \n 0 \n 811 \n 8302 \n 7366 \n 822 \n 820 \n 240 \n 400 \n 0 \n 5305 \n 9300 \n 5861 \n 503 \n 0 \n 0 \n 0 \n 0 \n 2100 \n 0 \n 8411 \n 503 \n 500 \n 140 \n 0 \n 0 \n 5433 \n 10800 \n 192 \n 742 \n 400 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 201 \n 404 \n 88 \n 420 \n 240 \n 242 \n 8170 \n 8071 \n 201 \n 404 \n 89 \n 120 \n 0 \n 0 \n 8170 \n 9600 \n 7530 \n 404 \n 245 \n 0 \n 0 \n 0 \n 2737 \n 0 \n 7530 \n 404 \n 912 \n 0 \n 0 \n 0 \n 2738 \n 0 \n 7530 \n 404 \n 89 \n 80 \n 740 \n 420 \n 10539 \n 8762 \n 7530 \n 404 \n 88 \n 80 \n 740 \n 120 \n 10539 \n 9062 \n 7671 \n 0 \n 0 \n 0 \n 0 \n 0 \n 6000 \n 0 \n 4553 \n 903 \n 0 \n 0 \n 0 \n 0 \n 6300 \n 0 \n 1350 \n 0 \n 0 \n 0 \n 0 \n 0 \n 6000 \n 0 \n 1510 \n 62 \n 60 \n 0 \n 0 \n 0 \n 7914 \n 0 \n 5860 \n 63 \n 1254 \n 1240 \n 0 \n 0 \n 8064 \n 4500 \n 201 \n 404 \n 88 \n 420 \n 0 \n 0 \n 8170 \n 9600 \n 218 \n 284 \n 360 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 1539 \n 482 \n 242 \n 0 \n 0 \n 0 \n 1800 \n 0 \n 1539 \n 482 \n 480 \n 0 \n 0 \n 0 \n 7904 \n 16800 \n 194 \n 682 \n 300 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 174 \n 140 \n 464 \n 0 \n 0 \n 0 \n 8751 \n 0 \n 174 \n 140 \n 0 \n 0 \n 0 \n 0 \n 9051 \n 0 \n 7800 \n 444 \n 940 \n 921 \n 954 \n 0 \n 10548 \n 8014 \n 3495 \n 1203 \n 0 \n 0 \n 0 \n 0 \n 19050 \n 0 \n 7800 \n 424 \n 994 \n 980 \n 921 \n 0 \n 10553 \n 7264 \n 8250 \n 104 \n 0 \n 0 \n 0 \n 0 \n 10505 \n 9150 \n 7800 \n 464 \n 148 \n 1140 \n 921 \n 1154 \n 10553 \n 7264 \n 1541 \n 643 \n 640 \n 0 \n 0 \n 0 \n 7914 \n 0 \n 163 \n 104 \n 40 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 6300 \n 44 \n 0 \n 0 \n 0 \n 0 \n 15456 \n 0 \n 4534 \n 583 \n 0 \n 0 \n 0 \n 0 \n 4650 \n 0 \n 6187 \n 702 \n 541 \n 0 \n 0 \n 0 \n 2713 \n 16050 \n 5887 \n 702 \n 0 \n 0 \n 0 \n 0 \n 2713 \n 0 \n 5887 \n 0 \n 722 \n 0 \n 0 \n 0 \n 2100 \n 0 \n 198 \n 1022 \n 480 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 216 \n 2 \n 24 \n 40 \n 0 \n 0 \n 8170 \n 9600 \n 1510 \n 44 \n 60 \n 40 \n 80 \n 85 \n 7801 \n 10800 \n 1532 \n 302 \n 208 \n 300 \n 0 \n 0 \n 7914 \n 0 \n 1532 \n 302 \n 209 \n 0 \n 0 \n 0 \n 2813 \n 0 \n 1532 \n 305 \n 0 \n 0 \n 0 \n 0 \n 10518 \n 7564 \n 8411 \n 843 \n 840 \n 140 \n 0 \n 0 \n 10914 \n 0 \n 165 \n 1122 \n 500 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 1392 \n 0 \n 0 \n 0 \n 0 \n 0 \n 6000 \n 0 \n 6300 \n 284 \n 0 \n 0 \n 0 \n 0 \n 16350 \n 0 \n 8582 \n 0 \n 0 \n 0 \n 0 \n 0 \n 17700 \n 0 \n 7800 \n 921 \n 209 \n 302 \n 200 \n 0 \n 8814 \n 0 \n 7950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2700 \n 0 \n 5908 \n 621 \n 1143 \n 1000 \n 0 \n 0 \n 4553 \n 0 \n 5266 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1800 \n 0 \n 6300 \n 342 \n 0 \n 0 \n 0 \n 0 \n 18450 \n 0 \n 1200 \n 0 \n 0 \n 0 \n 0 \n 0 \n 17185 \n 450 \n 6300 \n 124 \n 0 \n 0 \n 0 \n 0 \n 16350 \n 0 \n 9450 \n 208 \n 1040 \n 1060 \n 0 \n 0 \n 10919 \n 0 \n 6300 \n 184 \n 242 \n 0 \n 0 \n 0 \n 3600 \n 0 \n 7800 \n 921 \n 140 \n 0 \n 0 \n 0 \n 7410 \n 0 \n 6300 \n 24 \n 0 \n 0 \n 0 \n 0 \n 18300 \n 0 \n 158 \n 82 \n 60 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 4510 \n 63 \n 0 \n 0 \n 0 \n 0 \n 300 \n 0 \n 3450 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2700 \n 0 \n 6300 \n 0 \n 0 \n 0 \n 0 \n 0 \n 450 \n 0 \n 163 \n 22 \n 100 \n 0 \n 0 \n 0 \n 8170 \n 9600 \n 8100 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2836 \n 0 \n 4650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 128 \n 0 \n 1538 \n 563 \n 560 \n 0 \n 0 \n 0 \n 7914 \n 0 \n 5860 \n 1253 \n 63 \n 1220 \n 1234 \n 0 \n 17153 \n 4500 \n 4060 \n 63 \n 0 \n 0 \n 0 \n 0 \n 730 \n 6900 \n 4574 \n 1223 \n 0 \n 0 \n 0 \n 0 \n 18000 \n 0 \n 4103 \n 903 \n 0 \n 0 \n 0 \n 0 \n 730 \n 0 \n 4575 \n 1243 \n 0 \n 0 \n 0 \n 0 \n 10631 \n 0 \n 5860 \n 1233 \n 63 \n 0 \n 0 \n 0 \n 494 \n 0 \n 4125 \n 1243 \n 0 \n 0 \n 0 \n 0 \n 730 \n 0 \n 2550 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2700 \n 0 \n 8850 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2832 \n 0 \n 4063 \n 22 \n 0 \n 0 \n 0 \n 0 \n 647 \n 0 \n 4092 \n 742 \n 0 \n 0 \n 0 \n 0 \n 647 \n 0 \n 9676 \n 0 \n 0 \n 0 \n 0 \n 0 \n 20163 \n 0 \n 5250 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2832 \n 0 \n 1578 \n 462 \n 0 \n 0 \n 0 \n 0 \n 760 \n 9150 \n 10063 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2837 \n 0 \n 8250 \n 0 \n 0 \n 0 \n 0 \n 0 \n 17103 \n 0 \n 9450 \n 209 \n 1040 \n 1060 \n 300 \n 1100 \n 10872 \n 17100 \n 4050 \n 0 \n 0 \n 0 \n 0 \n 0 \n 11514 \n 20250 \n\"AUT\"\n\"ANY\"\n\"GO\"\n\"NORTH\"\n\"*CLI\"\n\"SOUTH\"\n\"*WAL\"\n\"EAST\"\n\"*RUN\"\n\"WEST\"\n\"*ENT\"\n\"UP\"\n\"*PAC\"\n\"DOWN\"\n\"*FOL\"\n\".\"\n\"SAY\"\n\"PAS\"\n\"SAI\"\n\"HAL\"\n\"GET\"\n\"BOO\"\n\"*TAK\"\n\"BOT\"\n\"*CAT\"\n\"*RUM\"\n\"*PIC\"\n\"WIN\"\n\"*REM\"\n\"GAM\"\n\"*WEA\"\n\"MON\"\n\"*PUL\"\n\"PIR\"\n\"FLY\"\n\"ARO\"\n\"DRO\"\n\"BAG\"\n\"*REL\"\n\"*DUF\"\n\"*THR\"\n\"TOR\"\n\"*LEA\"\n\"OFF\"\n\"*GIV\"\n\"MAT\"\n\"DRI\"\n\"YOH\"\n\"*EAT\"\n\"30\"\n\"INV\"\n\"LUM\"\n\"SAI\"\n\"RUG\"\n\"LOO\"\n\"KEY\"\n\"*EXA\"\n\"INV\"\n\"*WAT\"\n\"DUB\"\n\"REA\"\n\"SAI\"\n\"LIS\"\n\"FIS\"\n\".\"\n\"ANC\"\n\"SCO\"\n\"SHA\"\n\"SAV\"\n\"PLA\"\n\"KIL\"\n\"CAV\"\n\"*ATT\"\n\"SIG\"\n\"LIG\"\n\"DOO\"\n\".\"\n\"CHE\"\n\"OPE\"\n\"PAR\"\n\"*SHA\"\n\"HAM\"\n\"UNL\"\n\"NAI\"\n\"HEL\"\n\"BOA\"\n\".\"\n\"*SHI\"\n\".\"\n\"SHE\"\n\"SWI\"\n\"CRA\"\n\"QUI\"\n\"WAT\"\n\"BUI\"\n\"*SAL\"\n\"*MAK\"\n\"LAG\"\n\"WAK\"\n\"*TID\"\n\"SET\"\n\"PIT\"\n\"CAS\"\n\"SHO\"\n\"DIG\"\n\"*BEA\"\n\"BUR\"\n\"MAP\"\n\"FIN\"\n\"PAC\"\n\"JUM\"\n\"BON\"\n\"EMP\"\n\"HOL\"\n\"WEI\"\n\"SAN\"\n\"\"\n\"BOX\"\n\"BRE\"\n\"SNE\"\n\"*SMA\"\n\"CRA\"\n\".\"\n\"*SAC\"\n\"\"\n\"PIE\"\n\"WAI\"\n\"KEE\"\n\"FEE\"\n\"FLO\"\n\"\"\n\"*JET\"\n\"\"\n\"STA\"\n\"CLO\"\n\"*UPS\"\n\"*SHU\"\n\"PAT\"\n\"\"\n\"*HIL\"\n\"\"\n\"YOH\"\n\"\"\n\"AWA\"\n\"\"\n\"*BUN\"\n\"\"\n\"PIE\"\n\"\"\n\"NOT\"\n\"\"\n\"FLY\"\n\"\"\n\"DES\"\n\"\"\n\"CRO\"\n\"\"\n\"SNA\"\n\"\"\n\"TRE\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"Flat in london\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 1 \n\"alcove\"\n 0 \n 0 \n 4 \n 2 \n 0 \n 0 \n\"secret passageway\"\n 0 \n 0 \n 0 \n 3 \n 0 \n 0 \n\"musty attic\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'M outside an open window\non the ledge of a very tall building\"\n 0 \n 0 \n 8 \n 0 \n 0 \n 0 \n\"sandy beach on a tropical isle\"\n 0 \n 12 \n 13 \n 14 \n 0 \n 11 \n\"maze of caves\"\n 0 \n 0 \n 14 \n 6 \n 0 \n 0 \n\"meadow\"\n 0 \n 0 \n 0 \n 8 \n 0 \n 0 \n\"grass shack\"\n 10 \n 24 \n 10 \n 10 \n 0 \n 0 \n\"*I'm in the ocean\"\n 0 \n 0 \n 0 \n 0 \n 7 \n 0 \n\"pit\"\n 7 \n 0 \n 14 \n 13 \n 0 \n 0 \n\"maze of caves\"\n 7 \n 14 \n 12 \n 19 \n 0 \n 0 \n\"maze of caves\"\n 0 \n 0 \n 0 \n 8 \n 0 \n 0 \n\"*I'm at the foot of a cave ridden hill, a pathway\nleads on up to the top\"\n 17 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"tool shed\"\n 0 \n 0 \n 17 \n 0 \n 0 \n 0 \n\"long hallway\"\n 0 \n 0 \n 0 \n 16 \n 0 \n 0 \n\"large cavern\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 14 \n\"*I'm on top of a hill. Below is Pirates Island. Across the sea\nway off in the distance I see Treasure Island\"\n 0 \n 14 \n 14 \n 13 \n 0 \n 0 \n\"maze of caves\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm aboard Pirate ship anchored off shore\"\n 0 \n 22 \n 0 \n 0 \n 0 \n 0 \n\"*I'm on the beach at *Treasure* Island\"\n 21 \n 0 \n 23 \n 0 \n 0 \n 0 \n\"spooky old graveyard filled with piles\nof empty and broken rum bottles\"\n 0 \n 0 \n 0 \n 22 \n 0 \n 0 \n\"large barren field\"\n 10 \n 6 \n 6 \n 6 \n 0 \n 0 \n\"shallow lagoon.\nto the north is the ocean\"\n 0 \n 0 \n 0 \n 23 \n 0 \n 0 \n\"sacked and deserted monastary\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*Welcome to Never Never Land\"\n\"\"\n\"There's a strange sound\"\n\"The book is in bad condtion but I can make out the title:\n`Treasure Island`. There's a word written in blood in the\nflyleaf: `YOHO` and a message:\n\n`Long John Silver left 2 treasures on Treasure Island`\"\n\"Nothing happens\"\n\"There's something there all right. Maybe I should\"\n\"That's not very smart\"\n\"I may need to say a MAGIC word here!\"\n\"Everything spins around and suddenly I'm elsewhere...\"\n\"Torch is lit\"\n\"I was wrong, I guess its not a mongoose cause the snakes bit it!\"\n\"I'm snake bit\"\n\"Parrot attacks snakes and drives them off\"\n\"Pirate won't let me\"\n\"Its locked\"\n\"Its open\"\n\"There are a set of plans in it\"\n\"Not while I'm carrying it\"\n\"Crocs stop me\"\n\"Sorry I can't\"\n\"Wrong game you silly goose!\"\n\"I don't have it\"\n\"Pirate grabs rum and scuttles off chortling\"\n\"...I think its me, Hee Hee.\"\n\"Its nailed to the floor!\"\n\"Yoho ho and a ...\"\n\"No, something is missing!\"\n\"It was a tight squeeze!\"\n\"Something won't fit\"\n\"Since nothing is happening\"\n\"I slipped and fell...\"\n\"Something falls out\"\n\"They're plans to build the Jolly Roger (a Pirate ship!)\nYou'll need: hammer, nails, lumber, anchor, sails, and a keel.\"\n\"I've no container\"\n\"It soaks into the ground\"\n\"Too dry, fish vanish.\"\n\"Pirate awakens and says `Aye matey we be casting off soon`\nHe then VANISHES!\"\n\"What a waste...\"\n\"I've no crew\"\n\"Pirate says: `Aye matey we be needing a map first`.\"\n\"After a day at sea we set anchor off of a sandy beach.\n All Ashore who's going Ashore...\"\n\"Try: `WEIGH ANCHOR`\"\n\"There's a map in it\"\n\"Its a map to Treasure Island. At the bottom it says:\n   `30 paces then dig!`\"\n\"* Welcome to Adventure number 2: `pirate adventure`\n  by Alexis & Scott Adams, dedicated: Ted Heeren & Paul Sharland\nRemember you can always ask for `help`.\n\"\n\"Its empty\"\n\"I've no plans!\"\n\"open it?\"\n\"go there?\"\n\"I found something!\"\n\"I didn't find anything\"\n\"I don't see it here\"\n\"OK I walked off 30 paces.\"\n\"CONGRATULATIONS !!!\n But your Adventure is not over yet...\n\"\n\"Reading expands the mind\"\n\"The Parrot crys:\"\n\"`Check the bag matey`\"\n\"`Check the chest matey`\"\n\"from the other side!\"\n\"Open the book!\"\n\"There's multiple exits here!\"\n\"Crocs eat fish and leave\"\n\"I'm underwater, I guess I don't swim well. Blub Blub...\"\n\"`Pieces of eight`\"\n\"Its stuck in the sand\"\n\"OK\"\n\"Pirate says: `Aye me Buckeroo, we be waiting for the tide to\n come in!`\"\n\"The tide is out\"\n\"The tide is coming in\"\n\"About 20 pounds. Try: `SET SAIL`\"\n\"`Tides be a changing matey`\"\n\"Note here says: `I be liking parrots, they be smart matey!`\"\n\"Pirate follows me ashore as if expecting something\"\n\"Climb stairs...\"\n\"Got anything to eat matey?\"\n\"Parrot attacks crocs but is beaten off\"\n\"Bird flys off looking very unhappy\"\n\"Parrot ate a cracker.\"\n\"Yummy\"\n\"I hear nothing now\"\n\"Pirate says:\n`First Yee be getting that ACCURSED thing off me ship!`\n\"\n\"read it?\"\n\"Ask for Adventure number 3: `MISSION IMPOSSIBLE` at your\n favorite computer dealer. If they DON'T carry `ADVENTURE`\n have them call: 1-305-862-6917  TODAY! `ADVENTURE` also\n supports lower case!\n\"\n\"I'm not feeling destructive!\"\n\"`Check the book, matey!`\"\n\"All right, POOF the GAME is destroyed!\"\n\"I see nothing special\"\n\"I don't know where to look!\"\n\"Its stuck\"\n\"\"\n\"Flight of stairs\" 1 \n\"Open window\" 2 \n\"Books in a bookcase\" 2 \n\"Large blood soaked book/BOO/\" 0 \n\"Bookcase with secret passage beyond\" 0 \n\"Pirate's duffel bag/BAG/\" 4 \n\"Sign says: `Bring *TREASURES* here, say: SCORE`\" 1 \n\"Empty bottle/BOT/\" 0 \n\"Unlit torch/TOR/\" 4 \n\"Lit torch/TOR/\" 0 \n\"Matches/MAT/\" 0 \n\"Small ship's keel and mast\" 6 \n\"Wicked looking pirate\" 9 \n\"Treasure chest/CHE/\" 9 \n\"Mongoose/MON/\" 8 \n\"Rusty anchor/ANC/\" 24 \n\"Grass shack\" 8 \n\"Mean and hungry looking crocodiles\" 11 \n\"Locked door\" 11 \n\"Open door with hall beyond\" 0 \n\"Pile of sails/SAI/\" 17 \n\"Fish/FIS/\" 10 \n\"*DUBLEONS*/DUB/\" 25 \n\"Deadly mamba snakes\" 25 \n\"Parrot/PAR/\" 9 \n\"Bottle of rum/BOT/\" 1 \n\"Rug/RUG/\" 0 \n\"Ring of keys/KEY/\" 0 \n\"Open treasure chest/CHE/\" 0 \n\"Set of plans/PLA/\" 0 \n\"Rug\" 1 \n\"Claw hammer/HAM/\" 15 \n\"Nails/NAI/\" 0 \n\"Pile of precut lumber/LUM/\" 17 \n\"Tool shed\" 17 \n\"Locked door\" 16 \n\"Open door with pit beyond\" 0 \n\"Pirate ship\" 0 \n\"Rock wall with narrow crack in it\" 18 \n\"Narrow crack in the rock\" 17 \n\"Salt water\" 10 \n\"Sleeping pirate\" 0 \n\"Bottle of salt water/BOT/\" 0 \n\"Rum bottle smashed into pieces.\nSign `Opposite of LIGHT is Unlight`\" 4 \n\"Safety sneakers/SNE/\" 1 \n\"Map/MAP/\" 0 \n\"Shovel/SHO/\" 15 \n\"Mouldy old bones/BON/\" 0 \n\"Sand/SAN/\" 6 \n\"Bottles of rum/BOT/\" 0 \n\"*RARE STAMPS*/STA/\" 0 \n\"Lagoon\" 6 \n\"The tide is out\" 24 \n\"The tide is coming in\" 0 \n\"Water wings/WIN/\" 15 \n\"Flotsam and jetsam\" 0 \n\"Monastary\" 23 \n\"Wooden box/BOX/\" 0 \n\"Dead squirrel\" 0 \n\"Sign in the sand says:\n`Welcome to Pirates Island, watch out for the tide!`\" 6 \n\"Sack of crackers/CRA/\" 1 \n\"Note/NOT/\" 0 \n\"Small advertising flyer/FLY/\" 0 \n\"Burnt out torch/TOR/\" 0 \n\"\" 0 \n\"\" 0 \n\"\" 0 \n\"CROCODILES\"\n\"SNAKES\"\n\"RUG FLAG 11 GOT KEYS\"\n\"PARROT PIECES 8\"\n\"LITE\"\n\"FLAG 1. BUILD BOAT. NEED SAIL/LUMBER/BEACH\"\n\"FLAG 2.READY TO BUILD BOAT\"\n\"NOT READY TO BUILD\"\n\"UNLOCK DOOR. FLAG 0\"\n\"BUILDINg BOAT\"\n\"END GAME\"\n\"SLIPPED NO SHOES\"\n\"PIRATE RUM FLAG 0\"\n\"PIRATE RUM ATTIC FLAG 0\"\n\"FISH ESCAPE\"\n\"FLAG 6 INTRO\"\n\"PIRATE RUM AGAIN\"\n\"PARROT BAG\"\n\"PARROT CHEST\"\n\"TIDE IN DROWN\"\n\"DROWN OCEAN\"\n\"TIDE WITH ANCHOR\"\n\"TIDE NO ANCHOR NOT T.I.\"\n\"PARROT TIDE\"\n\"RESET FLAG 0\"\n\"LITE\"\n\"MONGOOSE\"\n\"BIRD & CROCS\"\n\"BIRD FOLLOWS CRACKERS\"\n\"PARROT EAT CRACKS\"\n\"PARROT BOOK\"\n\"BURNT LAMP\"\n\"\"\n\"NO SAIL WITH BOOK\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"FLAG 12 CHEST EMPTY\"\n\"CHEST MAP\"\n\"EMPTY\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"TIDE OUT\"\n\"\"\n\"\"\n\"CARRYING SHOVEL\"\n\"CARRYING CHEST\"\n\"\"\n\"\"\n\"\"\n\"CARRYING LUMBER\"\n\"\"\n\"\"\n\"\"\n\"CARRYING BOOK\"\n\"\"\n\"\"\n\"DARK\"\n\"LITE\"\n\"WAIT FOR FOR TIDE\"\n\"\"\n\"FLAG 3 EMPTY BAG\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"FLAG 4 WE AT TREASUE ISLE\"\n\"\"\n\".\"\n\"\"\n\"GO TREASURE ISLE\"\n\"RETURN FROM TR ISLE\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"AT T.I.\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"FLAG 7. THIS IS IT\"\n\"PACE 30 BUT WRONG PLACE\"\n\"BONES\"\n\"EAT CRACKERRS\"\n\"BEACH TREASURE RUM\"\n\"\"\n\"GOT IT\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"DROP SALT WATER\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"FREE ANCHOR FLAG 10\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n 408 \n 2 \n 828 \n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
+newGame(parseDatabase(EMBEDDED));
+offerResume();
+</script>
+</body>
+</html>
