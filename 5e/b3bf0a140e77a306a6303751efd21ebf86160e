@@ -1,0 +1,48 @@
+public/games/01-adventureland.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/02-pirate-adventure.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/03-secret-mission.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/04-voodoo-castle.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/05-the-count.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/06-strange-odyssey.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/07-mystery-fun-house.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/08-pyramid-of-doom.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/09-ghost-town.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/10-savage-island-1.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/11-savage-island-2.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/12-golden-voyage.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/13-claymorgue-castle.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/14-james-bond.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/15-miners-adventure.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/16-burglars-adventure.html
+  h_5441f656dcd4f2 394-400,402-406,408-409
+public/games/claudeadventureland.html
+  h_5441f656dcd4f2 396-402,404-408,410-411,516-528,608-610,616-618,675
+public/games/index.html
+  h_5441f656dcd4f2 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "5eb3bf0a140e77a306a6303751efd21ebf86160e",
+  "prompts": {},
+  "humans": {
+    "h_5441f656dcd4f2": {
+      "author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
