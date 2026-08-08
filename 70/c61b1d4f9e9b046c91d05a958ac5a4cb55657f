@@ -1,0 +1,52 @@
+components/Navigation.tsx
+  h_5441f656dcd4f2 7,65-74
+components/TravelWebsite.tsx
+  h_5441f656dcd4f2 177-184
+public/games/01-adventureland.html
+  h_5441f656dcd4f2 1-668
+public/games/02-pirate-adventure.html
+  h_5441f656dcd4f2 1-668
+public/games/03-secret-mission.html
+  h_5441f656dcd4f2 1-668
+public/games/04-voodoo-castle.html
+  h_5441f656dcd4f2 1-668
+public/games/05-the-count.html
+  h_5441f656dcd4f2 1-668
+public/games/06-strange-odyssey.html
+  h_5441f656dcd4f2 1-668
+public/games/07-mystery-fun-house.html
+  h_5441f656dcd4f2 1-668
+public/games/08-pyramid-of-doom.html
+  h_5441f656dcd4f2 1-668
+public/games/09-ghost-town.html
+  h_5441f656dcd4f2 1-668
+public/games/10-savage-island-1.html
+  h_5441f656dcd4f2 1-668
+public/games/11-savage-island-2.html
+  h_5441f656dcd4f2 1-668
+public/games/12-golden-voyage.html
+  h_5441f656dcd4f2 1-668
+public/games/13-claymorgue-castle.html
+  h_5441f656dcd4f2 1-668
+public/games/14-james-bond.html
+  h_5441f656dcd4f2 1-668
+public/games/15-miners-adventure.html
+  h_5441f656dcd4f2 1-668
+public/games/16-burglars-adventure.html
+  h_5441f656dcd4f2 1-668
+public/games/claudeadventureland.html
+  h_5441f656dcd4f2 1-665
+public/games/index.html
+  h_5441f656dcd4f2 1-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "70c61b1d4f9e9b046c91d05a958ac5a4cb55657f",
+  "prompts": {},
+  "humans": {
+    "h_5441f656dcd4f2": {
+      "author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
