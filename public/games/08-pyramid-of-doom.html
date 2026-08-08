@@ -391,16 +391,22 @@ function performActions(vb, no){
   for(let ct=0; ct<G.actions.length; ct++){
     const A = G.actions[ct];
     const vv = Math.floor(A.vocab/150), nv = A.vocab%150;
-    if(vb !== 0){
-      if(again){ if(A.vocab!==0) break; }
-      else{
-        if(fl===0) break;
-        if(vv!==vb) continue;
-        if(nv!==0 && nv!==no) continue;
-      }
+    if(again){
+      /* a line ran CONT: keep going through the vocab-0 lines that follow it */
+      if(A.vocab!==0) break;
+    }else if(vb !== 0){
+      if(fl===0) break;
+      if(vv!==vb) continue;
+      if(nv!==0 && nv!==no) continue;
     }else{
+      /* the automatic pass. A verb of 0 with a percentage of 0 is NOT an
+         "always" line - it is a continuation, reachable only through CONT.
+         Treating those as autos fires every DEAD and FINI in the table on
+         turn one, which is what broke Voodoo Castle. An auto that should
+         always run is written with a percentage of 100. */
       if(vv!==0) continue;
-      if(nv!==0 && Math.random()*100 >= nv) continue;
+      if(nv===0) continue;
+      if(Math.random()*100 >= nv) continue;
     }
     /* conditions */
     const par=[]; let ok=true;
