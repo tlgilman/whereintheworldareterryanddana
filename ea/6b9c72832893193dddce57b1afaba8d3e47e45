@@ -1,0 +1,50 @@
+app/admin/visitors/page.tsx
+  h_5441f656dcd4f2 7,15,71-75,85-91,130-145,147,162,177,192-231,247,250-252,256,267-268,270,293-295
+public/games/01-adventureland.html
+  h_5441f656dcd4f2 673-675
+public/games/02-pirate-adventure.html
+  h_5441f656dcd4f2 673-675
+public/games/03-secret-mission.html
+  h_5441f656dcd4f2 673-675
+public/games/04-voodoo-castle.html
+  h_5441f656dcd4f2 673-675
+public/games/05-the-count.html
+  h_5441f656dcd4f2 673-675
+public/games/06-strange-odyssey.html
+  h_5441f656dcd4f2 673-675
+public/games/07-mystery-fun-house.html
+  h_5441f656dcd4f2 673-675
+public/games/08-pyramid-of-doom.html
+  h_5441f656dcd4f2 673-675
+public/games/09-ghost-town.html
+  h_5441f656dcd4f2 673-675
+public/games/10-savage-island-1.html
+  h_5441f656dcd4f2 673-675
+public/games/11-savage-island-2.html
+  h_5441f656dcd4f2 673-675
+public/games/12-golden-voyage.html
+  h_5441f656dcd4f2 673-675
+public/games/13-claymorgue-castle.html
+  h_5441f656dcd4f2 673-675
+public/games/14-james-bond.html
+  h_5441f656dcd4f2 673-675
+public/games/15-miners-adventure.html
+  h_5441f656dcd4f2 673-675
+public/games/16-burglars-adventure.html
+  h_5441f656dcd4f2 673-675
+public/games/claudeadventureland.html
+  h_5441f656dcd4f2 679-681
+public/games/index.html
+  h_5441f656dcd4f2 121-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "ea6b9c72832893193dddce57b1afaba8d3e47e45",
+  "prompts": {},
+  "humans": {
+    "h_5441f656dcd4f2": {
+      "author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
