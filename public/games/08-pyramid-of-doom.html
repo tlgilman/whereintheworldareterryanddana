@@ -670,5 +670,8 @@ const EMBEDDED = "4877\n100\n229\n84\n27\n20\n3\n13\n3\n555\n88\n15\n100\n69\n60
 newGame(parseDatabase(EMBEDDED));
 offerResume();
 </script>
+<script>
+(function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
+</script>
 </body>
 </html>

@@ -118,4 +118,7 @@ adventure, and two by Bruce Hansen built with THE ADVENTURE SYSTEM.<br>
 Several of the later games are not treasure hunts and finish on an event rather than
 a score, so SCORE will simply count what you are carrying.
 </footer>
-</div></body></html>
+</div><script>
+(function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
+</script>
+</body></html>
