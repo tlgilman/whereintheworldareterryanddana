@@ -1,0 +1,49 @@
+public/games/01-adventureland.html
+  s_6a4ec4595e2d9a::t_7a19ba511ae819 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/02-pirate-adventure.html
+  s_6a4ec4595e2d9a::t_f0524c2db4aa24 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/03-secret-mission.html
+  s_6a4ec4595e2d9a::t_986be1b7c7ef76 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/04-voodoo-castle.html
+  s_6a4ec4595e2d9a::t_1f3f87a2f18d4d 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/05-the-count.html
+  s_6a4ec4595e2d9a::t_cde0f8fe0fe8ef 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/06-strange-odyssey.html
+  s_6a4ec4595e2d9a::t_c2e560af38db6f 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/07-mystery-fun-house.html
+  s_6a4ec4595e2d9a::t_4871d5e374a56c 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/08-pyramid-of-doom.html
+  s_6a4ec4595e2d9a::t_a7ab7d0690bf74 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/09-ghost-town.html
+  s_6a4ec4595e2d9a::t_b379e8667ef231 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/10-savage-island-1.html
+  s_6a4ec4595e2d9a::t_c7f659c9bf69ef 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/11-savage-island-2.html
+  s_6a4ec4595e2d9a::t_097676b2d0aff7 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/12-golden-voyage.html
+  s_6a4ec4595e2d9a::t_d8a35b06b8a04a 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/13-claymorgue-castle.html
+  s_6a4ec4595e2d9a::t_bb7cf8138a0e94 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/14-james-bond.html
+  s_6a4ec4595e2d9a::t_9b949e201a0c69 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/15-miners-adventure.html
+  s_6a4ec4595e2d9a::t_974b7e5b0db8e7 103-109,129-134,191,316-320,330,411-417,419,467-471
+public/games/16-burglars-adventure.html
+  s_6a4ec4595e2d9a::t_874bf969957cf3 103-109,129-134,191,316-320,330,411-417,419,467-471
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "d2654114bc52d7608210516208589250fb2f71ab",
+  "prompts": {},
+  "sessions": {
+    "s_6a4ec4595e2d9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2f9ccd6b-b03b-4309-b191-48952fd30c1f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
