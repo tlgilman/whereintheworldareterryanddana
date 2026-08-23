@@ -100,7 +100,13 @@ function parseDatabase(text){
     const v = parseInt(w,10);
     return isNaN(v) ? {s:w} : {v};
   }
-  const num = ()=>tok().v, str = ()=>tok().s;
+  /* Voodoo Castle and The Count were typed on something with a sticky
+     shift key: they are full of "slAmmed", "grAve", "wAsn't". The byte
+     really is 0x41, so it is in the original data, not the extraction.
+     Only a capital A wedged between two lowercase letters is fixed -
+     a broader rule would wreck legitimate names like TeePee and TimeSwap. */
+  const destick = s => s.replace(/([a-z])A(?=[a-z])/g, '$1a');
+  const num = ()=>tok().v, str = ()=>destick(tok().s);
   const g = {};
   [g.unk,g.nItems,g.nActions,g.nWords,g.nRooms,g.maxCarry,g.startRoom,
    g.treasures,g.wordLen,g.lightTime,g.nMessages,g.treasureRoom] =
@@ -120,7 +126,12 @@ function parseDatabase(text){
   g.messages = Array.from({length:g.nMessages+1}, str);
   g.items=[];
   for(let k=0;k<=g.nItems;k++){
-    const d = str(), loc = num();
+    /* A negative start location means "carried". The original C stored the
+       location in an unsigned char, so -1 wrapped to 255, which is the CARRIED
+       constant. Reproduce that wrap exactly: without it, Claymorgue's six
+       spells, Mystery Fun House's shoes and watch, Secret Mission's bomb
+       detector and the Burglar's flashlight all start in limbo. */
+    const d = str(), loc = num() & 255;
     const cut = d.indexOf('/');
     g.items.push({
       text: cut>=0 ? d.slice(0,cut) : d,
@@ -177,7 +188,7 @@ function echo(s){
    labelled at the end you left from - so the letter beside a room is the
    direction you took OUT of that room. */
 const MAPLAYOUT = null;
-let MP=null, compassMove=false, mapOn=false;
+let MP=null, compassMove=false, mapOn=false, bootAuto=false;
 const elMapWrap=document.getElementById('mapwrap');
 const elMapSvg =document.getElementById('mapsvg');
 const elMapFoot=document.getElementById('mapfoot');
@@ -302,6 +313,11 @@ function newGame(db){
     seen: {}, link: {}
   };
   S.seen[S.loc]=1; MP=null; toggleMap(false);
+  /* Let the game initialise itself before the first prompt. Several titles put
+     their whole setup - counters, starting room, welcome text - in a CONT chain
+     hanging off an automatic line. Run it now, or the player's first command
+     gets silently undone by the startup GOTO. */
+  bootAuto = true;
   over=false;
   elLog.innerHTML='';
   echo('*** THE COUNT ***');
@@ -311,6 +327,7 @@ function newGame(db){
   echo('Two words at a time. Type MAP to see where you have been.');
   echo('Say HELP if you get stuck.');
   echo('');
+  if(bootAuto){ bootAuto=false; performActions(0,0); flush(); S.seen[S.loc]=1; }
   look();
   prompt_();
 }
@@ -391,9 +408,15 @@ function performActions(vb, no){
   for(let ct=0; ct<G.actions.length; ct++){
     const A = G.actions[ct];
     const vv = Math.floor(A.vocab/150), nv = A.vocab%150;
+    if(again && A.vocab!==0){
+      /* The chain ends at the first line that is not a continuation.
+         A player command stops there; the automatic pass must carry on
+         scanning, or every timer later in the table stops running. */
+      if(vb!==0) break;
+      again = false;
+    }
     if(again){
-      /* a line ran CONT: keep going through the vocab-0 lines that follow it */
-      if(A.vocab!==0) break;
+      /* inside a CONT chain: run this continuation line, conditions permitting */
     }else if(vb !== 0){
       if(fl===0) break;
       if(vv!==vb) continue;
@@ -441,7 +464,11 @@ function performActions(vb, no){
     /* actions: two ints pack four codes */
     const codes=[Math.floor(A.act[0]/150), A.act[0]%150,
                  Math.floor(A.act[1]/150), A.act[1]%150];
-    let p=0; again=false;
+    /* NB: `again` is deliberately NOT cleared here. Once a line runs CONT the
+       chain continues through ALL following vocab-0 lines, whether or not each
+       of them repeats the CONT. Strange Odyssey's whole startup block - which
+       fills the air tank - hangs off one CONT on line 5. */
+    let p=0;
     for(const c of codes){
       if(c===0) continue;
       if(c>=1 && c<=51){ out(G.messages[c]+'\n'); continue; }
