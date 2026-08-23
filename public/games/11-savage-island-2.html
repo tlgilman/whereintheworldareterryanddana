@@ -5,35 +5,54 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SAVAGE ISLAND PART II</title>
 <style>
-  :root{ --scr:#e8e8e8; --bg:#0a0a0a; }
+  :root{ --scr:#e8e8e8; --bg:#0a0a0a; --apph:100dvh; }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:#111;color:var(--scr);
        font-family:"Courier New",ui-monospace,monospace;
-       display:flex;align-items:center;justify-content:center;padding:16px}
+       display:flex;align-items:center;justify-content:center;padding:16px;
+       -webkit-text-size-adjust:100%;overscroll-behavior:none}
   #case{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:14px;
-        width:min(96vw,880px);height:min(94vh,700px);display:flex;flex-direction:column;
-        box-shadow:0 10px 40px #000}
-  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;
+        width:min(96vw,880px);height:min(94dvh,700px);display:flex;flex-direction:column;
+        min-height:0;box-shadow:0 10px 40px #000}
+  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;min-height:0;
           padding:12px 14px;overflow:hidden;font-size:16px;line-height:1.28;
           white-space:pre-wrap;word-break:break-word}
-  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:hidden}
-  #bar{height:3px;background:var(--scr);margin:8px 0}
-  #log{flex:1;overflow-y:auto;scrollbar-width:thin}
+  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:auto}
+  #bar{height:3px;background:var(--scr);margin:8px 0;flex:0 0 auto}
+  #log{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;
+       -webkit-overflow-scrolling:touch}
   #log::-webkit-scrollbar{width:8px}
   #log::-webkit-scrollbar-thumb{background:#444}
   #inline{display:flex}
   #cmd{background:transparent;border:0;outline:0;color:var(--scr);
-       font:inherit;flex:1;padding:0;caret-color:var(--scr)}
-  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+       font:inherit;font-size:16px;flex:1;padding:0;caret-color:var(--scr);
+       min-width:0;border-radius:0}
+  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;
+          flex:0 0 auto}
   button,label.btn{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
-          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer}
+          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer;
+          touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   button:hover,label.btn:hover{background:#2c352a}
+  button:active,label.btn:active{background:#3c4a38}
   input[type=file]{display:none}
   .hint{color:#6f7a6c;font-size:11px;margin-left:auto}
-  #mapwrap{display:none;flex:1;overflow:auto;background:var(--bg);padding:6px}
-  #mapwrap.on{display:block}
   #screen.hide{display:none}
+
+  /* ---- touch keypad: hidden until the screen is small or the pointer coarse ---- */
+  #pad{display:none;gap:5px;flex-wrap:wrap;margin-top:8px;flex:0 0 auto}
+  #pad button{flex:1 1 0;min-width:0;padding:11px 4px;font-size:14px;font-weight:bold}
+  #pad .row{display:flex;gap:5px;width:100%}
+  #pad .w{font-weight:normal;font-size:12px}
+
+  /* ---- map ---- */
+  #mapwrap{display:none;flex:1;min-height:0;background:var(--bg);flex-direction:column}
+  #mapwrap.on{display:flex}
+  #mapbar{flex:0 0 auto;display:flex;gap:6px;padding:6px;justify-content:center;
+          align-items:center}
+  #mapbar button{padding:7px 14px;font-size:14px}
+  #mapscroll{flex:1;min-height:0;overflow:auto;padding:6px;
+             -webkit-overflow-scrolling:touch}
   #mapsvg{display:block;margin:0 auto}
   .nd{fill:#141a12;stroke:#3f5c39;stroke-width:1.5}
   .nd.here{fill:#26361f;stroke:#e8e8e8;stroke-width:2.5}
@@ -53,17 +72,73 @@
   .tag{fill:#0a0a0a;stroke:#9fd18f;stroke-width:1.5}
   .tag.sp{stroke:#e8c35a}
   .tagl{fill:#cfe6c8;font:bold 12px "Courier New",monospace;text-anchor:middle}
-  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px}
+  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px;
+           line-height:1.5;flex:0 0 auto}
   b{font-weight:bold}
+
+  /* ------------------------------------------------------------------
+     Phones. The desktop layout is a 1979 terminal sitting on a desk;
+     on a phone the case chrome is wasted space, so the screen fills the
+     device and the keypad takes over from the keyboard. --apph is kept
+     in step with visualViewport, because on iOS the soft keyboard slides
+     over the layout viewport instead of shrinking it - 100dvh alone
+     leaves the prompt underneath the keys.
+     ------------------------------------------------------------------ */
+  @media (max-width:760px), (pointer:coarse) and (max-width:1024px){
+    body{padding:0;align-items:stretch}
+    #case{width:100%;height:var(--apph);max-height:none;border:0;border-radius:0;
+          padding:5px;box-shadow:none}
+    #screen{padding:8px 9px;line-height:1.3}
+    #room{max-height:42%;min-height:4.2em}
+    #bar{margin:6px 0}
+    #bottom{gap:5px;margin-top:7px}
+    #bottom button,#bottom label.btn{flex:1 1 auto;padding:9px 8px;font-size:13px;
+                                     text-align:center}
+    #pad{display:flex}
+    .hint{display:none}
+    #mapbar button{flex:1 1 auto}
+    .mapfoot{font-size:10px}
+  }
+  /* Landscape phone: almost no height, so shed the keypad and shrink the room
+     pane. Keyed on height alone, not on pointer:coarse - the constraint really
+     is the height, and #pad is display:none by default anyway, so this can
+     only ever take the keypad away from a viewport too short to hold it. */
+  @media (max-height:460px){
+    #pad{display:none}
+    #room{max-height:34%;min-height:2.6em}
+    #bottom button,#bottom label.btn{padding:6px 8px}
+  }
 </style>
 </head>
 <body>
 <div id="case">
-  <div id="mapwrap"><svg id="mapsvg"></svg><div class="mapfoot" id="mapfoot"></div></div>
+  <div id="mapwrap">
+    <div id="mapbar">
+      <button id="zOut" title="zoom out">&minus;</button>
+      <button id="zFit" title="fit to screen">Fit</button>
+      <button id="zIn" title="zoom in">+</button>
+      <button id="zClose">Close map</button>
+    </div>
+    <div id="mapscroll"><svg id="mapsvg"></svg></div>
+    <div class="mapfoot" id="mapfoot"></div>
+  </div>
   <div id="screen">
     <div id="room"></div>
     <div id="bar"></div>
     <div id="log"></div>
+  </div>
+  <div id="pad">
+    <div class="row">
+      <button data-c="NORTH">N</button><button data-c="SOUTH">S</button>
+      <button data-c="EAST">E</button><button data-c="WEST">W</button>
+      <button data-c="UP">U</button><button data-c="DOWN">D</button>
+    </div>
+    <div class="row">
+      <button class="w" data-c="LOOK">LOOK</button>
+      <button class="w" data-c="INVENTORY">INVENT</button>
+      <button class="w" data-c="HELP ME">HELP ME</button>
+      <button class="w" id="bKeys">Keyboard</button>
+    </div>
   </div>
   <div id="bottom">
     <button id="bMap">Map</button>
@@ -152,10 +227,47 @@ function parseDatabase(text){
 }
 
 /* ---------- screen ---------- */
-const COLS = 64;
+/* The TRS-80 was 64 columns and the text is wrapped to match. A phone is
+   nowhere near 64 columns wide, and a hard-coded value there means every
+   line overflows and gets chopped mid-word by the CSS. So COLS is measured
+   from the actual rendered character width, capped at 64 so the desktop
+   layout is exactly what it always was, and re-measured when the window
+   resizes or the phone is rotated. Because wrapping is destructive, every
+   line keeps its unwrapped source in a data attribute and the whole
+   backlog is re-wrapped in place. */
+let COLS = 64;
+const HAS_DOM = typeof window !== 'undefined' && !!window.addEventListener;
+const elScreen = document.getElementById('screen');
 const elRoom = document.getElementById('room');
 const elLog  = document.getElementById('log');
-const elCmd  = document.getElementById('cmd');
+
+function measureCols(){
+  if(!elLog || typeof elLog.clientWidth !== 'number') return 64;   /* headless */
+  const avail = elLog.clientWidth;
+  if(!avail) return COLS;
+  const probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit';
+  probe.textContent = 'M'.repeat(40);
+  elScreen.appendChild(probe);
+  const chw = probe.getBoundingClientRect().width / 40;
+  probe.remove();
+  if(!chw) return COLS;
+  return Math.max(28, Math.min(64, Math.floor(avail / chw)));
+}
+function setText(el, raw){
+  if(el.dataset) el.dataset.raw = raw;     /* absent in the headless harnesses */
+  el.textContent = wrap(raw);
+}
+function rewrap(){
+  const c = measureCols();
+  if(c === COLS) return;
+  COLS = c;
+  if(elRoom.dataset && elRoom.dataset.raw !== undefined)
+    elRoom.textContent = wrap(elRoom.dataset.raw);
+  for(const d of Array.from(elLog.children))
+    if(d.dataset && d.dataset.raw !== undefined) d.textContent = wrap(d.dataset.raw);
+  elLog.scrollTop = elLog.scrollHeight;
+}
 
 function wrap(s){
   const out=[];
@@ -177,14 +289,14 @@ function out(s){ pending += s; }
 function flush(){
   if(!pending) return;
   const d=document.createElement('div');
-  d.textContent = wrap(pending.replace(/\n+$/,''));
+  setText(d, pending.replace(/\n+$/,''));
   elLog.appendChild(d);
   pending='';
   elLog.scrollTop = elLog.scrollHeight;
 }
 function echo(s){
   const d=document.createElement('div');
-  d.textContent = s;
+  setText(d, String(s));
   elLog.appendChild(d);
   elLog.scrollTop = elLog.scrollHeight;
 }
@@ -196,7 +308,9 @@ function echo(s){
    direction you took OUT of that room. */
 const MAPLAYOUT = null;
 let MP=null, compassMove=false, mapOn=false, bootAuto=false;
+let mapZoom=1, mapFit=true;
 const elMapWrap=document.getElementById('mapwrap');
+const elMapScroll=document.getElementById('mapscroll');
 const elMapSvg =document.getElementById('mapsvg');
 const elMapFoot=document.getElementById('mapfoot');
 const DIRL='NSEWUD';
@@ -415,23 +529,37 @@ function drawMap(){
                      +`style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
   });
 
+  /* Sizing. The map is drawn at its natural size on a desktop, where there is
+     room to scroll it, but a 2000px SVG on a 390px phone is a postage stamp
+     you can only pan around blind. On a narrow viewport the default is
+     therefore to fit the width, and the +/- buttons scale from there. */
+  const avail   = Math.max(200, (elMapScroll.clientWidth||0) - 14);
+  const natural = Math.min(W, 2200);
+  const narrow  = avail < natural * 0.75;
+  const base    = (mapFit && narrow) ? Math.min(natural, avail) : natural;
+  const px      = Math.max(200, base * mapZoom);
   elMapSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  elMapSvg.setAttribute('width', Math.min(W,2200));
-  elMapSvg.setAttribute('height', Math.min(W,2200)*H/W);
+  elMapSvg.setAttribute('width', px);
+  elMapSvg.setAttribute('height', px*H/W);
   elMapSvg.innerHTML=g.join('');
   const total=G.rooms.length-1;
-  elMapFoot.textContent=`${seen.length} of ${total} places found`
-    +`   |   a letter by a box is the way OUT of it`
-    +`   |   (A) means "continue at the box marked A"`
-    +`   |   faint stubs are exits you have not walked`
-    +`   |   * = prize here`;
+  const brief = avail < 520;
+  elMapFoot.textContent = brief
+    ? `${seen.length} of ${total} places found`
+      + `  |  a letter by a box is the way OUT of it`
+      + `  |  (A) = continue at the box marked A`
+    : `${seen.length} of ${total} places found`
+      + `   |   a letter by a box is the way OUT of it`
+      + `   |   (A) means "continue at the box marked A"`
+      + `   |   faint stubs are exits you have not walked`
+      + `   |   * = prize here`;
 }
 
 function toggleMap(on){
   mapOn = (on===undefined) ? !mapOn : on;
   elMapWrap.classList.toggle('on', mapOn);
   document.getElementById('screen').classList.toggle('hide', mapOn);
-  if(mapOn) drawMap(); else document.querySelector('#cmd')?.focus();
+  if(mapOn) drawMap(); else if(kbUp) document.querySelector('#cmd')?.focus();
 }
 
 /* ---------- game state ---------- */
@@ -458,12 +586,8 @@ function newGame(db){
   bootAuto = true;
   over=false;
   elLog.innerHTML='';
-  echo('*** SAVAGE ISLAND PART II ***');
-  echo('');
-  echo('Scott Adams Adventure #11');
-  echo('');
-  echo('Two words at a time. Type MAP to see where you have been.');
-  echo('Say HELP if you get stuck.');
+  echo('* ADVENTURE * Adventure number: '+G.advNum+'   Version: '+(G.version/100).toFixed(1));
+  echo('Copyright Adams 1979.');
   echo('');
   if(bootAuto){ bootAuto=false; performActions(0,0); flush(); S.seen[S.loc]=1; }
   look();
@@ -477,7 +601,7 @@ const isDark  = ()=> (S.bits & (1<<DARKBIT)) &&
 
 /* ---------- room display (top pane) ---------- */
 function look(){
-  if(isDark()){ elRoom.textContent = wrap('Its too dark to see!'); return; }
+  if(isDark()){ setText(elRoom, 'Its too dark to see!'); return; }
   const r = G.rooms[S.loc];
   let t = r.text.startsWith('*') ? r.text.slice(1) : 'I am in a '+r.text;
   let s = t + '. Visible items:\n\n';
@@ -488,7 +612,25 @@ function look(){
   const names=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
   const ex = r.exits.map((v,k)=>v?names[k]:null).filter(Boolean);
   s += '\n     Some obvious exits are: ' + (ex.length?ex.join(' '):'none');
-  elRoom.textContent = wrap(s);
+  setText(elRoom, s);
+}
+
+/* On a touch device the soft keyboard eats half the screen, so it is not
+   raised until the player asks for it - either by tapping the prompt or by
+   tapping Keyboard. Once it is up we keep it up, by refocusing the fresh
+   input each turn. On a desktop the input is always focused, as before. */
+const TOUCH = HAS_DOM && window.matchMedia &&
+              window.matchMedia('(pointer:coarse)').matches;
+let kbUp = !TOUCH;
+
+function submit(txt){
+  const line = document.getElementById('inline');
+  if(!line) return;
+  const inp = line.querySelector('input');
+  if(inp && document.activeElement === inp) kbUp = true;
+  line.remove();
+  echo('  -------> Tell me what to do? ' + txt);
+  handle(txt);
 }
 
 function prompt_(){
@@ -498,17 +640,20 @@ function prompt_(){
   line.innerHTML='<span>  -------&gt; Tell me what to do? </span>';
   const inp=document.createElement('input');
   inp.id='cmd'; inp.autocomplete='off'; inp.spellcheck=false;
+  inp.autocapitalize='characters'; inp.enterKeyHint='go';
   line.appendChild(inp);
   elLog.appendChild(line);
-  inp.focus();
+  if(kbUp) inp.focus();
+  inp.addEventListener('focus', ()=>{ kbUp=true; scrollLog(); });
   elLog.scrollTop = elLog.scrollHeight;
   inp.addEventListener('keydown', e=>{
     if(e.key!=='Enter') return;
-    const txt = inp.value;
-    line.remove();
-    echo('  -------> Tell me what to do? '+txt);
-    handle(txt);
+    submit(inp.value);
   });
+}
+function scrollLog(){
+  elLog.scrollTop = elLog.scrollHeight;
+  if(HAS_DOM) setTimeout(()=>{ elLog.scrollTop = elLog.scrollHeight; }, 120);
 }
 
 /* ---------- vocabulary matching ---------- */
@@ -841,22 +986,37 @@ function helpMe(){
         + (where?` They go in the ${where}.`:''));
   }
 
-  /* unwalked exits, nearest first: the room you are in, then anywhere seen */
-  const hereTodo=[];
+  /* Unwalked exits, nearest first: the room you are in, then anywhere seen.
+     An exit that leads back to the room you are standing in is not somewhere
+     to go, and must never be offered as one - Strange Odyssey's methane storm
+     room has all four compass exits pointing at itself, so it advertises
+     NORTH SOUTH EAST WEST and every one of them is a lie. Saying "you have not
+     yet tried NORTH" there sends the player round a maze that has no walking
+     exit at all; the way out is a verb. */
+  const LONG=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
+  const hereTodo=[], hereLoop=[]; let hereReal=0;
   for(let d=0;d<6;d++){
     const t=G.rooms[S.loc].exits[d];
-    if(t && !S.link[S.loc+'>'+t]) hereTodo.push(['NORTH','SOUTH','EAST','WEST','UP','DOWN'][d]);
+    if(!t) continue;
+    if(t===S.loc){ hereLoop.push(LONG[d]); continue; }
+    hereReal++;
+    if(!S.link[S.loc+'>'+t]) hereTodo.push(LONG[d]);
   }
   const elseTodo=[];
   for(const r of Object.keys(S.seen).map(Number)){
     if(r===S.loc) continue;
     for(let d=0;d<6;d++){
       const t=G.rooms[r].exits[d];
-      if(t && !S.link[r+'>'+t]){ const nmr=helpRoomName(r);
+      if(t && t!==r && !S.link[r+'>'+t]){ const nmr=helpRoomName(r);
         if(nmr) elseTodo.push(['N','S','E','W','UP','DOWN'][d]+' from the '+nmr); }
     }
   }
   if(hereTodo.length) say('From here you have not yet tried: '+hereTodo.join(', ')+'.');
+  else if(!hereReal && hereLoop.length)
+    say('Every direction here leads straight back to this room. Walking will '
+       +'not get you out - look for something to do instead.');
+  else if(hereLoop.length && !hereTodo.length)
+    say('These lead back to this room: '+hereLoop.join(', ')+'.');
   else if(elseTodo.length) say('Still unexplored: '+uniq(elseTodo,x=>x).slice(0,3).join('; ')+'.');
 
   /* graduated nudges */
@@ -1031,10 +1191,67 @@ document.getElementById('fGame').onchange = e=>{
   r.readAsText(f,'ISO-8859-1');
 };
 
+/* ---------- touch and small screens ---------- */
+/* The keypad submits through the same path a typed line takes, so nothing
+   downstream can tell the difference. pointerdown is preventDefaulted so
+   tapping a key never blurs the text input: if the keyboard is already up
+   it stays up, and if it is not, it does not spring open. */
+if(HAS_DOM){
+  const pad = document.getElementById('pad');
+  pad.addEventListener('pointerdown', e=>{
+    const b = e.target.closest('button[data-c]');
+    if(!b) return;
+    e.preventDefault();
+    if(mapOn) toggleMap(false);
+    submit(b.dataset.c);
+  });
+  document.getElementById('bKeys').addEventListener('click', ()=>{
+    if(mapOn) toggleMap(false);
+    const inp = document.querySelector('#cmd');
+    if(!inp) return;
+    if(document.activeElement === inp){ inp.blur(); kbUp = false; }
+    else { kbUp = true; inp.focus(); }
+  });
+
+  /* iOS slides the keyboard over the layout viewport rather than shrinking
+     it, so 100dvh alone leaves the prompt hidden underneath the keys. Track
+     the visual viewport and drive the case height from it. */
+  const vv = window.visualViewport;
+  const fitHeight = ()=>{
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty('--apph', h + 'px');
+    scrollLog();
+  };
+  if(vv){ vv.addEventListener('resize', fitHeight); vv.addEventListener('scroll', fitHeight); }
+  window.addEventListener('resize', ()=>{ fitHeight(); rewrap(); if(mapOn) drawMap(); });
+  window.addEventListener('orientationchange', ()=>
+    setTimeout(()=>{ fitHeight(); rewrap(); if(mapOn) drawMap(); }, 250));
+  fitHeight();
+
+  /* tapping anywhere on the transcript puts the caret back in the prompt */
+  elLog.addEventListener('click', e=>{
+    if(e.target.tagName === 'INPUT') return;
+    if(window.getSelection && String(window.getSelection())) return;   /* copying */
+    if(kbUp) document.querySelector('#cmd')?.focus();
+  });
+
+  /* map zoom */
+  document.getElementById('zIn').onclick    = ()=>{ mapZoom=Math.min(4, mapZoom*1.35); drawMap(); };
+  document.getElementById('zOut').onclick   = ()=>{ mapZoom=Math.max(0.3, mapZoom/1.35); drawMap(); };
+  document.getElementById('zFit').onclick   = ()=>{ mapZoom=1; mapFit=true; drawMap(); };
+  document.getElementById('zClose').onclick = ()=>toggleMap(false);
+}
+
 /* ---------- boot ---------- */
+/* Measure before the first word is printed. rewrap() only fires on a resize,
+   and a phone that is simply opened never resizes - so without this the
+   opening screen, which is the one thing every player sees, would stay
+   wrapped for a 64-column terminal on a 37-column phone. */
 const EMBEDDED = " 4756 \n 48 \n 247 \n 79 \n 30 \n 6 \n 30 \n 0 \n 4 \n 150 \n 95 \n 0 \n 100 \n 428 \n 140 \n 0 \n 0 \n 0 \n 9000 \n 0 \n 100 \n 484 \n 140 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 184 \n 953 \n 428 \n 140 \n 0 \n 9000 \n 0 \n 100 \n 28 \n 49 \n 0 \n 0 \n 0 \n 1563 \n 0 \n 100 \n 29 \n 20 \n 0 \n 0 \n 0 \n 358 \n 1211 \n 100 \n 364 \n 683 \n 700 \n 680 \n 520 \n 10858 \n 0 \n 100 \n 164 \n 683 \n 700 \n 680 \n 520 \n 10858 \n 0 \n 100 \n 24 \n 683 \n 700 \n 680 \n 520 \n 10858 \n 0 \n 100 \n 224 \n 683 \n 700 \n 680 \n 520 \n 10858 \n 0 \n 100 \n 528 \n 520 \n 60 \n 100 \n 60 \n 9081 \n 11931 \n 100 \n 801 \n 0 \n 0 \n 0 \n 0 \n 3600 \n 0 \n 100 \n 146 \n 161 \n 160 \n 0 \n 0 \n 8850 \n 0 \n 100 \n 368 \n 20 \n 0 \n 0 \n 0 \n 12227 \n 10950 \n 0 \n 55 \n 0 \n 0 \n 0 \n 0 \n 3600 \n 0 \n 0 \n 15 \n 148 \n 120 \n 360 \n 0 \n 9060 \n 13288 \n 0 \n 369 \n 0 \n 0 \n 0 \n 0 \n 13288 \n 3811 \n 0 \n 15 \n 100 \n 368 \n 360 \n 149 \n 3960 \n 9000 \n 0 \n 20 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 100 \n 204 \n 428 \n 953 \n 0 \n 0 \n 18725 \n 9169 \n 100 \n 128 \n 148 \n 109 \n 0 \n 0 \n 3388 \n 13273 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 13288 \n 3511 \n 100 \n 148 \n 120 \n 0 \n 0 \n 0 \n 3358 \n 0 \n 100 \n 128 \n 149 \n 120 \n 0 \n 0 \n 9000 \n 0 \n 8 \n 228 \n 209 \n 243 \n 0 \n 0 \n 4683 \n 4561 \n 100 \n 229 \n 243 \n 220 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 208 \n 220 \n 40 \n 0 \n 0 \n 9081 \n 11623 \n 0 \n 95 \n 243 \n 0 \n 0 \n 0 \n 4680 \n 5100 \n 0 \n 15 \n 200 \n 0 \n 0 \n 0 \n 9000 \n 0 \n 0 \n 40 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 50 \n 267 \n 253 \n 209 \n 240 \n 214 \n 7950 \n 0 \n 8 \n 213 \n 0 \n 0 \n 0 \n 0 \n 9919 \n 9150 \n 100 \n 569 \n 353 \n 80 \n 0 \n 0 \n 12223 \n 11550 \n 0 \n 15 \n 560 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 0 \n 80 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 30 \n 243 \n 209 \n 0 \n 0 \n 0 \n 4692 \n 3600 \n 100 \n 209 \n 261 \n 260 \n 240 \n 0 \n 8903 \n 0 \n 100 \n 264 \n 242 \n 260 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 264 \n 245 \n 260 \n 345 \n 0 \n 9000 \n 0 \n 100 \n 264 \n 342 \n 260 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 148 \n 343 \n 340 \n 200 \n 0 \n 10800 \n 0 \n 100 \n 148 \n 261 \n 240 \n 200 \n 260 \n 10859 \n 0 \n 100 \n 24 \n 342 \n 340 \n 40 \n 0 \n 21512 \n 0 \n 100 \n 463 \n 425 \n 460 \n 425 \n 0 \n 11285 \n 7200 \n 100 \n 674 \n 340 \n 347 \n 140 \n 607 \n 19854 \n 11460 \n 100 \n 607 \n 713 \n 60 \n 0 \n 0 \n 12227 \n 10950 \n 0 \n 15 \n 0 \n 0 \n 0 \n 0 \n 16219 \n 9150 \n 0 \n 60 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 100 \n 901 \n 0 \n 0 \n 0 \n 0 \n 1328 \n 13273 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 13288 \n 13329 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 13288 \n 13330 \n 100 \n 674 \n 508 \n 352 \n 214 \n 440 \n 8700 \n 0 \n 100 \n 364 \n 342 \n 340 \n 40 \n 0 \n 21512 \n 0 \n 100 \n 604 \n 48 \n 0 \n 0 \n 0 \n 9450 \n 0 \n 8768 \n 963 \n 149 \n 0 \n 0 \n 0 \n 223 \n 20700 \n 0 \n 44 \n 89 \n 80 \n 0 \n 0 \n 8708 \n 1800 \n 0 \n 244 \n 289 \n 280 \n 0 \n 0 \n 8708 \n 5412 \n 3523 \n 963 \n 309 \n 0 \n 0 \n 0 \n 167 \n 20400 \n 8712 \n 963 \n 0 \n 0 \n 0 \n 0 \n 20923 \n 0 \n 0 \n 663 \n 660 \n 0 \n 0 \n 0 \n 8938 \n 13288 \n 1573 \n 963 \n 960 \n 0 \n 0 \n 0 \n 202 \n 0 \n 1573 \n 524 \n 974 \n 960 \n 0 \n 0 \n 202 \n 0 \n 1059 \n 63 \n 248 \n 0 \n 0 \n 0 \n 6114 \n 17061 \n 8755 \n 963 \n 0 \n 0 \n 0 \n 0 \n 20550 \n 0 \n 1059 \n 423 \n 248 \n 0 \n 0 \n 0 \n 18349 \n 18415 \n 3496 \n 524 \n 309 \n 0 \n 0 \n 0 \n 167 \n 20173 \n 0 \n 974 \n 0 \n 0 \n 0 \n 0 \n 21000 \n 0 \n 5550 \n 0 \n 0 \n 0 \n 0 \n 0 \n 18900 \n 0 \n 10200 \n 0 \n 0 \n 0 \n 0 \n 0 \n 19050 \n 0 \n 220 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2512 \n 0 \n 2578 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2100 \n 0 \n 3467 \n 22 \n 309 \n 0 \n 0 \n 0 \n 167 \n 750 \n 3467 \n 222 \n 309 \n 0 \n 0 \n 0 \n 167 \n 750 \n 4069 \n 222 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 4069 \n 422 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 161 \n 42 \n 364 \n 40 \n 40 \n 140 \n 8153 \n 8773 \n 0 \n 703 \n 540 \n 0 \n 0 \n 0 \n 9000 \n 0 \n 161 \n 783 \n 0 \n 0 \n 0 \n 0 \n 6112 \n 0 \n 161 \n 488 \n 44 \n 360 \n 40 \n 140 \n 8153 \n 9073 \n 0 \n 683 \n 540 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 161 \n 489 \n 44 \n 20 \n 40 \n 140 \n 8153 \n 9073 \n 0 \n 683 \n 540 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 161 \n 382 \n 309 \n 0 \n 0 \n 0 \n 2446 \n 0 \n 161 \n 302 \n 204 \n 220 \n 300 \n 140 \n 8153 \n 9076 \n 161 \n 302 \n 224 \n 200 \n 300 \n 140 \n 8153 \n 8776 \n 1542 \n 149 \n 20 \n 100 \n 20 \n 0 \n 12229 \n 12223 \n 0 \n 360 \n 100 \n 0 \n 0 \n 0 \n 8760 \n 0 \n 161 \n 122 \n 84 \n 160 \n 120 \n 140 \n 8153 \n 9076 \n 161 \n 122 \n 164 \n 80 \n 120 \n 140 \n 8153 \n 8776 \n 5700 \n 168 \n 149 \n 160 \n 0 \n 0 \n 6510 \n 13288 \n 5700 \n 160 \n 149 \n 100 \n 360 \n 169 \n 208 \n 9060 \n 5877 \n 160 \n 149 \n 100 \n 360 \n 0 \n 208 \n 9060 \n 8447 \n 521 \n 0 \n 0 \n 0 \n 0 \n 182 \n 7200 \n 5878 \n 109 \n 100 \n 360 \n 20 \n 0 \n 8758 \n 12223 \n 0 \n 100 \n 20 \n 169 \n 0 \n 0 \n 11931 \n 150 \n 0 \n 140 \n 20 \n 160 \n 168 \n 249 \n 11931 \n 9001 \n 0 \n 340 \n 20 \n 160 \n 168 \n 248 \n 11931 \n 9001 \n 161 \n 42 \n 24 \n 40 \n 40 \n 140 \n 8153 \n 8773 \n 0 \n 703 \n 540 \n 0 \n 0 \n 0 \n 9000 \n 0 \n 5879 \n 149 \n 20 \n 100 \n 20 \n 0 \n 12229 \n 12223 \n 0 \n 360 \n 100 \n 0 \n 0 \n 0 \n 8760 \n 0 \n 4363 \n 40 \n 140 \n 49 \n 369 \n 0 \n 8752 \n 10953 \n 0 \n 20 \n 0 \n 0 \n 0 \n 0 \n 607 \n 1404 \n 4366 \n 49 \n 40 \n 20 \n 0 \n 0 \n 508 \n 654 \n 4069 \n 22 \n 940 \n 0 \n 0 \n 0 \n 209 \n 0 \n 3467 \n 63 \n 309 \n 0 \n 0 \n 0 \n 155 \n 0 \n 4069 \n 63 \n 89 \n 0 \n 0 \n 0 \n 158 \n 1650 \n 4069 \n 322 \n 268 \n 288 \n 248 \n 0 \n 1344 \n 0 \n 3459 \n 309 \n 0 \n 0 \n 0 \n 0 \n 163 \n 0 \n 3474 \n 309 \n 0 \n 0 \n 0 \n 0 \n 167 \n 3170 \n 3480 \n 189 \n 83 \n 180 \n 100 \n 80 \n 4108 \n 11326 \n 6931 \n 103 \n 149 \n 369 \n 0 \n 0 \n 178 \n 4529 \n 6031 \n 103 \n 100 \n 0 \n 0 \n 0 \n 4378 \n 3811 \n 7231 \n 103 \n 100 \n 149 \n 0 \n 0 \n 8923 \n 0 \n 0 \n 369 \n 0 \n 0 \n 0 \n 0 \n 4378 \n 3811 \n 0 \n 242 \n 200 \n 0 \n 0 \n 0 \n 8731 \n 4350 \n 0 \n 242 \n 40 \n 800 \n 40 \n 0 \n 12229 \n 12150 \n 1532 \n 242 \n 0 \n 0 \n 0 \n 0 \n 2132 \n 0 \n 9932 \n 242 \n 240 \n 260 \n 208 \n 0 \n 202 \n 7866 \n 7231 \n 103 \n 100 \n 148 \n 0 \n 0 \n 209 \n 0 \n 7682 \n 243 \n 209 \n 0 \n 0 \n 0 \n 4683 \n 4561 \n 221 \n 484 \n 0 \n 0 \n 0 \n 0 \n 275 \n 9150 \n 8732 \n 243 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 3472 \n 743 \n 309 \n 0 \n 0 \n 0 \n 2667 \n 4650 \n 2732 \n 241 \n 240 \n 260 \n 0 \n 0 \n 203 \n 8850 \n 8447 \n 143 \n 140 \n 160 \n 0 \n 0 \n 202 \n 7800 \n 8597 \n 163 \n 160 \n 0 \n 0 \n 0 \n 209 \n 0 \n 8897 \n 143 \n 160 \n 140 \n 280 \n 0 \n 209 \n 10800 \n 3467 \n 322 \n 309 \n 0 \n 0 \n 0 \n 167 \n 750 \n 7716 \n 823 \n 820 \n 840 \n 0 \n 0 \n 258 \n 10800 \n 4069 \n 322 \n 268 \n 289 \n 0 \n 0 \n 158 \n 1650 \n 4069 \n 322 \n 269 \n 0 \n 0 \n 0 \n 1236 \n 5712 \n 210 \n 542 \n 0 \n 0 \n 0 \n 0 \n 230 \n 11400 \n 4069 \n 322 \n 268 \n 288 \n 240 \n 249 \n 153 \n 11009 \n 0 \n 166 \n 0 \n 0 \n 0 \n 0 \n 5911 \n 9450 \n 0 \n 340 \n 160 \n 140 \n 280 \n 0 \n 8009 \n 8910 \n 0 \n 260 \n 240 \n 0 \n 0 \n 0 \n 8158 \n 8476 \n 0 \n 380 \n 260 \n 0 \n 0 \n 0 \n 4240 \n 8760 \n 0 \n 83 \n 80 \n 0 \n 0 \n 0 \n 8850 \n 0 \n 0 \n 80 \n 500 \n 80 \n 0 \n 0 \n 12229 \n 12150 \n 3496 \n 544 \n 309 \n 0 \n 0 \n 0 \n 2691 \n 0 \n 9188 \n 308 \n 0 \n 0 \n 0 \n 0 \n 207 \n 11400 \n 3486 \n 309 \n 248 \n 0 \n 0 \n 0 \n 167 \n 4691 \n 10397 \n 463 \n 0 \n 0 \n 0 \n 0 \n 197 \n 0 \n 4384 \n 322 \n 268 \n 289 \n 249 \n 280 \n 8708 \n 5412 \n 9488 \n 0 \n 0 \n 0 \n 0 \n 0 \n 206 \n 11400 \n 6030 \n 83 \n 80 \n 0 \n 0 \n 0 \n 209 \n 0 \n 8768 \n 963 \n 148 \n 0 \n 0 \n 0 \n 156 \n 2700 \n 4070 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2445 \n 0 \n 9920 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2445 \n 0 \n 3494 \n 363 \n 94 \n 80 \n 0 \n 0 \n 2577 \n 8026 \n 10397 \n 283 \n 0 \n 0 \n 0 \n 0 \n 197 \n 0 \n 3467 \n 423 \n 309 \n 0 \n 0 \n 0 \n 2555 \n 0 \n 3470 \n 423 \n 309 \n 0 \n 0 \n 0 \n 2599 \n 0 \n 10670 \n 423 \n 280 \n 440 \n 283 \n 460 \n 8903 \n 7951 \n 10670 \n 423 \n 460 \n 463 \n 440 \n 0 \n 8903 \n 150 \n 10709 \n 423 \n 463 \n 460 \n 500 \n 0 \n 8903 \n 150 \n 10709 \n 423 \n 283 \n 280 \n 500 \n 460 \n 8903 \n 7951 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 10547 \n 463 \n 500 \n 440 \n 460 \n 280 \n 8909 \n 10801 \n 10547 \n 503 \n 460 \n 440 \n 500 \n 280 \n 8909 \n 10801 \n 3464 \n 423 \n 309 \n 0 \n 0 \n 0 \n 171 \n 18269 \n 10547 \n 523 \n 520 \n 280 \n 0 \n 0 \n 10801 \n 0 \n 3464 \n 683 \n 309 \n 0 \n 0 \n 0 \n 171 \n 18270 \n 10697 \n 283 \n 520 \n 280 \n 0 \n 0 \n 10801 \n 0 \n 10397 \n 523 \n 0 \n 0 \n 0 \n 0 \n 2415 \n 0 \n 10397 \n 283 \n 0 \n 0 \n 0 \n 0 \n 2415 \n 0 \n 3497 \n 523 \n 309 \n 0 \n 0 \n 0 \n 167 \n 7500 \n 197 \n 521 \n 0 \n 0 \n 0 \n 0 \n 178 \n 4080 \n 197 \n 522 \n 0 \n 0 \n 0 \n 0 \n 223 \n 0 \n 0 \n 522 \n 44 \n 300 \n 540 \n 0 \n 12054 \n 8026 \n 0 \n 522 \n 404 \n 520 \n 540 \n 0 \n 12054 \n 8026 \n 0 \n 522 \n 280 \n 540 \n 0 \n 0 \n 12054 \n 8026 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9932 \n 243 \n 209 \n 0 \n 0 \n 0 \n 4683 \n 4561 \n 6347 \n 523 \n 0 \n 0 \n 0 \n 0 \n 178 \n 4090 \n 1108 \n 723 \n 0 \n 0 \n 0 \n 0 \n 2660 \n 0 \n 3507 \n 683 \n 309 \n 0 \n 0 \n 0 \n 2672 \n 17359 \n 2753 \n 563 \n 400 \n 0 \n 0 \n 0 \n 210 \n 0 \n 3491 \n 388 \n 203 \n 380 \n 140 \n 0 \n 1410 \n 7950 \n 209 \n 482 \n 320 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 1553 \n 563 \n 400 \n 0 \n 0 \n 0 \n 208 \n 15300 \n 1200 \n 324 \n 409 \n 220 \n 0 \n 0 \n 204 \n 11400 \n 1350 \n 324 \n 409 \n 220 \n 0 \n 0 \n 204 \n 11400 \n 1200 \n 324 \n 513 \n 453 \n 0 \n 0 \n 2445 \n 0 \n 1350 \n 324 \n 513 \n 453 \n 429 \n 420 \n 8749 \n 5130 \n 1350 \n 324 \n 513 \n 453 \n 428 \n 0 \n 2445 \n 0 \n 9947 \n 463 \n 0 \n 0 \n 0 \n 0 \n 2445 \n 0 \n 3472 \n 582 \n 309 \n 0 \n 0 \n 0 \n 2654 \n 10950 \n 0 \n 469 \n 0 \n 0 \n 0 \n 0 \n 2581 \n 0 \n 4069 \n 582 \n 469 \n 460 \n 600 \n 0 \n 8753 \n 2623 \n 0 \n 240 \n 0 \n 0 \n 0 \n 0 \n 7981 \n 1316 \n 4069 \n 622 \n 449 \n 0 \n 0 \n 0 \n 15769 \n 9150 \n 4069 \n 622 \n 448 \n 0 \n 0 \n 0 \n 15856 \n 9450 \n 3506 \n 643 \n 0 \n 0 \n 0 \n 0 \n 6021 \n 16050 \n 4069 \n 63 \n 88 \n 489 \n 480 \n 0 \n 208 \n 523 \n 0 \n 548 \n 500 \n 700 \n 0 \n 0 \n 8759 \n 0 \n 3504 \n 403 \n 0 \n 0 \n 0 \n 0 \n 2672 \n 18523 \n 0 \n 509 \n 0 \n 0 \n 0 \n 0 \n 15450 \n 0 \n 4069 \n 63 \n 488 \n 88 \n 480 \n 0 \n 210 \n 523 \n 0 \n 548 \n 500 \n 700 \n 0 \n 0 \n 8759 \n 0 \n 1200 \n 324 \n 408 \n 0 \n 0 \n 0 \n 171 \n 5100 \n 1350 \n 324 \n 408 \n 0 \n 0 \n 0 \n 171 \n 5100 \n 172 \n 602 \n 340 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 3482 \n 583 \n 469 \n 309 \n 0 \n 0 \n 167 \n 5581 \n 3482 \n 243 \n 309 \n 208 \n 0 \n 0 \n 4350 \n 0 \n 4350 \n 149 \n 248 \n 369 \n 0 \n 0 \n 174 \n 0 \n 3482 \n 243 \n 309 \n 0 \n 0 \n 0 \n 167 \n 5581 \n 3497 \n 143 \n 309 \n 0 \n 0 \n 0 \n 907 \n 3035 \n 1059 \n 22 \n 248 \n 309 \n 0 \n 0 \n 167 \n 20250 \n 1059 \n 222 \n 248 \n 309 \n 0 \n 0 \n 167 \n 19650 \n 1059 \n 322 \n 248 \n 309 \n 0 \n 0 \n 6114 \n 17068 \n 900 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7650 \n 0 \n 1350 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7650 \n 0 \n 1200 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7650 \n 0 \n 10650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2415 \n 7200 \n 7650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2415 \n 0 \n 6750 \n 309 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 1507 \n 309 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 4950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2415 \n 0 \n 4069 \n 582 \n 614 \n 600 \n 0 \n 0 \n 203 \n 0 \n 4350 \n 149 \n 249 \n 369 \n 0 \n 0 \n 235 \n 0 \n 5258 \n 0 \n 0 \n 0 \n 0 \n 0 \n 221 \n 0 \n 5400 \n 0 \n 0 \n 0 \n 0 \n 0 \n 213 \n 0 \n 6300 \n 0 \n 0 \n 0 \n 0 \n 0 \n 178 \n 900 \n 9300 \n 0 \n 0 \n 0 \n 0 \n 0 \n 235 \n 0 \n 1050 \n 309 \n 0 \n 0 \n 0 \n 0 \n 2512 \n 16950 \n 4082 \n 243 \n 0 \n 0 \n 0 \n 0 \n 3184 \n 0 \n 4069 \n 603 \n 600 \n 0 \n 0 \n 0 \n 209 \n 0 \n 161 \n 942 \n 184 \n 480 \n 920 \n 940 \n 204 \n 8003 \n 161 \n 942 \n 484 \n 180 \n 920 \n 940 \n 204 \n 8003 \n 161 \n 945 \n 184 \n 480 \n 920 \n 0 \n 204 \n 7950 \n 161 \n 945 \n 484 \n 180 \n 920 \n 0 \n 204 \n 7950 \n 9150 \n 0 \n 0 \n 0 \n 0 \n 0 \n 2512 \n 0 \n 3520 \n 309 \n 0 \n 0 \n 0 \n 0 \n 19950 \n 0 \n 3510 \n 542 \n 309 \n 0 \n 0 \n 0 \n 2600 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9947 \n 143 \n 160 \n 140 \n 280 \n 0 \n 209 \n 10800 \n 224 \n 484 \n 0 \n 0 \n 0 \n 0 \n 2512 \n 0 \n 5850 \n 149 \n 100 \n 360 \n 0 \n 0 \n 210 \n 9026 \n 11014 \n 803 \n 0 \n 0 \n 0 \n 0 \n 292 \n 0 \n 3485 \n 309 \n 343 \n 0 \n 0 \n 0 \n 10950 \n 0 \n 0 \n 569 \n 0 \n 0 \n 0 \n 0 \n 4350 \n 0 \n 0 \n 388 \n 140 \n 380 \n 0 \n 0 \n 1403 \n 9000 \n 0 \n 568 \n 0 \n 0 \n 0 \n 0 \n 6600 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 3450 \n 309 \n 0 \n 0 \n 0 \n 0 \n 167 \n 976 \n\"AUTO\"\n\"ANY\"\n\"GO\"\n\"NORTH\"\n\"*ENTE\"\n\"SOUTH\"\n\"*CRAW\"\n\"EAST\"\n\"\"\n\"WEST\"\n\"\"\n\"UP\"\n\"JUMP\"\n\"DOWN\"\n\"READ\"\n\"INVE\"\n\"WALK\"\n\"GAME\"\n\"RUN\"\n\"DIAL\"\n\"GET\"\n\"*SCRI\"\n\"*TAKE\"\n\"FIEL\"\n\"*GRAB\"\n\"BLUE\"\n\"*PICK\"\n\"123\"\n\"*HOLD\"\n\"ATOM\"\n\"*CATC\"\n\"*PICT\"\n\".\"\n\"474\"\n\"WORK\"\n\"CONT\"\n\"DROP\"\n\"*CONS\"\n\"*LEAV\"\n\"BUTT\"\n\"*PUT\"\n\"LEVE\"\n\"*RELE\"\n\"*HAND\"\n\"*GIVE\"\n\"DISP\"\n\"LOOK\"\n\"*CASE\"\n\"*EXAM\"\n\"META\"\n\"*DESC\"\n\"*TUNN\"\n\"*SEE\"\n\"*ROOM\"\n\"PUSH\"\n\"DEEP\"\n\"*PRES\"\n\"OUT\"\n\"SAY\"\n\"IN\"\n\"*SPEA\"\n\"PLAN\"\n\"*TALK\"\n\"FLOW\"\n\"*ASK\"\n\"NEAN\"\n\"USE\"\n\"*CAVE\"\n\"*WITH\"\n\"FREE\"\n\"SAVE\"\n\"ME\"\n\"QUIT\"\n\"SELF\"\n\"HELP\"\n\"*MYSE\"\n\"HYPE\"\n\"EYES\"\n\"BREA\"\n\"FREE\"\n\"EAT\"\n\"ARGH\"\n\"*TAST\"\n\"CORP\"\n\"FEEL\"\n\"BREA\"\n\"*TOUC\"\n\"PASS\"\n\"\"\n\"HYDR\"\n\"INVE\"\n\"LIGH\"\n\"SMEL\"\n\"MACH\"\n\"*SNIF\"\n\"BAND\"\n\"CRUS\"\n\"*THRE\"\n\"*CRUM\"\n\"*LOOP\"\n\"*SMAS\"\n\"*ITSE\"\n\"HIT\"\n\"*END\"\n\"*TEAR\"\n\"*CENT\"\n\"*RIP\"\n\"RAIL\"\n\"*PUNC\"\n\"VIEW\"\n\".\"\n\"SLID\"\n\"WEAR\"\n\"PIRA\"\n\"REMO\"\n\"BLOC\"\n\"MOVE\"\n\"SIGN\"\n\"UNRA\"\n\"TREA\"\n\"*UNDO\"\n\"HOLE\"\n\"OPEN\"\n\"BOXE\"\n\"THIN\"\n\"*CRAT\"\n\"CLOS\"\n\"*BOX\"\n\"*SHUT\"\n\"BALL\"\n\"\"\n\"*MEDI\"\n\"DRAG\"\n\"BAG\"\n\"*PULL\"\n\"*CLOT\"\n\"EXHA\"\n\"RED\"\n\"TIE\"\n\"WAFE\"\n\"UNTI\"\n\"PLAT\"\n\"TO\"\n\"OUTE\"\n\"SCOR\"\n\"*SPAC\"\n\"KICK\"\n\"DEVI\"\n\"\"\n\"LIFE\"\n\"\"\n\"FAST\"\n\"\"\n\"SLOW\"\n\"\"\n\"HANG\"\n\"\"\n\"ENGI\"\n\"\"\n\"\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"small metal room\"\n 0 \n 0 \n 3 \n 0 \n 0 \n 0 \n\"metal room\"\n 0 \n 6 \n 0 \n 2 \n 0 \n 0 \n\"metal lined tunnel\"\n 0 \n 0 \n 5 \n 0 \n 0 \n 0 \n\"metal room\"\n 0 \n 0 \n 6 \n 4 \n 0 \n 0 \n\"metal lined tunnel\"\n 3 \n 0 \n 7 \n 5 \n 0 \n 0 \n\"metal lined tunnel\"\n 9 \n 0 \n 0 \n 6 \n 0 \n 0 \n\"metal lined tunnel\"\n 19 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"metal room\"\n 25 \n 7 \n 0 \n 0 \n 0 \n 0 \n\"metal lined tunnel\"\n 0 \n 25 \n 0 \n 0 \n 0 \n 0 \n\"metal room\"\n 21 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"metal room\"\n 0 \n 19 \n 13 \n 0 \n 0 \n 0 \n\"red metal room\"\n 0 \n 0 \n 0 \n 12 \n 0 \n 0 \n\"red metal room\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"cramped metal area\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"metal storage hold\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm on a treadmill\"\n 0 \n 0 \n 8 \n 0 \n 0 \n 0 \n\"*I'm in an open display case\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"small metal room\"\n 12 \n 8 \n 0 \n 0 \n 0 \n 0 \n\"metal lined tunnel\"\n 0 \n 0 \n 0 \n 21 \n 0 \n 0 \n\"main control room\"\n 22 \n 11 \n 20 \n 23 \n 0 \n 0 \n\"metal lined tunnel\"\n 0 \n 21 \n 0 \n 0 \n 0 \n 0 \n\"small metal cabin\"\n 0 \n 0 \n 21 \n 27 \n 0 \n 0 \n\"metal dormitory\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"metal lifeboat hangar open to\nouter space\"\n 10 \n 9 \n 0 \n 0 \n 0 \n 0 \n\"metal lined tunnel\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"large metal room\"\n 0 \n 0 \n 23 \n 0 \n 0 \n 0 \n\"large metal room\nwith porcelain machinery\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"lot of trouble\"\n\"\"\n\"OK\"\n\"Welcome to Adventure 11 `SAVAGE ISLAND PART 2`\nby Scott Adams & Russ Wetmore. Dedicated to Adventure Fans\neverywhere.\"\n\"Blinding flash of light\"\n\"I'm stark naked\"\n\"button,dials,lever\"\n\"nothing special\"\n\"except\"\n\"metallic voice whispers in my mind:\"\n\"one item\"\n\"wrong\"\n\"`Vocalize password Please`\"\n\"`Ready`\"\n\"alien script\"\n\"How?\"\n\"doesn't work\"\n\"sorry\"\n\"I see\"\n\"happens\"\n\"Time paradox shatters reality\"\n\"glowing\"\n\"it\"\n\"Vacuum!\"\n\"lungs explode in red bubbling ruin\"\n\"Argh\"\n\"ASPHYXIATED\"\n\"I breathed\"\n\"something\"\n\"I feel\"\n\"sedated!\"\n\"briefly\"\n\"Neanderthal\"\n\"too large\"\n\"attacks\"\n\"moves\"\n\"metallic threads\"\n\"`Prepare Rayshield, PSYCHOTRANSFIGURATION`\"\n\"thick headed\"\n\"`Not`\"\n\"Brain fried!\"\n\"strange\"\n\"body\"\n\"says\"\n\"I fainted\"\n\"Awake!\"\n\"won't budge\"\n\"Light mesmerizes me\"\n\"To what?\"\n\"slips off\"\n\"Large T shaped handle.\"\n\"utter blackness in center!\"\n\"Try: `GO`\"\n\"I'm holding it\"\n\"Closeups show Dinosaurs everywhere!\"\n\"Button at bottom.\"\n\"Case closes, some gas comes out and I'm sedated!\"\n\"Congratulations! You've finished Savage Island successfully!\nRefer to instructions for following coded message:\nU L K # $ + S ( V A 0 3 5 D B I H\nO ; 7 E 8 / M P 4 J 1 T Q @ F % G\nW X 6 C ? Y , Z = & R * - N 2 ) 9\"\n\"is a robot!\"\n\"EXPLOSION!\"\n\"flying apart\"\n\"`Compared to what you're about to go through you'll think Part I was a piece of cake! Good Luck and Adieu` - Scott Adams.\n\"\n\"Timemachine set for 100,000 years in past and\nnearest planetary body.\"\n\"I can't\"\n\"read it!\"\n\"I can\"\n\"an atom\"\n\"`WARNING - Non-transfigured controller of seed specimens\nhas been released`\"\n\"row after row of\"\n\"`Pull lever to reverse Transfiguration Process`\"\n\"8 electrons\"\n\"293 electrons\"\n\"has\"\n\"picture of\"\n\"this spaceship now orbiting Earth.\"\n\"Hurricane winds suck me into outerspace!\"\n\"I quickly freeze to death!\"\n\"Examine items & read messages carefully!\"\n\"Try: `BREATHE OUT`\"\n\"Captain's LOG:\nWounded in mutiny, strength failing. Humanoid seed colony not\nstarted, giant reptiles must be destroyed for species survival.\"\n\"TimeSwap Plan implemented with ROBOPIRATE as catalyst agent.\nIf you scanning this are not of THIS TIME then the mission\ncan still succeed!\"\n\"I'm jettisoning self from airlock. Good luck & forgive me for\ninvolving you.\"\n\"`Main landing sequence set for lever pull!`\"\n\"Robot Pirate looks strangely at me, picks me up\n& carries me off\"\n\"shaped for strange narrow alien bodies\"\n\"ship's engines, life support\"\n\"force field reset\"\n\"red & blue slide switches\"\n\"use color\"\n\"alien voice says `FREEHJLLGFREEUYE`\"\n\"High pitched electronic whine\"\n\"& another less obvious device\"\n\"combined lavatory & mess hall! Reminds me of my\nold school's cafeteria! UGH!\"\n\"OUCH!\"\n\"Me wanders off!\"\n\"`Pull lever please`\"\n\"\"\n\"Machinery\" 26 \n\"Control console\" 26 \n\"Force field\" 1 \n\"Control console\" 2 \n\"Plants/PLAN/\" 0 \n\"Flower/FLOW/\" 0 \n\"Force field\" 4 \n\"Bandanna/BAND/\" 0 \n\"Which I'm wearing\" 0 \n\"lite goes here.....\" 0 \n\"Corpse/CORP/\" 0 \n\"Control console\" 20 \n\"Neanderthal\" 0 \n\"which I'm dragging\" 0 \n\"Long glowing metal thread/BAND/\" 0 \n\"Force field\" 10 \n\"Control console\" 12 \n\"Me/ME/\" 0 \n\"Hydroponics\" 8 \n\"Blinking red light over force field\" 10 \n\"Viewscreen\" 20 \n\"Control console\" 11 \n\"Glowing thread tied to lever\" 0 \n\"Loose end of glowing thread/BAND/\" 0 \n\"Treadmill\" 11 \n\"with thread tied to it\" 0 \n\"Meter loop of glowing thread/BAND/\" 0 \n\"Dark hole\" 0 \n\"Railing\" 16 \n\"Display case\" 8 \n\"which is open\" 0 \n\"Button\" 17 \n\"Pirate\" 15 \n\"which is motionless\" 15 \n\"Large plastic block/BLOC/\" 2 \n\"GLOWING large plastic block/BLOC/\" 0 \n\"Large radiant glowing neon sign\" 2 \n\"Display cases\" 15 \n\"Giant boxes & crates\" 15 \n\"Pulsating red force field\" 15 \n\"Large medicine ball/BALL/\" 11 \n\"Freestanding punching bag/BAG/\" 11 \n\"Scraps of cloth/BAG/\" 0 \n\"Soft platform\" 22 \n\"Rows of soft platforms\" 23 \n\"Small plastic wafer/WAFE/\" 22 \n\"Force field\" 9 \n\"which is weakly flickering\" 9 \n\"Alien device/DEVI/\" 0 \n\"AIR NOW GOOD\"\n\"LIFEBOAT AIR\"\n\"GOOD AIR\"\n\"no pass\"\n\"start\"\n\"BLOCK SWAP\"\n\"BLOCK SWAP\"\n\"BLOCK SWAP\"\n\"BLOCK SWAP\"\n\"SET BLK CNTR\"\n\"MEDICINE BALL\"\n\"REMOVE ABND\"\n\"breathe out\"\n\"\"\n\"die\"\n\"CONT DIE\"\n\"BREATHED\"\n\"\"\n\"HURRICANE\"\n\".\"\n\"DIE VACUUM\"\n\"SET VACUUM\"\n\"RESET VACUUM\"\n\"CAVEMAN\"\n\"CAVEMAN HERE\"\n\"CAVE COUNT\"\n\"\"\n\"WAKES\"\n\"\"\n\"CAVE FOLLOWS\"\n\"ME DEAD?\"\n\".\"\n\"AWAKE ME\"\n\"\"\n\"NEAN ARGH\"\n\"DROP NEAN\"\n\"CAVE RM 13\"\n\"\"\n\"ME IN 13\"\n\"DEAD ME\"\n\"DEAD NEAN\"\n\"ME WANDERS\"\n\"DROP THREAD\"\n\"ROBOT MOVES\"\n\"BOMB\"\n\"\"\n\"\"\n\"CAPTAINS LOG\"\n\"\"\n\"\"\n\"WIN FLAG\"\n\"ME WANDERS\"\n\"DEAD END ROOM\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"CONTROL ROOM\"\n\"EXERSISE ROOM\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"GOT BLOCK?\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"HYPER CAVE\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"123\"\n\"\"\n\"\"\n\"AIRLOCK FIX\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"TRANSFER\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"TO WHAT?\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"DIAL - AIR\"\n\"\"\n\"BLOCK - BOMB\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"LOOP ROUTINE\"\n\"IF HAVE LOOP\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"WONT BUDGE\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"END GAME\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\".\"\n\".\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n 133 \n 11 \n 675 \n-@\t\u0000\u0001\u00dfC\u0004\u0000\u0002\u00c6\u0000\u0000\b\u00c6\"1\u0003\u0003M`\u0003\u0003P\f@\u0080GFroIm\u0001\u0011\u0000\u00b8\u00f3!\u0000\u0080\u0011\u0000H\u0001\u00008\u00ed\u00b0\u00c3\u00ae\u007f\u0002\u0002\u0000\u00b8\u0001\u00e5\u00c7\u00fa\u0081H\u00d7\u00f4\u00ca\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
+if(HAS_DOM) COLS = measureCols();
 newGame(parseDatabase(EMBEDDED));
 offerResume();
+if(HAS_DOM) rewrap();          /* in case fonts settled after the first pass */
 </script>
 <script>
 (function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();

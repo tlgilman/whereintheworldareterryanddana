@@ -5,35 +5,54 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GHOST TOWN</title>
 <style>
-  :root{ --scr:#e8e8e8; --bg:#0a0a0a; }
+  :root{ --scr:#e8e8e8; --bg:#0a0a0a; --apph:100dvh; }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:#111;color:var(--scr);
        font-family:"Courier New",ui-monospace,monospace;
-       display:flex;align-items:center;justify-content:center;padding:16px}
+       display:flex;align-items:center;justify-content:center;padding:16px;
+       -webkit-text-size-adjust:100%;overscroll-behavior:none}
   #case{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:14px;
-        width:min(96vw,880px);height:min(94vh,700px);display:flex;flex-direction:column;
-        box-shadow:0 10px 40px #000}
-  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;
+        width:min(96vw,880px);height:min(94dvh,700px);display:flex;flex-direction:column;
+        min-height:0;box-shadow:0 10px 40px #000}
+  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;min-height:0;
           padding:12px 14px;overflow:hidden;font-size:16px;line-height:1.28;
           white-space:pre-wrap;word-break:break-word}
-  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:hidden}
-  #bar{height:3px;background:var(--scr);margin:8px 0}
-  #log{flex:1;overflow-y:auto;scrollbar-width:thin}
+  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:auto}
+  #bar{height:3px;background:var(--scr);margin:8px 0;flex:0 0 auto}
+  #log{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;
+       -webkit-overflow-scrolling:touch}
   #log::-webkit-scrollbar{width:8px}
   #log::-webkit-scrollbar-thumb{background:#444}
   #inline{display:flex}
   #cmd{background:transparent;border:0;outline:0;color:var(--scr);
-       font:inherit;flex:1;padding:0;caret-color:var(--scr)}
-  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+       font:inherit;font-size:16px;flex:1;padding:0;caret-color:var(--scr);
+       min-width:0;border-radius:0}
+  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;
+          flex:0 0 auto}
   button,label.btn{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
-          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer}
+          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer;
+          touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   button:hover,label.btn:hover{background:#2c352a}
+  button:active,label.btn:active{background:#3c4a38}
   input[type=file]{display:none}
   .hint{color:#6f7a6c;font-size:11px;margin-left:auto}
-  #mapwrap{display:none;flex:1;overflow:auto;background:var(--bg);padding:6px}
-  #mapwrap.on{display:block}
   #screen.hide{display:none}
+
+  /* ---- touch keypad: hidden until the screen is small or the pointer coarse ---- */
+  #pad{display:none;gap:5px;flex-wrap:wrap;margin-top:8px;flex:0 0 auto}
+  #pad button{flex:1 1 0;min-width:0;padding:11px 4px;font-size:14px;font-weight:bold}
+  #pad .row{display:flex;gap:5px;width:100%}
+  #pad .w{font-weight:normal;font-size:12px}
+
+  /* ---- map ---- */
+  #mapwrap{display:none;flex:1;min-height:0;background:var(--bg);flex-direction:column}
+  #mapwrap.on{display:flex}
+  #mapbar{flex:0 0 auto;display:flex;gap:6px;padding:6px;justify-content:center;
+          align-items:center}
+  #mapbar button{padding:7px 14px;font-size:14px}
+  #mapscroll{flex:1;min-height:0;overflow:auto;padding:6px;
+             -webkit-overflow-scrolling:touch}
   #mapsvg{display:block;margin:0 auto}
   .nd{fill:#141a12;stroke:#3f5c39;stroke-width:1.5}
   .nd.here{fill:#26361f;stroke:#e8e8e8;stroke-width:2.5}
@@ -53,17 +72,73 @@
   .tag{fill:#0a0a0a;stroke:#9fd18f;stroke-width:1.5}
   .tag.sp{stroke:#e8c35a}
   .tagl{fill:#cfe6c8;font:bold 12px "Courier New",monospace;text-anchor:middle}
-  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px}
+  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px;
+           line-height:1.5;flex:0 0 auto}
   b{font-weight:bold}
+
+  /* ------------------------------------------------------------------
+     Phones. The desktop layout is a 1979 terminal sitting on a desk;
+     on a phone the case chrome is wasted space, so the screen fills the
+     device and the keypad takes over from the keyboard. --apph is kept
+     in step with visualViewport, because on iOS the soft keyboard slides
+     over the layout viewport instead of shrinking it - 100dvh alone
+     leaves the prompt underneath the keys.
+     ------------------------------------------------------------------ */
+  @media (max-width:760px), (pointer:coarse) and (max-width:1024px){
+    body{padding:0;align-items:stretch}
+    #case{width:100%;height:var(--apph);max-height:none;border:0;border-radius:0;
+          padding:5px;box-shadow:none}
+    #screen{padding:8px 9px;line-height:1.3}
+    #room{max-height:42%;min-height:4.2em}
+    #bar{margin:6px 0}
+    #bottom{gap:5px;margin-top:7px}
+    #bottom button,#bottom label.btn{flex:1 1 auto;padding:9px 8px;font-size:13px;
+                                     text-align:center}
+    #pad{display:flex}
+    .hint{display:none}
+    #mapbar button{flex:1 1 auto}
+    .mapfoot{font-size:10px}
+  }
+  /* Landscape phone: almost no height, so shed the keypad and shrink the room
+     pane. Keyed on height alone, not on pointer:coarse - the constraint really
+     is the height, and #pad is display:none by default anyway, so this can
+     only ever take the keypad away from a viewport too short to hold it. */
+  @media (max-height:460px){
+    #pad{display:none}
+    #room{max-height:34%;min-height:2.6em}
+    #bottom button,#bottom label.btn{padding:6px 8px}
+  }
 </style>
 </head>
 <body>
 <div id="case">
-  <div id="mapwrap"><svg id="mapsvg"></svg><div class="mapfoot" id="mapfoot"></div></div>
+  <div id="mapwrap">
+    <div id="mapbar">
+      <button id="zOut" title="zoom out">&minus;</button>
+      <button id="zFit" title="fit to screen">Fit</button>
+      <button id="zIn" title="zoom in">+</button>
+      <button id="zClose">Close map</button>
+    </div>
+    <div id="mapscroll"><svg id="mapsvg"></svg></div>
+    <div class="mapfoot" id="mapfoot"></div>
+  </div>
   <div id="screen">
     <div id="room"></div>
     <div id="bar"></div>
     <div id="log"></div>
+  </div>
+  <div id="pad">
+    <div class="row">
+      <button data-c="NORTH">N</button><button data-c="SOUTH">S</button>
+      <button data-c="EAST">E</button><button data-c="WEST">W</button>
+      <button data-c="UP">U</button><button data-c="DOWN">D</button>
+    </div>
+    <div class="row">
+      <button class="w" data-c="LOOK">LOOK</button>
+      <button class="w" data-c="INVENTORY">INVENT</button>
+      <button class="w" data-c="HELP ME">HELP ME</button>
+      <button class="w" id="bKeys">Keyboard</button>
+    </div>
   </div>
   <div id="bottom">
     <button id="bMap">Map</button>
@@ -152,10 +227,47 @@ function parseDatabase(text){
 }
 
 /* ---------- screen ---------- */
-const COLS = 64;
+/* The TRS-80 was 64 columns and the text is wrapped to match. A phone is
+   nowhere near 64 columns wide, and a hard-coded value there means every
+   line overflows and gets chopped mid-word by the CSS. So COLS is measured
+   from the actual rendered character width, capped at 64 so the desktop
+   layout is exactly what it always was, and re-measured when the window
+   resizes or the phone is rotated. Because wrapping is destructive, every
+   line keeps its unwrapped source in a data attribute and the whole
+   backlog is re-wrapped in place. */
+let COLS = 64;
+const HAS_DOM = typeof window !== 'undefined' && !!window.addEventListener;
+const elScreen = document.getElementById('screen');
 const elRoom = document.getElementById('room');
 const elLog  = document.getElementById('log');
-const elCmd  = document.getElementById('cmd');
+
+function measureCols(){
+  if(!elLog || typeof elLog.clientWidth !== 'number') return 64;   /* headless */
+  const avail = elLog.clientWidth;
+  if(!avail) return COLS;
+  const probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit';
+  probe.textContent = 'M'.repeat(40);
+  elScreen.appendChild(probe);
+  const chw = probe.getBoundingClientRect().width / 40;
+  probe.remove();
+  if(!chw) return COLS;
+  return Math.max(28, Math.min(64, Math.floor(avail / chw)));
+}
+function setText(el, raw){
+  if(el.dataset) el.dataset.raw = raw;     /* absent in the headless harnesses */
+  el.textContent = wrap(raw);
+}
+function rewrap(){
+  const c = measureCols();
+  if(c === COLS) return;
+  COLS = c;
+  if(elRoom.dataset && elRoom.dataset.raw !== undefined)
+    elRoom.textContent = wrap(elRoom.dataset.raw);
+  for(const d of Array.from(elLog.children))
+    if(d.dataset && d.dataset.raw !== undefined) d.textContent = wrap(d.dataset.raw);
+  elLog.scrollTop = elLog.scrollHeight;
+}
 
 function wrap(s){
   const out=[];
@@ -177,14 +289,14 @@ function out(s){ pending += s; }
 function flush(){
   if(!pending) return;
   const d=document.createElement('div');
-  d.textContent = wrap(pending.replace(/\n+$/,''));
+  setText(d, pending.replace(/\n+$/,''));
   elLog.appendChild(d);
   pending='';
   elLog.scrollTop = elLog.scrollHeight;
 }
 function echo(s){
   const d=document.createElement('div');
-  d.textContent = s;
+  setText(d, String(s));
   elLog.appendChild(d);
   elLog.scrollTop = elLog.scrollHeight;
 }
@@ -196,7 +308,9 @@ function echo(s){
    direction you took OUT of that room. */
 const MAPLAYOUT = null;
 let MP=null, compassMove=false, mapOn=false, bootAuto=false;
+let mapZoom=1, mapFit=true;
 const elMapWrap=document.getElementById('mapwrap');
+const elMapScroll=document.getElementById('mapscroll');
 const elMapSvg =document.getElementById('mapsvg');
 const elMapFoot=document.getElementById('mapfoot');
 const DIRL='NSEWUD';
@@ -415,23 +529,37 @@ function drawMap(){
                      +`style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
   });
 
+  /* Sizing. The map is drawn at its natural size on a desktop, where there is
+     room to scroll it, but a 2000px SVG on a 390px phone is a postage stamp
+     you can only pan around blind. On a narrow viewport the default is
+     therefore to fit the width, and the +/- buttons scale from there. */
+  const avail   = Math.max(200, (elMapScroll.clientWidth||0) - 14);
+  const natural = Math.min(W, 2200);
+  const narrow  = avail < natural * 0.75;
+  const base    = (mapFit && narrow) ? Math.min(natural, avail) : natural;
+  const px      = Math.max(200, base * mapZoom);
   elMapSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  elMapSvg.setAttribute('width', Math.min(W,2200));
-  elMapSvg.setAttribute('height', Math.min(W,2200)*H/W);
+  elMapSvg.setAttribute('width', px);
+  elMapSvg.setAttribute('height', px*H/W);
   elMapSvg.innerHTML=g.join('');
   const total=G.rooms.length-1;
-  elMapFoot.textContent=`${seen.length} of ${total} places found`
-    +`   |   a letter by a box is the way OUT of it`
-    +`   |   (A) means "continue at the box marked A"`
-    +`   |   faint stubs are exits you have not walked`
-    +`   |   * = prize here`;
+  const brief = avail < 520;
+  elMapFoot.textContent = brief
+    ? `${seen.length} of ${total} places found`
+      + `  |  a letter by a box is the way OUT of it`
+      + `  |  (A) = continue at the box marked A`
+    : `${seen.length} of ${total} places found`
+      + `   |   a letter by a box is the way OUT of it`
+      + `   |   (A) means "continue at the box marked A"`
+      + `   |   faint stubs are exits you have not walked`
+      + `   |   * = prize here`;
 }
 
 function toggleMap(on){
   mapOn = (on===undefined) ? !mapOn : on;
   elMapWrap.classList.toggle('on', mapOn);
   document.getElementById('screen').classList.toggle('hide', mapOn);
-  if(mapOn) drawMap(); else document.querySelector('#cmd')?.focus();
+  if(mapOn) drawMap(); else if(kbUp) document.querySelector('#cmd')?.focus();
 }
 
 /* ---------- game state ---------- */
@@ -458,12 +586,8 @@ function newGame(db){
   bootAuto = true;
   over=false;
   elLog.innerHTML='';
-  echo('*** GHOST TOWN ***');
-  echo('');
-  echo('Scott Adams Adventure #9');
-  echo('');
-  echo('Two words at a time. Type MAP to see where you have been.');
-  echo('Say HELP if you get stuck.');
+  echo('* ADVENTURE * Adventure number: '+G.advNum+'   Version: '+(G.version/100).toFixed(1));
+  echo('Copyright Adams 1979.');
   echo('');
   if(bootAuto){ bootAuto=false; performActions(0,0); flush(); S.seen[S.loc]=1; }
   look();
@@ -477,7 +601,7 @@ const isDark  = ()=> (S.bits & (1<<DARKBIT)) &&
 
 /* ---------- room display (top pane) ---------- */
 function look(){
-  if(isDark()){ elRoom.textContent = wrap('Its too dark to see!'); return; }
+  if(isDark()){ setText(elRoom, 'Its too dark to see!'); return; }
   const r = G.rooms[S.loc];
   let t = r.text.startsWith('*') ? r.text.slice(1) : 'I am in a '+r.text;
   let s = t + '. Visible items:\n\n';
@@ -488,7 +612,25 @@ function look(){
   const names=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
   const ex = r.exits.map((v,k)=>v?names[k]:null).filter(Boolean);
   s += '\n     Some obvious exits are: ' + (ex.length?ex.join(' '):'none');
-  elRoom.textContent = wrap(s);
+  setText(elRoom, s);
+}
+
+/* On a touch device the soft keyboard eats half the screen, so it is not
+   raised until the player asks for it - either by tapping the prompt or by
+   tapping Keyboard. Once it is up we keep it up, by refocusing the fresh
+   input each turn. On a desktop the input is always focused, as before. */
+const TOUCH = HAS_DOM && window.matchMedia &&
+              window.matchMedia('(pointer:coarse)').matches;
+let kbUp = !TOUCH;
+
+function submit(txt){
+  const line = document.getElementById('inline');
+  if(!line) return;
+  const inp = line.querySelector('input');
+  if(inp && document.activeElement === inp) kbUp = true;
+  line.remove();
+  echo('  -------> Tell me what to do? ' + txt);
+  handle(txt);
 }
 
 function prompt_(){
@@ -498,17 +640,20 @@ function prompt_(){
   line.innerHTML='<span>  -------&gt; Tell me what to do? </span>';
   const inp=document.createElement('input');
   inp.id='cmd'; inp.autocomplete='off'; inp.spellcheck=false;
+  inp.autocapitalize='characters'; inp.enterKeyHint='go';
   line.appendChild(inp);
   elLog.appendChild(line);
-  inp.focus();
+  if(kbUp) inp.focus();
+  inp.addEventListener('focus', ()=>{ kbUp=true; scrollLog(); });
   elLog.scrollTop = elLog.scrollHeight;
   inp.addEventListener('keydown', e=>{
     if(e.key!=='Enter') return;
-    const txt = inp.value;
-    line.remove();
-    echo('  -------> Tell me what to do? '+txt);
-    handle(txt);
+    submit(inp.value);
   });
+}
+function scrollLog(){
+  elLog.scrollTop = elLog.scrollHeight;
+  if(HAS_DOM) setTimeout(()=>{ elLog.scrollTop = elLog.scrollHeight; }, 120);
 }
 
 /* ---------- vocabulary matching ---------- */
@@ -841,22 +986,37 @@ function helpMe(){
         + (where?` They go in the ${where}.`:''));
   }
 
-  /* unwalked exits, nearest first: the room you are in, then anywhere seen */
-  const hereTodo=[];
+  /* Unwalked exits, nearest first: the room you are in, then anywhere seen.
+     An exit that leads back to the room you are standing in is not somewhere
+     to go, and must never be offered as one - Strange Odyssey's methane storm
+     room has all four compass exits pointing at itself, so it advertises
+     NORTH SOUTH EAST WEST and every one of them is a lie. Saying "you have not
+     yet tried NORTH" there sends the player round a maze that has no walking
+     exit at all; the way out is a verb. */
+  const LONG=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
+  const hereTodo=[], hereLoop=[]; let hereReal=0;
   for(let d=0;d<6;d++){
     const t=G.rooms[S.loc].exits[d];
-    if(t && !S.link[S.loc+'>'+t]) hereTodo.push(['NORTH','SOUTH','EAST','WEST','UP','DOWN'][d]);
+    if(!t) continue;
+    if(t===S.loc){ hereLoop.push(LONG[d]); continue; }
+    hereReal++;
+    if(!S.link[S.loc+'>'+t]) hereTodo.push(LONG[d]);
   }
   const elseTodo=[];
   for(const r of Object.keys(S.seen).map(Number)){
     if(r===S.loc) continue;
     for(let d=0;d<6;d++){
       const t=G.rooms[r].exits[d];
-      if(t && !S.link[r+'>'+t]){ const nmr=helpRoomName(r);
+      if(t && t!==r && !S.link[r+'>'+t]){ const nmr=helpRoomName(r);
         if(nmr) elseTodo.push(['N','S','E','W','UP','DOWN'][d]+' from the '+nmr); }
     }
   }
   if(hereTodo.length) say('From here you have not yet tried: '+hereTodo.join(', ')+'.');
+  else if(!hereReal && hereLoop.length)
+    say('Every direction here leads straight back to this room. Walking will '
+       +'not get you out - look for something to do instead.');
+  else if(hereLoop.length && !hereTodo.length)
+    say('These lead back to this room: '+hereLoop.join(', ')+'.');
   else if(elseTodo.length) say('Still unexplored: '+uniq(elseTodo,x=>x).slice(0,3).join('; ')+'.');
 
   /* graduated nudges */
@@ -1031,10 +1191,67 @@ document.getElementById('fGame').onchange = e=>{
   r.readAsText(f,'ISO-8859-1');
 };
 
+/* ---------- touch and small screens ---------- */
+/* The keypad submits through the same path a typed line takes, so nothing
+   downstream can tell the difference. pointerdown is preventDefaulted so
+   tapping a key never blurs the text input: if the keyboard is already up
+   it stays up, and if it is not, it does not spring open. */
+if(HAS_DOM){
+  const pad = document.getElementById('pad');
+  pad.addEventListener('pointerdown', e=>{
+    const b = e.target.closest('button[data-c]');
+    if(!b) return;
+    e.preventDefault();
+    if(mapOn) toggleMap(false);
+    submit(b.dataset.c);
+  });
+  document.getElementById('bKeys').addEventListener('click', ()=>{
+    if(mapOn) toggleMap(false);
+    const inp = document.querySelector('#cmd');
+    if(!inp) return;
+    if(document.activeElement === inp){ inp.blur(); kbUp = false; }
+    else { kbUp = true; inp.focus(); }
+  });
+
+  /* iOS slides the keyboard over the layout viewport rather than shrinking
+     it, so 100dvh alone leaves the prompt hidden underneath the keys. Track
+     the visual viewport and drive the case height from it. */
+  const vv = window.visualViewport;
+  const fitHeight = ()=>{
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty('--apph', h + 'px');
+    scrollLog();
+  };
+  if(vv){ vv.addEventListener('resize', fitHeight); vv.addEventListener('scroll', fitHeight); }
+  window.addEventListener('resize', ()=>{ fitHeight(); rewrap(); if(mapOn) drawMap(); });
+  window.addEventListener('orientationchange', ()=>
+    setTimeout(()=>{ fitHeight(); rewrap(); if(mapOn) drawMap(); }, 250));
+  fitHeight();
+
+  /* tapping anywhere on the transcript puts the caret back in the prompt */
+  elLog.addEventListener('click', e=>{
+    if(e.target.tagName === 'INPUT') return;
+    if(window.getSelection && String(window.getSelection())) return;   /* copying */
+    if(kbUp) document.querySelector('#cmd')?.focus();
+  });
+
+  /* map zoom */
+  document.getElementById('zIn').onclick    = ()=>{ mapZoom=Math.min(4, mapZoom*1.35); drawMap(); };
+  document.getElementById('zOut').onclick   = ()=>{ mapZoom=Math.max(0.3, mapZoom/1.35); drawMap(); };
+  document.getElementById('zFit').onclick   = ()=>{ mapZoom=1; mapFit=true; drawMap(); };
+  document.getElementById('zClose').onclick = ()=>toggleMap(false);
+}
+
 /* ---------- boot ---------- */
+/* Measure before the first word is printed. rewrap() only fires on a resize,
+   and a phone that is simply opened never resizes - so without this the
+   opening screen, which is the one thing every player sees, would stay
+   wrapped for a 64-column terminal on a 37-column phone. */
 const EMBEDDED = " 4727 \n 77 \n 237 \n 119 \n 38 \n 7 \n 1 \n 13 \n 4 \n 175 \n 97 \n 15 \n 3 \n 193 \n 180 \n 520 \n 0 \n 0 \n 5472 \n 11400 \n 100 \n 1402 \n 183 \n 1400 \n 0 \n 0 \n 8926 \n 1647 \n 100 \n 29 \n 0 \n 40 \n 240 \n 0 \n 11923 \n 12229 \n 0 \n 120 \n 0 \n 0 \n 0 \n 0 \n 12153 \n 600 \n 0 \n 20 \n 500 \n 60 \n 3400 \n 0 \n 8779 \n 12229 \n 0 \n 140 \n 480 \n 220 \n 0 \n 0 \n 12204 \n 12054 \n 0 \n 20 \n 20 \n 20 \n 0 \n 0 \n 11937 \n 8100 \n 100 \n 20 \n 140 \n 0 \n 0 \n 0 \n 12381 \n 11027 \n 0 \n 515 \n 309 \n 16 \n 0 \n 0 \n 15720 \n 0 \n 0 \n 15 \n 340 \n 349 \n 0 \n 0 \n 15806 \n 11458 \n 0 \n 140 \n 60 \n 60 \n 0 \n 0 \n 12231 \n 11631 \n 0 \n 204 \n 349 \n 0 \n 0 \n 0 \n 8626 \n 0 \n 100 \n 348 \n 1414 \n 224 \n 192 \n 1400 \n 7950 \n 0 \n 100 \n 348 \n 227 \n 1414 \n 1400 \n 220 \n 9300 \n 0 \n 20 \n 4516 \n 120 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 20 \n 60 \n 249 \n 0 \n 0 \n 0 \n 12223 \n 0 \n 0 \n 15 \n 460 \n 220 \n 0 \n 0 \n 4229 \n 9300 \n 0 \n 15 \n 600 \n 80 \n 200 \n 80 \n 11931 \n 11931 \n 0 \n 60 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 100 \n 349 \n 1413 \n 1400 \n 0 \n 0 \n 8850 \n 0 \n 100 \n 473 \n 80 \n 0 \n 0 \n 0 \n 12227 \n 10950 \n 0 \n 15 \n 460 \n 0 \n 0 \n 0 \n 8920 \n 0 \n 0 \n 80 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 4 \n 494 \n 0 \n 0 \n 0 \n 0 \n 7551 \n 0 \n 100 \n 368 \n 360 \n 120 \n 0 \n 0 \n 9081 \n 11623 \n 0 \n 15 \n 280 \n 840 \n 0 \n 0 \n 10800 \n 0 \n 0 \n 120 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 100 \n 1221 \n 181 \n 0 \n 0 \n 0 \n 19176 \n 9150 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15 \n 44 \n 1434 \n 1413 \n 0 \n 0 \n 6160 \n 21900 \n 100 \n 721 \n 706 \n 720 \n 0 \n 0 \n 8250 \n 0 \n 100 \n 328 \n 320 \n 180 \n 0 \n 0 \n 9059 \n 11400 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 100 \n 901 \n 0 \n 0 \n 0 \n 0 \n 18361 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 100 \n 764 \n 160 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 168 \n 180 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 100 \n 188 \n 180 \n 40 \n 0 \n 0 \n 9073 \n 12150 \n 0 \n 40 \n 0 \n 0 \n 0 \n 0 \n 2028 \n 2181 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 11716 \n 9750 \n 100 \n 168 \n 0 \n 0 \n 0 \n 0 \n 9450 \n 0 \n 100 \n 40 \n 0 \n 0 \n 0 \n 0 \n 12223 \n 0 \n 0 \n 128 \n 60 \n 120 \n 0 \n 0 \n 12510 \n 0 \n 0 \n 48 \n 60 \n 40 \n 0 \n 0 \n 12360 \n 0 \n 0 \n 68 \n 200 \n 60 \n 0 \n 0 \n 12360 \n 0 \n 0 \n 108 \n 20 \n 100 \n 0 \n 0 \n 12360 \n 0 \n 0 \n 40 \n 0 \n 0 \n 0 \n 0 \n 12150 \n 0 \n 6100 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 226 \n 0 \n 0 \n 0 \n 0 \n 0 \n 16200 \n 0 \n 4507 \n 40 \n 40 \n 40 \n 0 \n 0 \n 12233 \n 12221 \n 4650 \n 160 \n 180 \n 0 \n 0 \n 0 \n 8758 \n 0 \n 5700 \n 146 \n 0 \n 0 \n 0 \n 0 \n 905 \n 0 \n 5710 \n 141 \n 122 \n 160 \n 174 \n 0 \n 1060 \n 7950 \n 1510 \n 122 \n 420 \n 120 \n 0 \n 0 \n 1351 \n 7858 \n 257 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 6465 \n 203 \n 0 \n 0 \n 0 \n 0 \n 162 \n 21600 \n 6000 \n 163 \n 203 \n 223 \n 160 \n 200 \n 223 \n 8909 \n 0 \n 220 \n 240 \n 0 \n 0 \n 0 \n 8903 \n 0 \n 0 \n 1615 \n 60 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 253 \n 164 \n 209 \n 0 \n 0 \n 0 \n 915 \n 0 \n 253 \n 164 \n 208 \n 200 \n 0 \n 0 \n 204 \n 10500 \n 6900 \n 164 \n 209 \n 200 \n 283 \n 360 \n 167 \n 8758 \n 10971 \n 302 \n 0 \n 0 \n 0 \n 0 \n 2868 \n 9150 \n 3771 \n 302 \n 0 \n 0 \n 0 \n 0 \n 187 \n 0 \n 5067 \n 1502 \n 600 \n 0 \n 0 \n 0 \n 7342 \n 8173 \n 0 \n 2015 \n 60 \n 0 \n 0 \n 0 \n 11458 \n 0 \n 211 \n 362 \n 240 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 3772 \n 383 \n 403 \n 0 \n 0 \n 0 \n 171 \n 3300 \n 193 \n 42 \n 229 \n 0 \n 0 \n 0 \n 923 \n 0 \n 9176 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 9900 \n 462 \n 240 \n 460 \n 480 \n 40 \n 8772 \n 8731 \n 1531 \n 482 \n 745 \n 0 \n 0 \n 0 \n 4800 \n 0 \n 193 \n 42 \n 228 \n 260 \n 1133 \n 0 \n 204 \n 11400 \n 9600 \n 482 \n 269 \n 0 \n 0 \n 0 \n 183 \n 1534 \n 9600 \n 482 \n 268 \n 0 \n 0 \n 0 \n 187 \n 0 \n 7565 \n 42 \n 229 \n 0 \n 0 \n 0 \n 3625 \n 0 \n 8723 \n 42 \n 229 \n 403 \n 220 \n 0 \n 10976 \n 8809 \n 0 \n 615 \n 40 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 9175 \n 443 \n 544 \n 860 \n 874 \n 0 \n 18752 \n 1553 \n 8700 \n 42 \n 229 \n 0 \n 0 \n 0 \n 12627 \n 0 \n 7587 \n 482 \n 260 \n 500 \n 269 \n 0 \n 1535 \n 8753 \n 6934 \n 523 \n 283 \n 520 \n 180 \n 360 \n 222 \n 11458 \n 10384 \n 183 \n 520 \n 180 \n 0 \n 0 \n 222 \n 11400 \n 10650 \n 462 \n 0 \n 0 \n 0 \n 0 \n 5550 \n 0 \n 9175 \n 443 \n 0 \n 0 \n 0 \n 0 \n 178 \n 7551 \n 8439 \n 563 \n 0 \n 0 \n 0 \n 0 \n 189 \n 0 \n 192 \n 642 \n 300 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 10245 \n 663 \n 0 \n 0 \n 0 \n 0 \n 190 \n 0 \n 7565 \n 622 \n 620 \n 580 \n 743 \n 0 \n 222 \n 0 \n 215 \n 582 \n 280 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 7565 \n 622 \n 0 \n 0 \n 0 \n 0 \n 17100 \n 0 \n 4800 \n 180 \n 0 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 159 \n 82 \n 100 \n 0 \n 0 \n 0 \n 8176 \n 150 \n 214 \n 62 \n 220 \n 0 \n 0 \n 0 \n 8176 \n 150 \n 3772 \n 383 \n 0 \n 0 \n 0 \n 0 \n 171 \n 3000 \n 196 \n 22 \n 320 \n 0 \n 0 \n 0 \n 8176 \n 150 \n 10650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 191 \n 1650 \n 8799 \n 1203 \n 1243 \n 1240 \n 1200 \n 1180 \n 8922 \n 150 \n 11503 \n 164 \n 360 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 253 \n 364 \n 0 \n 0 \n 0 \n 0 \n 943 \n 0 \n 11503 \n 364 \n 160 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 7598 \n 0 \n 0 \n 0 \n 0 \n 0 \n 5850 \n 0 \n 6460 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1356 \n 0 \n 12068 \n 703 \n 754 \n 740 \n 40 \n 0 \n 8008 \n 1535 \n 1531 \n 743 \n 740 \n 0 \n 0 \n 0 \n 7801 \n 0 \n 12518 \n 701 \n 720 \n 0 \n 0 \n 0 \n 11101 \n 10950 \n 0 \n 754 \n 0 \n 0 \n 0 \n 0 \n 4960 \n 6600 \n 12321 \n 763 \n 302 \n 300 \n 780 \n 0 \n 222 \n 0 \n 10971 \n 782 \n 780 \n 340 \n 360 \n 0 \n 222 \n 7950 \n 3818 \n 703 \n 0 \n 0 \n 0 \n 0 \n 152 \n 6750 \n 213 \n 102 \n 380 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 16676 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 16737 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 13200 \n 164 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 5744 \n 143 \n 464 \n 814 \n 800 \n 0 \n 7957 \n 1573 \n 0 \n 1615 \n 60 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 10233 \n 503 \n 0 \n 0 \n 0 \n 0 \n 199 \n 0 \n 223 \n 823 \n 480 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 225 \n 322 \n 500 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 1575 \n 322 \n 0 \n 0 \n 0 \n 0 \n 6306 \n 16950 \n 173 \n 322 \n 500 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 6918 \n 283 \n 120 \n 360 \n 0 \n 0 \n 12223 \n 8700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15388 \n 13200 \n 0 \n 308 \n 280 \n 0 \n 0 \n 0 \n 8626 \n 8700 \n 0 \n 288 \n 0 \n 0 \n 0 \n 0 \n 13288 \n 13200 \n 0 \n 288 \n 280 \n 0 \n 0 \n 0 \n 9056 \n 11400 \n 0 \n 120 \n 0 \n 0 \n 0 \n 0 \n 12253 \n 0 \n 5005 \n 504 \n 409 \n 0 \n 0 \n 0 \n 235 \n 17700 \n 200 \n 262 \n 420 \n 0 \n 0 \n 0 \n 8454 \n 11401 \n 13350 \n 140 \n 3500 \n 140 \n 0 \n 0 \n 12229 \n 12223 \n 0 \n 340 \n 0 \n 0 \n 0 \n 0 \n 17460 \n 13288 \n 0 \n 524 \n 0 \n 0 \n 0 \n 0 \n 17356 \n 8626 \n 0 \n 527 \n 0 \n 0 \n 0 \n 0 \n 16111 \n 0 \n 0 \n 14 \n 0 \n 220 \n 0 \n 0 \n 9300 \n 0 \n 1505 \n 524 \n 540 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 202 \n 862 \n 520 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 203 \n 882 \n 560 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 8550 \n 903 \n 563 \n 900 \n 0 \n 0 \n 8888 \n 16460 \n 9827 \n 903 \n 0 \n 0 \n 0 \n 0 \n 16650 \n 0 \n 5700 \n 903 \n 0 \n 0 \n 0 \n 0 \n 16650 \n 0 \n 5700 \n 905 \n 920 \n 404 \n 0 \n 0 \n 203 \n 0 \n 164 \n 922 \n 580 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 9829 \n 963 \n 960 \n 980 \n 100 \n 0 \n 222 \n 16858 \n 1531 \n 1003 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 13981 \n 1054 \n 0 \n 0 \n 0 \n 0 \n 161 \n 7050 \n 13541 \n 1023 \n 1020 \n 1040 \n 0 \n 0 \n 222 \n 10950 \n 0 \n 615 \n 60 \n 0 \n 0 \n 0 \n 8700 \n 0 \n 13970 \n 1020 \n 1082 \n 1034 \n 1054 \n 1074 \n 203 \n 0 \n 1520 \n 1082 \n 0 \n 0 \n 0 \n 0 \n 1013 \n 0 \n 7520 \n 1082 \n 0 \n 0 \n 0 \n 0 \n 1014 \n 0 \n 1541 \n 1063 \n 1060 \n 0 \n 0 \n 0 \n 7801 \n 0 \n 13970 \n 1082 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 14025 \n 322 \n 0 \n 0 \n 0 \n 0 \n 17700 \n 0 \n 5700 \n 184 \n 254 \n 214 \n 200 \n 0 \n 203 \n 1060 \n 193 \n 42 \n 228 \n 1134 \n 260 \n 0 \n 7554 \n 11446 \n 14639 \n 1134 \n 1120 \n 1143 \n 0 \n 0 \n 8000 \n 16350 \n 14037 \n 482 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 1541 \n 1023 \n 1020 \n 1060 \n 0 \n 0 \n 8924 \n 150 \n 7565 \n 42 \n 228 \n 0 \n 0 \n 0 \n 5850 \n 0 \n 14700 \n 900 \n 140 \n 900 \n 140 \n 0 \n 12381 \n 12531 \n 12517 \n 681 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 14850 \n 0 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 3768 \n 283 \n 120 \n 120 \n 0 \n 0 \n 12228 \n 17931 \n 11400 \n 0 \n 0 \n 0 \n 0 \n 0 \n 6300 \n 0 \n 6933 \n 283 \n 360 \n 500 \n 503 \n 0 \n 8759 \n 150 \n 6933 \n 183 \n 503 \n 500 \n 0 \n 0 \n 209 \n 0 \n 6913 \n 242 \n 183 \n 240 \n 0 \n 0 \n 209 \n 18750 \n 6913 \n 242 \n 283 \n 360 \n 240 \n 0 \n 8701 \n 8975 \n 6913 \n 1223 \n 183 \n 0 \n 0 \n 0 \n 277 \n 18961 \n 6913 \n 1223 \n 283 \n 0 \n 0 \n 0 \n 277 \n 18961 \n 13981 \n 1053 \n 1002 \n 0 \n 0 \n 0 \n 19629 \n 19273 \n 0 \n 1223 \n 0 \n 0 \n 0 \n 0 \n 19477 \n 18961 \n 0 \n 243 \n 240 \n 0 \n 0 \n 0 \n 19475 \n 8850 \n 5005 \n 504 \n 408 \n 0 \n 0 \n 0 \n 235 \n 11090 \n 0 \n 400 \n 0 \n 0 \n 0 \n 0 \n 18741 \n 9000 \n 0 \n 720 \n 320 \n 0 \n 0 \n 0 \n 8176 \n 8850 \n 1562 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 9000 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 12750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 8713 \n 1203 \n 243 \n 1200 \n 240 \n 1220 \n 8922 \n 150 \n 4950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 235 \n 0 \n 4350 \n 0 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 6900 \n 283 \n 0 \n 0 \n 0 \n 0 \n 17550 \n 0 \n 6900 \n 183 \n 0 \n 0 \n 0 \n 0 \n 17550 \n 0 \n 6900 \n 0 \n 0 \n 0 \n 0 \n 0 \n 905 \n 0 \n 8550 \n 563 \n 0 \n 0 \n 0 \n 0 \n 188 \n 0 \n 17250 \n 681 \n 504 \n 600 \n 1160 \n 380 \n 18654 \n 9300 \n 2719 \n 0 \n 0 \n 0 \n 0 \n 0 \n 8 \n 0 \n 9687 \n 462 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 15077 \n 902 \n 703 \n 0 \n 0 \n 0 \n 271 \n 18361 \n 14002 \n 862 \n 760 \n 389 \n 380 \n 0 \n 203 \n 8700 \n 171 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1023 \n 0 \n 15548 \n 1183 \n 1200 \n 1180 \n 1240 \n 0 \n 222 \n 7950 \n 15548 \n 1223 \n 1200 \n 1220 \n 240 \n 0 \n 222 \n 7950 \n 1513 \n 243 \n 0 \n 0 \n 0 \n 0 \n 7200 \n 0 \n 9900 \n 0 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 14002 \n 862 \n 0 \n 0 \n 0 \n 0 \n 150 \n 0 \n 13981 \n 1263 \n 1053 \n 0 \n 0 \n 0 \n 19580 \n 10950 \n 0 \n 1222 \n 820 \n 1280 \n 1040 \n 0 \n 10927 \n 8850 \n 0 \n 242 \n 240 \n 0 \n 0 \n 0 \n 8850 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 12076 \n 0 \n 13981 \n 1263 \n 1054 \n 0 \n 0 \n 0 \n 1697 \n 0 \n 12101 \n 0 \n 0 \n 0 \n 0 \n 0 \n 19650 \n 0 \n 10950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 900 \n 0 \n 225 \n 504 \n 0 \n 0 \n 0 \n 0 \n 20850 \n 0 \n 3815 \n 42 \n 0 \n 0 \n 0 \n 0 \n 19800 \n 0 \n 16650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 161 \n 7050 \n 12300 \n 763 \n 0 \n 0 \n 0 \n 0 \n 19977 \n 0 \n 211 \n 1162 \n 620 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 255 \n 1302 \n 660 \n 0 \n 0 \n 0 \n 204 \n 11534 \n 3858 \n 664 \n 1334 \n 0 \n 0 \n 0 \n 152 \n 20250 \n 1609 \n 1334 \n 1320 \n 1340 \n 0 \n 0 \n 11153 \n 150 \n 1609 \n 1323 \n 1320 \n 0 \n 0 \n 0 \n 7801 \n 0 \n 211 \n 1342 \n 680 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 6545 \n 163 \n 0 \n 0 \n 0 \n 0 \n 162 \n 20400 \n 269 \n 1382 \n 700 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 1505 \n 604 \n 100 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 15750 \n 1402 \n 1434 \n 1420 \n 0 \n 0 \n 224 \n 5687 \n 15750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 187 \n 1697 \n 3770 \n 1282 \n 1454 \n 1440 \n 0 \n 0 \n 203 \n 1060 \n 16500 \n 1243 \n 322 \n 403 \n 400 \n 1463 \n 209 \n 10950 \n 0 \n 1240 \n 400 \n 0 \n 0 \n 0 \n 8908 \n 0 \n 16500 \n 322 \n 1183 \n 0 \n 0 \n 0 \n 1038 \n 0 \n 5700 \n 141 \n 0 \n 0 \n 0 \n 0 \n 1061 \n 0 \n 265 \n 1482 \n 740 \n 0 \n 0 \n 0 \n 204 \n 11400 \n 9266 \n 1523 \n 1514 \n 1500 \n 0 \n 0 \n 19177 \n 8059 \n 9266 \n 1523 \n 1513 \n 0 \n 0 \n 0 \n 127 \n 19050 \n 16500 \n 322 \n 0 \n 0 \n 0 \n 0 \n 910 \n 21450 \n 9176 \n 1502 \n 0 \n 0 \n 0 \n 0 \n 930 \n 0 \n 16148 \n 1203 \n 0 \n 0 \n 0 \n 0 \n 174 \n 0 \n 3750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 152 \n 1726 \n 6000 \n 0 \n 0 \n 0 \n 0 \n 0 \n 910 \n 21450 \n 173 \n 504 \n 0 \n 0 \n 0 \n 0 \n 20850 \n 0 \n 17250 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1697 \n 0 \n 8700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 984 \n 4050 \n 160 \n 0 \n 0 \n 0 \n 0 \n 0 \n 1356 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"AUTO\"\n\"ANY\"\n\"GO\"\n\"NORTH\"\n\"*WALK\"\n\"SOUTH\"\n\"*RUN\"\n\"EAST\"\n\"*CLIM\"\n\"WEST\"\n\"*ENTE\"\n\"UP\"\n\"*MOUN\"\n\"DOWN\"\n\"*RIDE\"\n\"GAME\"\n\".\"\n\"AROU\"\n\".\"\n\"STAB\"\n\"GET\"\n\"MANU\"\n\"*TAKE\"\n\"*PILE\"\n\"*PICK\"\n\"HILL\"\n\"*GRAB\"\n\"GUNP\"\n\"*COLL\"\n\"GRAV\"\n\"*LIFT\"\n\"SULF\"\n\".\"\n\"*POWD\"\n\".\"\n\"CHAR\"\n\"DROP\"\n\"MATC\"\n\"*PUT\"\n\"ON\"\n\"*THRO\"\n\"SAFE\"\n\"*LEAV\"\n\"MIRR\"\n\"*REMO\"\n\"COMP\"\n\"*TOSS\"\n\"HORS\"\n\".\"\n\"*MAGN\"\n\"LOOK\"\n\"BELL\"\n\"*EXAM\"\n\"GHOS\"\n\"*DESC\"\n\"*FIGU\"\n\"*CHEC\"\n\"HAND\"\n\"HELP\"\n\"*FEET\"\n\"SAVE\"\n\"HEAD\"\n\"QUIT\"\n\"KEY\"\n\"SCOR\"\n\"*KEYS\"\n\"SAY\"\n\"MAP\"\n\"*YELL\"\n\"CAND\"\n\"*SCRE\"\n\"*LIGH\"\n\"*WHIS\"\n\"MUSI\"\n\"*SING\"\n\"BULL\"\n\"DIG\"\n\"STAB\"\n\"*SHOV\"\n\"DERR\"\n\"MIX\"\n\"*GUN\"\n\"*MAKE\"\n\"WIRE\"\n\".\"\n\"STOR\"\n\"SMEL\"\n\"JAIL\"\n\"*TAST\"\n\"ROOF\"\n\"*EAT\"\n\"SIGN\"\n\"BURN\"\n\"BARB\"\n\"*IGNI\"\n\"TUMB\"\n\"*LIGH\"\n\"*SAGE\"\n\".\"\n\"*BRUS\"\n\"OPEN\"\n\"MINE\"\n\"*UNLO\"\n\"*ENTR\"\n\"LOCK\"\n\"BED\"\n\".\"\n\"HOTE\"\n\"CLOS\"\n\"ROOM\"\n\"*SHUT\"\n\"GIDD\"\n\"LOAD\"\n\"*GITT\"\n\"SHOO\"\n\"*GIDY\"\n\"WITH\"\n\"*GITY\"\n\"*USE\"\n\"COIN\"\n\"INVE\"\n\"TOWN\"\n\"HIT\"\n\"HOLE\"\n\"*RING\"\n\"INVE\"\n\"*BEAT\"\n\"STAL\"\n\"PLAY\"\n\"SALO\"\n\"KILL\"\n\"DOOR\"\n\"CLAP\"\n\"WIND\"\n\"*APPL\"\n\"SPUR\"\n\"READ\"\n\"HAT\"\n\"UNLI\"\n\"STRI\"\n\"*EXTI\"\n\"TAPE\"\n\"LIST\"\n\"*ROLL\"\n\"*HEAR\"\n\"WALL\"\n\"BREA\"\n\"TELE\"\n\"*SMAS\"\n\"*OFFI\"\n\"*BUST\"\n\"PAIN\"\n\"JUMP\"\n\"SLEE\"\n\"*LEAP\"\n\"SNAK\"\n\"CUT\"\n\"*RATT\"\n\"*SLIC\"\n\"WORM\"\n\"SHAK\"\n\"*SLIM\"\n\"*WAVE\"\n\"SHOV\"\n\"TAPE\"\n\"BOX\"\n\"WEAR\"\n\"*CASH\"\n\"*PUTO\"\n\"ROAD\"\n\"FIND\"\n\"FORK\"\n\"*LOCA\"\n\"VAIN\"\n\"*SEEK\"\n\"PIAN\"\n\"CROS\"\n\"$200\"\n\"SLEE\"\n\"GO\"\n\"CONN\"\n\"*BOAR\"\n\"*SPLI\"\n\"PATH\"\n\"*REPA\"\n\"HELL\"\n\"MOVE\"\n\"HI\"\n\"*PUSH\"\n\"FIEL\"\n\"*PRES\"\n\"CRYS\"\n\"*TAP\"\n\"GOLD\"\n\"PASS\"\n\"*NUGG\"\n\"WAIT\"\n\"KEG\"\n\"CLEA\"\n\"NAIL\"\n\"COVE\"\n\"FUSE\"\n\"\"\n\"TOPP\"\n\".\"\n\"LOBB\"\n\"EMPT\"\n\"RAVI\"\n\"*SPIL\"\n\"*RIDG\"\n\"DANC\"\n\"SHAC\"\n\"\"\n\"TRAI\"\n\"FILL\"\n\"MOUN\"\n\"\"\n\"FLOO\"\n\"\"\n\"PLAN\"\n\"SHOE\"\n\"PELT\"\n\"KNOC\"\n\"CUP\"\n\"*TOUC\"\n\"BAG\"\n\"*FEEL\"\n\"*DUST\"\n\"*KISS\"\n\"HAMM\"\n\"SPUR\"\n\"TEEP\"\n\"*KICK\"\n\"TOM\"\n\"\"\n\"HOW\"\n\"\"\n\"NECK\"\n\"\"\n\"COUN\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"\"\n 0 \n 0 \n 17 \n 2 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 0 \n 1 \n 3 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 0 \n 2 \n 4 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 0 \n 3 \n 6 \n 0 \n 0 \n\"Ghost Town\"\n 0 \n 4 \n 0 \n 0 \n 0 \n 0 \n\"stable\"\n 0 \n 0 \n 4 \n 7 \n 0 \n 0 \n\"road\"\n 9 \n 8 \n 6 \n 0 \n 0 \n 0 \n\"fork in the road\"\n 7 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm on a ridge above a narrow ravine I see\nmountains in the distance\"\n 0 \n 7 \n 0 \n 0 \n 0 \n 0 \n\"large field\"\n 0 \n 0 \n 0 \n 0 \n 8 \n 0 \n\"ravine\"\n 0 \n 2 \n 0 \n 0 \n 0 \n 0 \n\"saloon\"\n 0 \n 0 \n 11 \n 0 \n 0 \n 0 \n\"hidden office\"\n 1 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"Jail\"\n 13 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"cell\"\n 2 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"Dry Goods store\"\n 0 \n 1 \n 0 \n 0 \n 0 \n 0 \n\"Barbershop\"\n 0 \n 0 \n 20 \n 1 \n 0 \n 0 \n\"road\"\n 0 \n 0 \n 0 \n 32 \n 0 \n 0 \n\"*I'm on a ridge above a ravine\"\n 0 \n 5 \n 0 \n 0 \n 0 \n 0 \n\"stall\"\n 0 \n 0 \n 0 \n 17 \n 0 \n 0 \n\"*I'm on Boot hill\"\n 0 \n 0 \n 0 \n 0 \n 10 \n 22 \n\"Mine\"\n 0 \n 23 \n 0 \n 0 \n 21 \n 0 \n\"Mine\"\n 22 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"Mine\"\n 0 \n 3 \n 0 \n 0 \n 0 \n 0 \n\"Telegraph office\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 19 \n\"*I'm on back of 'Ole Paint\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"warm bed\"\n 0 \n 0 \n 0 \n 28 \n 0 \n 0 \n\"hotel room\"\n 3 \n 0 \n 27 \n 0 \n 0 \n 0 \n\"lobby\"\n 0 \n 0 \n 0 \n 0 \n 20 \n 0 \n\"grave\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm flat on my back in a manure pile\"\n 19 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"storeroom\"\n 0 \n 0 \n 18 \n 0 \n 0 \n 0 \n\"mountain trail\"\n 0 \n 32 \n 0 \n 0 \n 0 \n 0 \n\"line shack\"\n 0 \n 0 \n 0 \n 0 \n 33 \n 0 \n\"root cellar\"\n 28 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I'm behind the counter\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"hidden canyon\"\n 36 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"teepee\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"lot of trouble!\"\n\"\"\n\"OK\"\n\"I see\"\n\"Welcome to Adventure 9 `GHOST TOWN`\"\n\"by Scott Adams dedicated: the Cherens\"\n\"I've nothing to do that with\"\n\"Sorry I can't\"\n\"I found\"\n\"Wear?\"\n\"BARF!\"\n\"something\"\n\"nothing special\"\n\"reminds me of\"\n\"You've made\"\n\"BONUS points out of a possible 50 in\"\n\"its full of sage brush, tumbleweed & is impassable\"\n\"moves\"\n\"The dry wash is burnt clear\"\n\"flying glass slices me up\"\n\"Crack!\"\n\"north\"\n\"its pointing to the\"\n\"horseshoe\"\n\"Doors closed, windows barred!\"\n\"with what?\"\n\"Inside bolt is latched!\"\n\"Magnet!\"\n\" doesn't seem to do it!\"\n\"Ding-Ding\"\n\"Bell rings somewhere\"\n\"My hand passes thru!\"\n\"Ghost stands, bows, vanishes!\"\n\"Silly, wrong type keys!\"\n\"Odd\"\n\"goes thunk!\"\n\"falls out\"\n\"Candle blew out!\"\n\"very pretty\"\n\"shoots stream of water\"\n\"it already is\"\n\"Drop *TREASURES* then SCORE\"\n\"I hear\"\n\"What?\"\n\"Too steep!\"\n\"feels strange\"\n\"its my size\"\n\"Don't collect $200 then don't pass GO! CONTRAPOSITIVE.\"\n\"happens\"\n\"How?\"\n\"Its mine, dig roof!\"\n\"Ghostly voice whispers:\"\n\"Vain...\"\n\"Match flares up...\"\n\"...and then goes out\"\n\"Its getting\"\n\"Sunset!\"\n\"I feel refreshed\"\n\"Nights are cold! I caught Pneumonia\"\n\"Try: SLEEP\"\n\"it worked!\"\n\"its gone\"\n\"snake won't let me\"\n\"That felt good!\"\n\"Too big!\"\n\"its locked!\"\n\"Good Morning\"\n\"Good night\"\n\"Its fireproof\"\n\"He won't budge\"\n\"left!\"\n\"dark!\"\n\"Thru the Hat!\"\n\"I'm snake bit\"\n\"I'm not Alice!\"\n\"He bucks, I'm thrown\"\n\"Whoosh!\"\n\"TOO CLOSE! Pieces of me rain down for days!\"\n\"Boom!\"\n\"... .... .-  -.-  .  - ---  .--.  .--.  .  .-.\"\n\"SPARK! * * * *\"\n\"Click\"\n\"Is he a ghost? Anyway wrong idea.\"\n\"There's not even a keyhole!\"\n\"masking tape\"\n\"Floorboards sure are creaky\"\n\"Loose plank here\"\n\"salt peter\"\n\"I won a prize!\"\n\"reach a nail\"\n\"may need to say a magic word here\"\n\"after a long ride\"\n\"he rides off without me\"\n\"Geronimo says: `Its easy! Happy Landings!`\"\n\"is missing\"\n\"rotten eggs\"\n\".\"\n\"in saloon\"\n\"scared them off!\"\n\"Worn out fiddle strings/STRI/\" 0 \n\"Barbershop\" 1 \n\"Jail\" 1 \n\"Saloon\" 2 \n\"Stable\" 4 \n\"Stall\" 5 \n\"Manure pile\" 5 \n\"Shovel/SHOV/\" 15 \n\"White crystals/CRYS/\" 0 \n\"Lit candle/CAND/\" 0 \n\"Yellow powder/SULF/\" 0 \n\"Sagebrush charcoal/CHAR/\" 10 \n\"Pile of gunpowder\" 0 \n\"Entrance to a mine\" 10 \n\"Matches/MATC/\" 15 \n\"Mirror\" 11 \n\"'ole Paint\" 19 \n\"Broken mirror\" 0 \n\"Hole in the wall\" 0 \n\"Compass/COMP/\" 15 \n\"Horseshoe/HORS/\" 19 \n\"Male cow manure/MANU/\" 0 \n\"Large bell/BELL/\" 11 \n\"Wraithlike figure playing equally ghostly piano\" 0 \n\"Piano with set of keys\" 0 \n\"Map/MAP/\" 0 \n\"Unlit candle/CAND/\" 22 \n\"*SILVER BULLET*/BULL/\" 21 \n\"*GOLDEN DERRINGER*/DERR/\" 13 \n\"Open door\" 0 \n\"Sign-`Ring for ROOM service`/SIGN/\" 35 \n\"Locked door\" 13 \n\"Dry-Goods store\" 2 \n\"Sign/SIGN/\" 15 \n\"*SILVER SPURS*/SPUR/\" 25 \n\"Stetson hat/HAT/\" 16 \n\"Which I'm wearing\" 0 \n\"Small key/KEY/\" 0 \n\"Roll of tape/TAPE/\" 0 \n\"Taped up mirror\" 0 \n\"*GOLD NUGGET*/GOLD/\" 0 \n\"Telegraph office\" 3 \n\"Empty matchbook/MATC/\" 0 \n\"Bed\" 0 \n\"Hotel\" 3 \n\"Rattlesnake/SNAK/\" 20 \n\"Open grave\" 0 \n\"*GOLD COIN*/COIN/\" 29 \n\"Purple worm/WORM/\" 29 \n\"Purple Slime/WORM/\" 0 \n\"Telegraph key\" 24 \n\"2 loose wires\" 0 \n\"Spliced wire\" 0 \n\"Pieces of wire/WIRE/\" 0 \n\"Large safe\" 24 \n\"*CASHBOX*/BOX/\" 35 \n\"* $200 */$200/\" 0 \n\"*ORIENTAL GO BOARD*/GO/\" 12 \n\"Hole kicked in wall & bare hoof print\" 0 \n\"Keg of nails/KEG/\" 31 \n\"Empty keg/KEG/\" 0 \n\"Keg of gunpowder/KEG/\" 0 \n\"Nails/NAIL/\" 0 \n\"Telegraph key\" 33 \n\"Smoking open safe\" 0 \n\"Line shack\" 32 \n\"Plank/PLAN/\" 0 \n\"Hole in floor\" 0 \n\"*PELTS*/PELT/\" 34 \n\"Counter\" 28 \n\"Ghostly square dance\" 0 \n\"*SILVER CUP*/CUP/\" 0 \n\"*BAG GOLD DUST*/BAG/\" 0 \n\"Hammer/HAMM/\" 14 \n\"TeePee\" 36 \n\"Indian ghost\" 0 \n\"*SACRED TOM TOM*/TOM/\" 37 \n\"*TURQUOISE NECKLACE*/NECK/\" 37 \n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n 223 \n 9 \n 774 \n\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u00e5\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
+if(HAS_DOM) COLS = measureCols();
 newGame(parseDatabase(EMBEDDED));
 offerResume();
+if(HAS_DOM) rewrap();          /* in case fonts settled after the first pass */
 </script>
 <script>
 (function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
