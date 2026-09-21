@@ -148,7 +148,8 @@
     <button id="bResume" style="display:none">Resume</button>
     <input type="file" id="fRestore" accept=".json,.sav">
     <label class="btn" for="fGame">Load another ADVENT/Qn</label><input type="file" id="fGame">
-    <span class="hint">two-word commands &middot; N S E W U D to move</span>
+    <span class="hint">two-word commands &middot; N S E W U D to move
+      &middot; <span id="build" title="engine build — if this is older than you expect, the browser served a cached copy: reload with Ctrl+F5">build ?</span></span>
   </div>
 </div>
 
@@ -766,7 +767,7 @@ function performActions(vb, no){
         case 57: S.bits &= ~(1<<DARKBIT); break;
         case 58: S.bits |= (1<<par[p++]); break;
         case 60: S.bits &= ~(1<<par[p++]); break;
-        case 61: out("I am dead.\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
+        case 61: out("I'm DEAD!\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
         case 62: { const it=par[p++], rm=par[p++]; S.itemLoc[it]=rm; } break;
         case 63: out("The Adventure is over.\n"); over=true; break;
         case 64: case 76: break;
@@ -799,21 +800,49 @@ function performActions(vb, no){
     if(again) continue;
   }
 
-  /* built-in GET / DROP when no table entry handled it */
-  if(fl!==0){
-    if(vb===10){
-      if(no<0){ out('What ? \n'); return 0; }
-      if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
-      const it=matchItem(nounText, S.loc);
-      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
-      S.itemLoc[it]=CARRIED; out('OK\n'); return 0;
+  /* Built-in GET / DROP when no table entry handled it.
+     ------------------------------------------------------------------
+     This mirrors ADV/CMD at 7E84-7F71 instruction for instruction, because
+     the failure messages are not interchangeable and players notice. The
+     original does NOT collapse every failure into "beyond my power": it
+     scans every item whose auto-get word matches the typed noun, remembers
+     why each one failed, and reports the last reason:
+
+         1  I'm not carrying it!      DROP something you haven't got
+         2  I don't see it here.      GET something that exists elsewhere
+         4  I already have it.        GET something already carried
+         0  Its beyond my power...    no item anywhere has that word
+
+     Scanning them all matters when a word is shared - Strange Odyssey has
+     two Phasers, Secret Mission two Flasks - because a later copy may be
+     takeable when an earlier one is not. And note "Its", not "It is": the
+     original is punctuated that way, like "Its too dark to see!".         */
+  if(fl!==0 && (vb===10 || vb===18)){
+    if(no<0){ out('HUH?\n'); return 0; }          /* GET/DROP with no noun */
+    if(vb===10 && carried()>=G.maxCarry){
+      out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
+    const raw = String(nounText).toUpperCase();
+    const L = Math.min(raw.length, G.wordLen);
+    const w = raw.slice(0, L);
+    let err = 0;
+    for(let k=0;k<G.items.length;k++){
+      const it = G.items[k];
+      if(!it.word || it.word.toUpperCase().slice(0,L) !== w) continue;
+      const loc = S.itemLoc[k];
+      if(vb===10){
+        if(loc===CARRIED){ err=4; continue; }
+        if(loc!==S.loc){ err=2; continue; }
+        S.itemLoc[k]=CARRIED; out('OK\n'); return 0;
+      }else{
+        if(loc!==CARRIED){ err=1; continue; }
+        S.itemLoc[k]=S.loc; out('OK\n'); return 0;
+      }
     }
-    if(vb===18){
-      if(no<0){ out('What ? \n'); return 0; }
-      const it=matchItem(nounText, CARRIED);
-      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
-      S.itemLoc[it]=S.loc; out('OK\n'); return 0;
-    }
+    out(err===1 ? "I'm not carrying it!\n" :
+        err===2 ? "I don't see it here.\n" :
+        err===4 ? 'I already have it.\n'  :
+                  'Its beyond my power to do that.\n');
+    return 0;
   }
   return fl;
 }
@@ -824,7 +853,7 @@ function doScore(){
   if(G.treasures>0){
     out('I stored '+n+' TREASURES.  On a scale of 0 to 100 that rates: '+
         Math.floor(n*100/G.treasures)+'\n');
-    if(n===G.treasures){ out('Well done.\nThe Adventure is over.\n'); over=true; }
+    if(n===G.treasures){ out("FANTASTIC! You've solved it ALL!\n"); over=true; }   /* 83B5 */
   }else{
     /* several of these games are not treasure hunts - they finish on an
        action instead, so there is no percentage to report */
@@ -1077,13 +1106,13 @@ function handle(line){
   /* movement is hard-wired, exactly as in the original */
   if(vb===1 && no>=1 && no<=6){
     const dark = isDark();
-    if(dark) out('Dangerous to move in the dark!\n');
+    if(dark) out('Its dangerous to move in the dark!\n');
     const nl = G.rooms[S.loc].exits[no-1];
     if(nl){ recordEdge(S.loc, no-1, nl); S.loc = nl; }
-    else if(dark){ out('I fell down and broke my neck.\n'); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
-    else out("I can't go in that direction\n");
+    else if(dark){ out("I fell & broke my neck! I'm DEAD!\n"); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
+    else out("I can't go in THAT direction\n");
   }else if(vb===1 && no<0){
-    out('Give me a direction too.\n');
+    out('I need a direction too\n');
   }else{
     const r = performActions(vb, no);
     if(r===-1) out("I must be stupid, but I just don't understand what you mean.\n");
@@ -1247,6 +1276,17 @@ if(HAS_DOM){
    and a phone that is simply opened never resizes - so without this the
    opening screen, which is the one thing every player sees, would stay
    wrapped for a 64-column terminal on a 37-column phone. */
+/* Stamped by tools/rebuild.py. Shown under the screen, outside the emulated
+   terminal so it cannot pollute a side-by-side comparison with the original.
+   Its only job is to answer "am I actually running the build I just made?" —
+   a file:// page reopened in the same browser will happily serve a cached
+   copy, which looks exactly like a fix that did not work. */
+const BUILD = "2026-09-21.7851b7";
+if(HAS_DOM){
+  const b = document.getElementById('build');
+  if(b) b.textContent = 'build ' + BUILD;
+}
+
 const EMBEDDED = " 3209 \n 56 \n 182 \n 73 \n 20 \n 5 \n 1 \n 5 \n 3 \n 360 \n 54 \n 18 \n100\n9\n20\n80\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n10131\n11931\n0\n60\n0\n60\n0\n0\n231\n11931\n0\n0\n0\n0\n0\n0\n8464\n0\n100\n40\n20\n40\n0\n0\n12232\n9073\n0\n1196\n0\n40\n0\n0\n11908\n0\n0\n40\n20\n0\n0\n0\n12231\n0\n0\n48\n20\n0\n0\n0\n12300\n0\n0\n20\n40\n0\n0\n0\n12210\n0\n100\n69\n20\n0\n0\n0\n12223\n0\n0\n176\n60\n440\n460\n0\n8772\n0\n0\n20\n0\n0\n0\n0\n12150\n0\n100\n60\n40\n0\n0\n0\n12223\n9000\n0\n16\n40\n0\n0\n0\n8777\n0\n0\n48\n19\n500\n520\n0\n10818\n0\n0\n40\n60\n0\n0\n0\n9081\n0\n100\n88\n80\n0\n0\n0\n12227\n10950\n0\n19\n80\n100\n0\n0\n3210\n8700\n0\n108\n1000\n0\n0\n0\n11850\n0\n0\n80\n0\n0\n0\n0\n12150\n0\n100\n108\n80\n0\n0\n0\n12227\n10950\n0\n19\n100\n0\n0\n0\n3360\n0\n0\n80\n0\n0\n0\n0\n12150\n0\n100\n128\n0\n0\n0\n0\n81\n10950\n0\n149\n220\n100\n140\n0\n11857\n8909\n0\n149\n120\n60\n0\n0\n9300\n0\n0\n148\n0\n0\n0\n0\n7200\n0\n0\n0\n120\n140\n0\n0\n12210\n8700\n100\n148\n0\n0\n0\n0\n12227\n10950\n0\n15\n400\n0\n0\n0\n804\n0\n0\n0\n0\n0\n0\n0\n12150\n0\n100\n328\n120\n0\n0\n0\n8619\n8744\n100\n109\n613\n600\n0\n0\n8874\n0\n100\n404\n0\n0\n0\n0\n8614\n9450\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n1957\n42\n183\n0\n0\n0\n300\n0\n158\n42\n40\n0\n0\n0\n8100\n0\n159\n62\n60\n0\n0\n0\n8100\n0\n158\n82\n20\n0\n0\n0\n8100\n0\n6910\n183\n0\n0\n0\n0\n450\n0\n6910\n3\n0\n180\n0\n0\n10864\n0\n3910\n183\n0\n180\n0\n0\n10864\n0\n3462\n102\n100\n140\n0\n0\n10804\n0\n3462\n122\n400\n0\n0\n0\n8105\n8613\n1962\n142\n160\n174\n0\n0\n7956\n0\n1962\n102\n160\n120\n174\n0\n7956\n8773\n0\n100\n120\n0\n0\n0\n72\n0\n1964\n183\n163\n0\n0\n0\n1200\n0\n1966\n202\n274\n260\n0\n0\n953\n0\n1967\n222\n254\n240\n80\n0\n953\n53\n6318\n263\n0\n0\n0\n0\n1500\n0\n1370\n263\n243\n240\n260\n300\n1709\n10800\n2570\n241\n240\n280\n0\n0\n2038\n2172\n2570\n67\n301\n300\n280\n0\n2038\n2172\n2570\n64\n301\n374\n380\n0\n10963\n13253\n0\n300\n280\n860\n260\n0\n2322\n9300\n2570\n64\n301\n373\n0\n0\n10963\n13215\n0\n300\n280\n360\n400\n0\n10872\n0\n0\n860\n260\n0\n0\n0\n9300\n0\n1372\n263\n342\n260\n360\n0\n1709\n7950\n1372\n303\n342\n360\n0\n0\n1703\n0\n1372\n383\n342\n380\n400\n0\n1722\n0\n1975\n423\n183\n20\n0\n0\n10966\n12228\n0\n20\n40\n0\n0\n0\n12231\n12946\n0\n40\n0\n0\n0\n0\n11786\n12150\n4374\n423\n0\n0\n0\n0\n2550\n0\n1412\n423\n20\n120\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n1731\n11931\n1413\n423\n20\n140\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n12229\n12150\n1414\n423\n20\n160\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n1731\n11931\n1415\n423\n20\n180\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n1731\n11931\n1416\n423\n20\n200\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n1731\n11931\n1417\n423\n20\n220\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n1731\n11931\n1418\n423\n20\n240\n20\n0\n11031\n11931\n0\n40\n0\n40\n0\n0\n1731\n11931\n4676\n483\n60\n600\n60\n0\n12229\n12223\n0\n480\n500\n0\n0\n0\n8903\n0\n4851\n543\n0\n0\n0\n0\n2850\n0\n4828\n563\n80\n400\n0\n0\n3081\n11029\n0\n80\n80\n560\n0\n0\n8781\n8850\n5151\n502\n543\n540\n560\n0\n1722\n0\n5430\n109\n583\n0\n0\n0\n3450\n0\n5430\n108\n583\n614\n600\n580\n1725\n0\n1982\n622\n0\n0\n0\n0\n3750\n0\n5582\n592\n0\n0\n0\n0\n1826\n0\n5582\n612\n0\n0\n0\n0\n1827\n0\n5582\n603\n620\n640\n0\n0\n1722\n0\n182\n622\n0\n0\n0\n0\n1678\n0\n182\n642\n160\n0\n0\n0\n8100\n0\n183\n442\n0\n0\n0\n0\n1678\n0\n183\n462\n180\n0\n0\n0\n8100\n0\n5885\n722\n120\n720\n740\n0\n8711\n10902\n5585\n722\n681\n720\n740\n0\n1722\n0\n1986\n204\n0\n0\n0\n0\n4350\n0\n186\n722\n0\n0\n0\n0\n1680\n0\n186\n742\n220\n0\n0\n0\n8100\n0\n1988\n762\n794\n780\n0\n0\n953\n0\n1987\n1062\n834\n820\n0\n0\n953\n0\n168\n862\n661\n60\n0\n0\n1704\n0\n168\n402\n666\n0\n0\n0\n4738\n4873\n0\n260\n120\n0\n0\n0\n8188\n8700\n168\n402\n661\n260\n0\n0\n8111\n0\n1972\n342\n674\n660\n0\n0\n953\n0\n168\n862\n666\n0\n0\n0\n4738\n4873\n0\n60\n120\n0\n0\n0\n8188\n8700\n6318\n383\n0\n0\n0\n0\n1500\n0\n189\n322\n260\n120\n0\n0\n4854\n8700\n189\n264\n60\n120\n0\n0\n4854\n58\n159\n882\n40\n0\n0\n0\n8100\n0\n1992\n902\n925\n917\n0\n0\n4950\n0\n1542\n902\n925\n917\n900\n120\n7858\n4800\n1542\n902\n900\n0\n0\n0\n7800\n0\n194\n942\n0\n0\n0\n0\n5100\n0\n1995\n923\n183\n0\n0\n0\n5250\n0\n2745\n921\n284\n920\n0\n0\n5453\n0\n2745\n921\n920\n0\n0\n0\n7950\n0\n196\n22\n320\n0\n0\n0\n8100\n0\n5446\n324\n0\n0\n0\n0\n5550\n0\n6196\n324\n168\n188\n0\n0\n6150\n0\n6196\n168\n189\n324\n0\n0\n6750\n0\n6196\n169\n160\n324\n1040\n0\n8711\n7950\n6046\n169\n324\n0\n0\n0\n5850\n0\n6046\n324\n188\n0\n0\n0\n5850\n0\n6046\n168\n189\n180\n1040\n0\n8711\n8850\n182\n324\n189\n20\n0\n0\n8100\n0\n199\n982\n360\n0\n0\n0\n8100\n0\n900\n0\n0\n0\n0\n0\n9900\n0\n1548\n0\n0\n0\n0\n0\n9900\n0\n2433\n442\n0\n0\n0\n0\n4200\n0\n0\n0\n0\n0\n0\n0\n6450\n0\n6750\n0\n0\n0\n0\n0\n10650\n0\n1050\n0\n0\n0\n0\n0\n1662\n0\n6600\n0\n0\n0\n0\n0\n9450\n0\n2730\n581\n614\n580\n0\n0\n7950\n0\n2730\n581\n613\n580\n600\n0\n8003\n1650\n1530\n583\n614\n580\n0\n0\n7800\n0\n1530\n582\n613\n580\n600\n0\n7874\n1650\n196\n344\n320\n0\n0\n0\n1704\n0\n182\n324\n188\n340\n0\n0\n8111\n0\n182\n324\n189\n20\n0\n0\n8111\n0\n6318\n303\n0\n0\n0\n0\n1500\n0\n1200\n0\n0\n0\n0\n0\n9750\n0\n7200\n0\n0\n0\n0\n0\n12750\n0\n1983\n442\n0\n0\n0\n0\n7050\n0\n5920\n81\n802\n800\n1060\n0\n10800\n0\n5920\n802\n86\n0\n0\n0\n1800\n0\n157\n24\n0\n0\n0\n0\n7350\n0\n3932\n622\n0\n0\n0\n0\n5550\n0\n7368\n303\n300\n240\n0\n0\n1709\n8023\n0\n374\n260\n0\n0\n0\n7950\n0\n7368\n363\n360\n0\n0\n0\n1709\n10950\n0\n314\n260\n0\n0\n0\n7950\n0\n3932\n24\n0\n0\n0\n0\n5550\n0\n2453\n661\n0\n0\n0\n0\n7500\n0\n2020\n803\n0\n0\n0\n0\n7650\n0\n2432\n24\n0\n0\n0\n0\n4200\n0\n2432\n622\n0\n0\n0\n0\n4200\n0\n5622\n1082\n603\n1080\n1100\n0\n15538\n10800\n222\n1082\n0\n0\n0\n0\n15600\n0\n1370\n243\n363\n240\n300\n0\n1722\n0\n5895\n923\n920\n1120\n0\n0\n1722\n0\n5622\n583\n1082\n0\n0\n0\n4050\n0\n5622\n1082\n592\n612\n0\n0\n1350\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n1950\n192\n0\n0\n0\n0\n6300\n0\n1950\n0\n0\n0\n0\n0\n6450\n0\n\"AUTO\"\n\"ANY\"\n\"GO\"\n\"NORTH\"\n\"*WAL\"\n\"SOUTH\"\n\"*ENT\"\n\"EAST\"\n\"*RUN\"\n\"WEST\"\n\"*CLI\"\n\"UP\"\n\"INV\"\n\"DOWN\"\n\"HEL\"\n\"MUS\"\n\"SCO\"\n\"IVY\"\n\"TO\"\n\"WIN\"\n\"GET\"\n\"FLA\"\n\"*TAK\"\n\"*LIG\"\n\"*GRA\"\n\"GUA\"\n\"EXA\"\n\"*COP\"\n\"*LOO\"\n\"NOT\"\n\"*REA\"\n\"*PAP\"\n\"OPE\"\n\"COW\"\n\"SHO\"\n\"IND\"\n\"DROP\"\n\"LAR\"\n\"*DIS\"\n\"*ROP\"\n\"*PUT\"\n\"ARR\"\n\"*LEA\"\n\"*BOW\"\n\"*THR\"\n\"COA\"\n\"HIT\"\n\"*RAC\"\n\"*STR\"\n\"HAN\"\n\"*KNO\"\n\"CLO\"\n\"UNL\"\n\"STI\"\n\"*OFF\"\n\"*WOO\"\n\"SHO\"\n\"BUR\"\n\"TUR\"\n\"*FOO\"\n\"*TWI\"\n\"SAW\"\n\"RUB\"\n\"*CHA\"\n\"EAT\"\n\"DOO\"\n\"*TAS\"\n\"VAU\"\n\"COO\"\n\"*SAF\"\n\"*HEA\"\n\"GLA\"\n\"STA\"\n\"CAS\"\n\"SAW\"\n\"MAS\"\n\"*CUT\"\n\"CLE\"\n\"BRE\"\n\"RED\"\n\"DRI\"\n\"*COR\"\n\"HOT\"\n\"WIN\"\n\"TIE\"\n\"PAI\"\n\"*ROP\"\n\"*PIC\"\n\"QUI\"\n\"TOI\"\n\"SAV\"\n\"MIR\"\n\"LIG\"\n\"CAR\"\n\"*ON\"\n\"*AUT\"\n\"SAY\"\n\"INV\"\n\"UNT\"\n\"SHA\"\n\"\"\n\"*HID\"\n\"\"\n\"DOU\"\n\"\"\n\"DIA\"\n\"\"\n\"UMB\"\n\"\"\n\"RUB\"\n\"\"\n\"*NEC\"\n\"\"\n\"TIA\"\n\"\"\n\"*GOL\"\n\"\"\n\"TUS\"\n\"\"\n\"*IVO\"\n\"\"\n\"4\"\n\"\"\n\"5\"\n\"\"\n\"6\"\n\"\"\n\"7\"\n\"\"\n\"8\"\n\"\"\n\"9\"\n\"\"\n\"10\"\n\"\"\n\"11\"\n\"\"\n\"12\"\n\"\"\n\"TOM\"\n\"\"\n\"ICE\"\n\"\"\n\"*BLO\"\n\"\"\n\"TRE\"\n\"\"\n\"GAM\"\n0\n0\n0\n0\n0\n0\n\"Storeroom.  Can't get here\"\n0\n0\n0\n0\n0\n0\n\"street\"\n0\n0\n0\n0\n0\n1\n\"window sill\"\n6\n5\n7\n4\n15\n0\n\"Museum Corridor\"\n0\n0\n3\n0\n0\n0\n\"Old West Display\"\n3\n0\n0\n0\n0\n0\n\"South of the Border Display\"\n0\n3\n0\n0\n0\n0\n\"Lumberjack Display\"\n0\n0\n0\n3\n0\n0\n\"hallway\"\n0\n0\n0\n7\n0\n0\n\"Manager's office\"\n0\n8\n0\n0\n0\n0\n\"vault\"\n13\n0\n0\n0\n0\n0\n\"Egyptian Display\"\n0\n0\n0\n10\n0\n0\n\"glass case\"\n0\n0\n0\n13\n0\n0\n\"Ice Age Display\"\n14\n10\n12\n0\n0\n0\n\"hallway\"\n0\n13\n0\n0\n0\n0\n\"Art Gallery\"\n0\n0\n0\n0\n0\n3\n\"bathroom\"\n0\n0\n0\n0\n0\n0\n\"car\"\n0\n0\n0\n0\n0\n0\n\"field at the edge of a forest\"\n0\n17\n0\n0\n0\n0\n\"hideout\"\n0\n0\n0\n0\n0\n0\n\"\"\n0\n0\n0\n0\n0\n0\n\"JAIL!\"\n\"\"\n\"Welcome to the `BURGLAR'S ADVENTURE` by Bruce Hansen dedicated  to all `ADVENTURE SYSTEM` users\"\n\"It's an ivy covered building.  The front door is locked.\"\n\"It's already on!\"\n\"Got him!\"\n\"He caught me!\"\n\"I found something!\"\n\"The guard woke up!\"\n\"The time lock on the vault opens at 9:00 AM.  Remember to turn  off the security system before entering the RED Corridor\"\n\"I have nothing to cut with\"\n\"Tell me to what, like `TO HORN`\"\n\"OK\"\n\"HOW?\"\n\"I shot an arrow in the air . . . .\"\n\"and where it landed I know not where!\"\n\"and it stuck in the RED Corridor's wall over there!\"\n\"The big hand says\"\n\"To what?\"\n\"The fire went out!\"\n\"YUCH!\"\n\"YUMMY!\"\n\"I don't feel very good.  I think I have GAS.\"\n\"I feel better now\"\n\"I have no fuel\"\n\"The saw stopped, I'm out of gas\"\n\"There's a sign on it saying `MANAGER`\"\n\"I have nothing to cut with\"\n\"The saw isn't running\"\n\"It's locked\"\n\"There's a mannequin of Cleopatra in it\"\n\"It's closed\"\n\"I lost my balance and fell!\"\n\"An alarm went off!\"\n\"There's a light beam across the painting\"\n\"Ah!  That felt good!\"\n\"Boy am I good looking!\nThe flashlight reflection hurts my eyes!\"\n\"The mirror reflected the light beam!\"\n\"I don't have any keys\"\n\"That's it, it's started\"\n\"It's not started\"\n\"Nothing happens\"\n\"It appears to be broken down\"\n\"It's too dark to see it!\"\n\"I see nothing special\"\n\"It's light out!  I think I'm in trouble now!\"\n\"I already did\"\n\"and the little hand says\"\n\"Strange, there's no lock on the door\"\n\"Another alarm went off!\"\n\"The front door is locked\"\n\"It already is\"\n\"There's something there, but I can't see it clearly\"\n\"CRASH!!\"\n\"TIMBER!\"\n\"I slide back down\"\n\"Flashlight/FLA/\"-1 \n\"Car\" 1 \n\"Museum\" 1 \n\"Open window\" 2 \n\"Tomahawk/TOM/\" 0 \n\"Sleeping guard\" 3 \n\"Guard\" 0 \n\"Knocked out cop\" 0 \n\"Note/NOT/\" 0 \n\"Lit flashlight/FLA/\" 0 \n\"Cowboy\" 4 \n\"Indian\" 4 \n\"Bow & arrow/ARR/\" 0 \n\"Larriet/LAR/\" 0 \n\"Bow/ARR/\" 0 \n\"Bow & larriet tied arrow/ARR/\" 0 \n\"Red Corridor\" 3 \n\"Coat rack\" 3 \n\"Larriet tied to coat rack\" 0 \n\"Other end of larriet\" 0 \n\"Taut rope through Red Corridor\" 0 \n\"Clock\" 3 \n\"Locked vault\" 8 \n\"Open vault\" 0 \n\"Sticks/STI/\" 4 \n\"Fire\" 0 \n\"Ashes\" 0 \n\"Dough & beans/DOU/\" 5 \n\"Burritos/BUR/\" 0 \n\"Chainsaw/SAW/\" 6 \n\"and it's running\" 0 \n\"Locked door\" 7 \n\"Open door\" 0 \n\"Umbrella/UMB/\" 0 \n\"* Hope diamond */DIA/\" 9 \n\"* Ruby necklace */RUB/\" 9 \n\"Glass case\" 10 \n\"Open case\" 0 \n\"Cleopatra model\" 11 \n\"* Golden Tiara */TIA/\" 0 \n\"Large block of ice\" 12 \n\"* Ivory tusks */TUS/\" 0 \n\"Red Corridor\" 13 \n\"Arrow with rope tied to it\" 0 \n\"Open window\" 3 \n\"* Picasso painting */PAI/\" 14 \n\"Mirror/MIR/\" 15 \n\"Toilet\" 15 \n\"Door\" 16 \n\"Shack\" 17 \n\"Sign saying `Leave *TREASURES* here`\" 18 \n\"Car\" 17 \n\"The engine is running\" 0 \n\"Mastodon\" 0 \n\"Trees\" 6 \n\"Felled tree\" 0 \n\"Broken mirror/MIR/\" 0 \n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n 127 \n 5 \n 547 \n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
 if(HAS_DOM) COLS = measureCols();
 newGame(parseDatabase(EMBEDDED));

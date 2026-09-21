@@ -148,7 +148,8 @@
     <button id="bResume" style="display:none">Resume</button>
     <input type="file" id="fRestore" accept=".json,.sav">
     <label class="btn" for="fGame">Load another ADVENT/Qn</label><input type="file" id="fGame">
-    <span class="hint">two-word commands &middot; N S E W U D to move</span>
+    <span class="hint">two-word commands &middot; N S E W U D to move
+      &middot; <span id="build" title="engine build — if this is older than you expect, the browser served a cached copy: reload with Ctrl+F5">build ?</span></span>
   </div>
 </div>
 
@@ -766,7 +767,7 @@ function performActions(vb, no){
         case 57: S.bits &= ~(1<<DARKBIT); break;
         case 58: S.bits |= (1<<par[p++]); break;
         case 60: S.bits &= ~(1<<par[p++]); break;
-        case 61: out("I am dead.\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
+        case 61: out("I'm DEAD!\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
         case 62: { const it=par[p++], rm=par[p++]; S.itemLoc[it]=rm; } break;
         case 63: out("The Adventure is over.\n"); over=true; break;
         case 64: case 76: break;
@@ -799,21 +800,49 @@ function performActions(vb, no){
     if(again) continue;
   }
 
-  /* built-in GET / DROP when no table entry handled it */
-  if(fl!==0){
-    if(vb===10){
-      if(no<0){ out('What ? \n'); return 0; }
-      if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
-      const it=matchItem(nounText, S.loc);
-      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
-      S.itemLoc[it]=CARRIED; out('OK\n'); return 0;
+  /* Built-in GET / DROP when no table entry handled it.
+     ------------------------------------------------------------------
+     This mirrors ADV/CMD at 7E84-7F71 instruction for instruction, because
+     the failure messages are not interchangeable and players notice. The
+     original does NOT collapse every failure into "beyond my power": it
+     scans every item whose auto-get word matches the typed noun, remembers
+     why each one failed, and reports the last reason:
+
+         1  I'm not carrying it!      DROP something you haven't got
+         2  I don't see it here.      GET something that exists elsewhere
+         4  I already have it.        GET something already carried
+         0  Its beyond my power...    no item anywhere has that word
+
+     Scanning them all matters when a word is shared - Strange Odyssey has
+     two Phasers, Secret Mission two Flasks - because a later copy may be
+     takeable when an earlier one is not. And note "Its", not "It is": the
+     original is punctuated that way, like "Its too dark to see!".         */
+  if(fl!==0 && (vb===10 || vb===18)){
+    if(no<0){ out('HUH?\n'); return 0; }          /* GET/DROP with no noun */
+    if(vb===10 && carried()>=G.maxCarry){
+      out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
+    const raw = String(nounText).toUpperCase();
+    const L = Math.min(raw.length, G.wordLen);
+    const w = raw.slice(0, L);
+    let err = 0;
+    for(let k=0;k<G.items.length;k++){
+      const it = G.items[k];
+      if(!it.word || it.word.toUpperCase().slice(0,L) !== w) continue;
+      const loc = S.itemLoc[k];
+      if(vb===10){
+        if(loc===CARRIED){ err=4; continue; }
+        if(loc!==S.loc){ err=2; continue; }
+        S.itemLoc[k]=CARRIED; out('OK\n'); return 0;
+      }else{
+        if(loc!==CARRIED){ err=1; continue; }
+        S.itemLoc[k]=S.loc; out('OK\n'); return 0;
+      }
     }
-    if(vb===18){
-      if(no<0){ out('What ? \n'); return 0; }
-      const it=matchItem(nounText, CARRIED);
-      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
-      S.itemLoc[it]=S.loc; out('OK\n'); return 0;
-    }
+    out(err===1 ? "I'm not carrying it!\n" :
+        err===2 ? "I don't see it here.\n" :
+        err===4 ? 'I already have it.\n'  :
+                  'Its beyond my power to do that.\n');
+    return 0;
   }
   return fl;
 }
@@ -824,7 +853,7 @@ function doScore(){
   if(G.treasures>0){
     out('I stored '+n+' TREASURES.  On a scale of 0 to 100 that rates: '+
         Math.floor(n*100/G.treasures)+'\n');
-    if(n===G.treasures){ out('Well done.\nThe Adventure is over.\n'); over=true; }
+    if(n===G.treasures){ out("FANTASTIC! You've solved it ALL!\n"); over=true; }   /* 83B5 */
   }else{
     /* several of these games are not treasure hunts - they finish on an
        action instead, so there is no percentage to report */
@@ -1077,13 +1106,13 @@ function handle(line){
   /* movement is hard-wired, exactly as in the original */
   if(vb===1 && no>=1 && no<=6){
     const dark = isDark();
-    if(dark) out('Dangerous to move in the dark!\n');
+    if(dark) out('Its dangerous to move in the dark!\n');
     const nl = G.rooms[S.loc].exits[no-1];
     if(nl){ recordEdge(S.loc, no-1, nl); S.loc = nl; }
-    else if(dark){ out('I fell down and broke my neck.\n'); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
-    else out("I can't go in that direction\n");
+    else if(dark){ out("I fell & broke my neck! I'm DEAD!\n"); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
+    else out("I can't go in THAT direction\n");
   }else if(vb===1 && no<0){
-    out('Give me a direction too.\n');
+    out('I need a direction too\n');
   }else{
     const r = performActions(vb, no);
     if(r===-1) out("I must be stupid, but I just don't understand what you mean.\n");
@@ -1247,6 +1276,17 @@ if(HAS_DOM){
    and a phone that is simply opened never resizes - so without this the
    opening screen, which is the one thing every player sees, would stay
    wrapped for a 64-column terminal on a 37-column phone. */
+/* Stamped by tools/rebuild.py. Shown under the screen, outside the emulated
+   terminal so it cannot pollute a side-by-side comparison with the original.
+   Its only job is to answer "am I actually running the build I just made?" —
+   a file:// page reopened in the same browser will happily serve a cached
+   copy, which looks exactly like a fix that did not work. */
+const BUILD = "2026-09-21.7851b7";
+if(HAS_DOM){
+  const b = document.getElementById('build');
+  if(b) b.textContent = 'build ' + BUILD;
+}
+
 const EMBEDDED = "6196\n60\n131\n69\n55\n7\n1\n0\n3\n30000\n69\n0\n100\n764\n169\n160\n780\n780\n6058\n9300\n100\n622\n1024\n100\n0\n0\n8700\n0\n100\n168\n724\n0\n0\n0\n6238\n9213\n25\n49\n773\n428\n0\n0\n5938\n9213\n100\n349\n340\n0\n0\n0\n16408\n11850\n100\n284\n0\n0\n0\n0\n8614\n0\n100\n864\n0\n0\n0\n0\n8464\n0\n100\n188\n507\n180\n0\n0\n12064\n9000\n100\n564\n140\n560\n360\n140\n8180\n8162\n100\n544\n660\n540\n360\n660\n8180\n8162\n100\n524\n340\n520\n360\n340\n8180\n8162\n25\n234\n200\n140\n0\n0\n9300\n0\n30\n234\n202\n365\n229\n0\n6667\n13200\n20\n234\n8\n0\n0\n0\n9213\n63\n1\n234\n205\n147\n388\n200\n6503\n0\n100\n220\n420\n0\n0\n0\n10260\n8700\n100\n234\n144\n200\n140\n0\n9300\n0\n100\n202\n380\n0\n0\n0\n8700\n0\n4238\n521\n520\n20\n0\n0\n205\n12300\n4247\n641\n640\n20\n0\n0\n205\n12300\n4258\n821\n820\n20\n0\n0\n205\n12300\n1969\n202\n120\n220\n0\n0\n6667\n8158\n4060\n922\n920\n1140\n0\n0\n6972\n0\n3900\n444\n89\n0\n0\n0\n6838\n9213\n3900\n444\n460\n0\n0\n0\n204\n0\n3900\n464\n440\n0\n0\n0\n204\n0\n3900\n1022\n1060\n0\n0\n0\n204\n0\n3051\n702\n10\n0\n0\n0\n6300\n0\n3060\n881\n202\n0\n0\n0\n5550\n0\n3060\n881\n0\n0\n0\n0\n5400\n0\n3052\n742\n765\n49\n760\n420\n5135\n8010\n3052\n742\n765\n760\n0\n0\n5153\n0\n3052\n742\n762\n760\n0\n0\n5005\n0\n3051\n702\n560\n200\n180\n0\n4854\n8760\n3050\n682\n0\n0\n0\n0\n4738\n13238\n3038\n522\n108\n1064\n520\n1020\n4412\n0\n3038\n522\n1064\n520\n840\n0\n4562\n0\n3038\n522\n0\n0\n0\n0\n150\n0\n3037\n1022\n1073\n1060\n0\n0\n203\n0\n3037\n1022\n0\n0\n0\n0\n150\n0\n3032\n29\n402\n99\n148\n20\n4258\n0\n3032\n402\n0\n0\n0\n0\n4050\n0\n3031\n382\n980\n380\n140\n0\n222\n8700\n3031\n982\n980\n380\n140\n0\n222\n9000\n3010\n922\n0\n0\n0\n0\n300\n0\n1357\n22\n0\n0\n0\n0\n3450\n0\n1383\n421\n280\n0\n0\n0\n3808\n0\n1379\n341\n0\n0\n0\n0\n3600\n0\n1385\n461\n0\n0\n0\n0\n3900\n0\n5100\n41\n0\n0\n0\n0\n3300\n0\n1098\n661\n660\n0\n0\n0\n203\n0\n1098\n1101\n765\n0\n0\n0\n538\n9213\n1098\n1101\n762\n1100\n40\n0\n3205\n8700\n1074\n261\n202\n260\n0\n0\n3053\n0\n1074\n261\n260\n0\n0\n0\n203\n0\n1050\n0\n0\n0\n0\n0\n2850\n0\n7950\n0\n0\n0\n0\n0\n9900\n0\n1535\n462\n460\n0\n0\n0\n202\n0\n1542\n562\n560\n0\n0\n0\n202\n0\n1548\n662\n660\n0\n0\n0\n202\n0\n2742\n561\n585\n560\n0\n0\n203\n0\n2721\n221\n447\n220\n0\n0\n203\n0\n2714\n121\n725\n120\n0\n0\n203\n0\n1537\n502\n500\n0\n0\n0\n202\n0\n2742\n561\n582\n560\n1080\n600\n2753\n10800\n2721\n221\n444\n80\n220\n840\n2608\n9300\n2714\n121\n722\n120\n720\n60\n2455\n8308\n1561\n882\n880\n0\n0\n0\n2302\n0\n1548\n1102\n1100\n0\n0\n0\n202\n0\n1542\n1122\n560\n540\n1120\n0\n2174\n10800\n1538\n1062\n0\n0\n0\n0\n17400\n0\n1538\n522\n520\n0\n0\n0\n2002\n0\n1543\n582\n0\n0\n0\n0\n1111\n9450\n2004\n782\n784\n0\n0\n0\n1800\n0\n4226\n301\n300\n20\n0\n0\n205\n12300\n1535\n1002\n460\n1000\n440\n0\n202\n10800\n7500\n0\n0\n0\n0\n0\n1650\n0\n1517\n162\n0\n0\n0\n0\n1500\n0\n1512\n182\n180\n0\n0\n0\n1402\n0\n213\n902\n120\n420\n400\n160\n204\n9355\n203\n762\n49\n0\n0\n0\n1288\n9213\n203\n762\n740\n0\n0\n0\n204\n0\n194\n602\n0\n0\n0\n0\n1138\n9213\n194\n1082\n884\n900\n1080\n900\n204\n9300\n194\n1082\n904\n880\n1080\n880\n204\n9300\n190\n521\n542\n0\n0\n0\n750\n0\n190\n542\n820\n0\n0\n0\n204\n8614\n187\n526\n1042\n860\n0\n0\n204\n0\n187\n526\n1022\n1020\n0\n0\n204\n0\n181\n382\n28\n700\n320\n0\n204\n7950\n181\n382\n120\n0\n0\n0\n204\n0\n180\n202\n0\n0\n0\n0\n900\n0\n180\n362\n500\n180\n0\n0\n230\n8158\n7865\n0\n0\n0\n0\n0\n10650\n0\n7200\n0\n0\n0\n0\n0\n9450\n0\n175\n962\n306\n300\n0\n0\n204\n0\n175\n282\n300\n0\n0\n0\n204\n0\n175\n962\n301\n0\n0\n0\n750\n0\n172\n242\n0\n0\n0\n0\n688\n9213\n160\n1142\n400\n0\n0\n0\n204\n0\n5885\n461\n764\n200\n780\n200\n7704\n9300\n4218\n842\n101\n80\n900\n0\n222\n0\n178\n322\n180\n0\n0\n0\n204\n0\n4200\n261\n61\n260\n260\n0\n17305\n8700\n4512\n181\n242\n240\n0\n0\n7104\n0\n4512\n181\n0\n0\n0\n0\n150\n0\n4964\n121\n120\n140\n0\n0\n7272\n0\n5408\n41\n40\n60\n0\n0\n222\n0\n5461\n881\n880\n820\n0\n0\n209\n7950\n5748\n682\n661\n660\n1100\n0\n7572\n0\n5885\n461\n442\n420\n460\n0\n7704\n8323\n0\n440\n1000\n400\n0\n0\n10858\n0\n6167\n162\n369\n100\n360\n0\n15353\n8700\n6300\n801\n782\n784\n0\n0\n15900\n0\n6300\n801\n782\n204\n780\n160\n15822\n13263\n6300\n801\n0\n0\n0\n0\n15450\n0\n6300\n61\n269\n0\n0\n0\n15600\n0\n6300\n61\n202\n268\n200\n220\n16122\n0\n6637\n0\n0\n0\n0\n0\n16200\n0\n6636\n482\n501\n500\n480\n1020\n205\n10800\n6638\n1042\n522\n1060\n520\n0\n222\n0\n6787\n0\n0\n0\n0\n0\n16200\n0\n6786\n1022\n1065\n500\n1020\n480\n224\n10800\n6788\n1062\n1060\n520\n0\n0\n222\n0\n6900\n524\n69\n0\n0\n0\n16588\n9213\n6900\n208\n180\n500\n200\n0\n208\n8160\n8250\n0\n0\n0\n0\n0\n16650\n0\n7050\n288\n409\n0\n0\n0\n16800\n0\n7050\n0\n0\n0\n0\n0\n16950\n0\n3900\n1042\n0\n0\n0\n0\n17100\n0\n6167\n162\n0\n0\n0\n0\n150\n0\n160\n922\n0\n0\n0\n0\n300\n0\n\"AUT\"\n\"ANY\"\n\"GO\"\n\"NORTH\"\n\"*RUN\"\n\"SOUTH\"\n\"*WAL\"\n\"EAST\"\n\"*JUM\"\n\"WEST\"\n\"*CLI\"\n\"UP\"\n\"*ENT\"\n\"DOWN\"\n\"THR\"\n\"SIG\"\n\"*TOS\"\n\"PEN\"\n\"REA\"\n\"TUB\"\n\"GET\"\n\"DOO\"\n\"*TAK\"\n\"*ROO\"\n\"*REM\"\n\"LIG\"\n\"ATT\"\n\"*FLA\"\n\"*KIL\"\n\"DRI\"\n\"*FIG\"\n\"*VOD\"\n\"*PUN\"\n\"*MAR\"\n\"*HIT\"\n\"GIR\"\n\"DRO\"\n\"CAR\"\n\"*LEA\"\n\"MAN\"\n\"PUL\"\n\"*JAW\"\n\"*PUS\"\n\"BOD\"\n\"*OPE\"\n\"PHO\"\n\"*CLO\"\n\"*PAS\"\n\"*TUR\"\n\"DAR\"\n\"*PRE\"\n\"TUN\"\n\"SWI\"\n\"OXY\"\n\"KIC\"\n\"*TAN\"\n\"INS\"\n\"ROC\"\n\"*LOA\"\n\"PAP\"\n\"AIM\"\n\"HEL\"\n\"*SHI\"\n\"HAT\"\n\"*POI\"\n\"BUT\"\n\"DRI\"\n\"NOT\"\n\"SIG\"\n\"TAB\"\n\"*WRI\"\n\"BOO\"\n\"BRE\"\n\"PIP\"\n\"*DES\"\n\"ROP\"\n\"INF\"\n\"FUE\"\n\"REP\"\n\"*CEL\"\n\"WAD\"\n\"VEN\"\n\"KIS\"\n\"*DUC\"\n\"SHO\"\n\"GRI\"\n\"*BLO\"\n\"WIR\"\n\"TIE\"\n\"FEN\"\n\"UNT\"\n\"CUS\"\n\"LAN\"\n\"*CHA\"\n\"HEL\"\n\"BAT\"\n\"QUI\"\n\"BAL\"\n\"*END\"\n\"*BAS\"\n\"FUC\"\n\"VAL\"\n\"*SCR\"\n\"LEV\"\n\"SAV\"\n\"WHE\"\n\"INV\"\n\"POR\"\n\"*I  \"\n\"DOC\"\n\"EXA\"\n\"*DR.\"\n\"*LOO\"\n\"*YES\"\n\"\"\n\"GUN\"\n\"\"\n\"SPA\"\n\"\"\n\"*PLU\"\n\"\"\n\"SWI\"\n\"\"\n\"CAT\"\n\"\"\n\"*PRO\"\n\"\"\n\"ENT\"\n\"\"\n\"*HAN\"\n\"\"\n\"GAM\"\n\"\"\n\"SLO\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n0\n0\n0\n0\n0\n0\n\"\"\n2\n3\n0\n0\n0\n0\n\"*I am in the entrance hall to SPECTRE headquarters\"\n30\n1\n2\n2\n0\n0\n\"desert\"\n1\n4\n0\n0\n0\n0\n\"reception area\"\n3\n5\n0\n0\n0\n0\n\"corridor\"\n4\n0\n18\n11\n0\n0\n\"pilot's ready room\"\n5\n7\n8\n0\n0\n0\n\"*I am in the north end of a large hanger\"\n6\n0\n0\n0\n0\n0\n\"*I am in the south end of a hanger\"\n0\n0\n0\n6\n0\n0\n\"rocket control room.  A tube is jutting out\nof the wall with the words <-ROCKET SUPPLY TUBE-> painted\non the side\"\n0\n0\n0\n0\n10\n0\n\"rocket\"\n0\n0\n0\n0\n0\n9\n\"cockpit of a rocket.  Most of the instruments have\nbeen removed\"\n0\n0\n5\n13\n0\n0\n\"war room.  On the wall is a stirring tribute to\nGeneral Molitov\"\n0\n11\n0\n0\n0\n0\n\"*I am in an ammunitions supply room.  It appears to have\nbeen emptied quickly\"\n0\n0\n11\n0\n0\n14\n\"*I am in an unfinished portion of the building.  In front of\nme is a recently dug hole\"\n0\n0\n0\n0\n13\n43\n\"crudely built stairwell\"\n0\n0\n14\n16\n0\n0\n\"dimly lit tunnel\"\n17\n0\n0\n0\n0\n0\n\"large rocky pit\"\n0\n16\n0\n0\n0\n0\n\"*I am in the north end of the pit.  The floor has been\ncarefully smoothed out\"\n19\n0\n0\n5\n0\n0\n\"*I am in the private suite of Dr. Yes\"\n0\n18\n0\n0\n0\n0\n\"bar\"\n0\n0\n0\n18\n0\n0\n\"bedroom\"\n0\n0\n0\n0\n20\n22\n\"secret passage under the building\"\n0\n0\n0\n0\n21\n0\n\"*I am on a large concrete patio.  In front of me is an immense\nshallow pond.  It seems harmless except for the rare dwarf\nsharks that Dr. Yes raises\"\n24\n0\n0\n0\n0\n0\n\"small observation deck\"\n0\n23\n0\n0\n0\n0\n\"well furnished guest house\"\n0\n0\n7\n0\n0\n0\n\"helicopter\"\n29\n29\n27\n29\n0\n0\n\"helicopter.  Below I see a large pit.\nGuarding the pit are several radar controlled lasers\"\n29\n29\n28\n26\n0\n0\n\"helicopter.  Directly below is the roof of the\nbuilding\"\n29\n29\n29\n27\n0\n0\n\"helicopter flying high over SPECTRE headquarters.\nTo the west is a large pit\"\n28\n29\n29\n29\n0\n0\n\"helicopter flying over the desert\"\n2\n2\n2\n2\n0\n0\n\"*I am still in a desert!\"\n0\n0\n17\n0\n0\n0\n\" \"\n0\n0\n33\n0\n0\n0\n\" \"\n0\n0\n34\n0\n0\n0\n\"small landing area on the roof\"\n0\n0\n0\n33\n0\n0\n\"*I am on a roof.  The surface is extremely hot\"\n0\n0\n36\n0\n0\n0\n\"landing bay of a space station\"\n0\n0\n0\n35\n0\n0\n\"*I am in an air lock\"\n0\n40\n0\n36\n0\n0\n\"main corridor.  The air has the faint scent of\nnerve gas.\"\n0\n39\n0\n0\n0\n0\n\"private library.  The walls are covered with\nempty book shelves\"\n38\n0\n0\n40\n0\n0\n\"control room\"\n37\n0\n39\n0\n0\n0\n\"main corridor\"\n0\n0\n4\n0\n0\n54\n\"ventilating shaft.  I see a light up ahead\"\n0\n0\n0\n0\n0\n0\n\"\"\n0\n0\n47\n44\n14\n0\n\"*I am on a ledge in front of a steep hole.  I can not see\nthe bottom or what is over on the other side\"\n0\n0\n43\n0\n0\n0\n\"storage area\"\n0\n0\n0\n0\n0\n0\n\"storage pen\"\n0\n0\n0\n0\n0\n0\n\" \"\n0\n0\n48\n43\n0\n0\n\"service tunnel\"\n49\n0\n0\n47\n0\n0\n\"twisting corridor\"\n0\n48\n50\n0\n0\n0\n\"locker room\"\n0\n0\n0\n49\n0\n0\n\"combination torture chamber/rec room\"\n0\n0\n0\n52\n0\n0\n\"*I am at the bottom of the ledge\"\n0\n0\n51\n0\n0\n0\n\"generator room\"\n0\n54\n0\n0\n0\n0\n\"*I am on the other ledge\"\n53\n0\n0\n0\n0\n0\n\"furnace room\"\n0\n0\n0\n0\n0\n0\n\"*I'M DEAD!\"\n\"\"\n\"OK\"\n\"It's locked.\"\n\"The gas escapes!!\"\n\"I'm pin cusioned!!  \"\n\"Something is too big.\"\n\"Tinsel teeth growls and says:\n`Machine only for Dr. Yes and private secretary!`\"\n\"*-*-* Z O R C H *-*-*\nYou have reduced this magnificant body to ashes!\"\n\"The guards let me have it!\"\n\"The light turns on.\"\n\"An interesting thought but not my style (sorry).\"\n\"Hey!  This is PG program.\"\n\"I go right through him!\"\n\"Heavy!\"\n\"With brute force I pull it off.\"\n\"To use: PRESS SWITCH\"\n\"*-*-* B O O M *-*-*\n(Of course my hair remains perfectly combed)\"\n\"It slides into the pond and the sharks begin to feast.\"\n\"*-*-* Z A P *-*-*\"\n\"I can't throw that.\"\n\"Boing.  It just bounces off him.\"\n\"It bounces through the portal.\"\n\"Hmm... the pen is empty.\"\n\"--- WELCOME TO SPECTRE HEADQUARTERS ---\nAll visitors must sign in!\"\n\"To launch the rocket the following items must be\n<INSERTED> into the tube:\n   OXYGEN TANK\n   FUEL CELLS\n   BATTERY\n   SPARK PLUG\"\n\"Dear James,\n   I am sorry but I must rejoin SPECTRE.  Defection would\ncost me my pension.  I must now try to replace my heart\nand leave you.\n                Love,\n                Scantily Clad Girl\"\n\"It's a sleezy romance titled MY HEART.\"\n\"Not ready for lift off.\"\n\"*-*-* W O O S H *-*-*\nRocket lifts off and docks with a small\norbitting space station (congratulation!).\"\n\"Thump\"\n\"It slides over the edge and shatters\ninto a million pieces!\"\n\"Nerve gas begins to hiss into the room!\"\n\"Helicopter takes off!\"\n\"Portal closes.\"\n\"A portal open.\"\n\"I see a hall crawling with guards.\"\n\"Prod emits a huge spark!\"\n\"It tickles him.\"\n\"It automatically shuts off (whew!).\"\n\"Guards storm in!!\"\n\"I hear fiendish laughter in the next room.\"\n\"Rocket takes off as I enter the bay!\nI hear more fiendish laughter over a loud speaker.\"\n\"I need both hands.\"\n\"Oh oh, better leave!\"\n\"I'm thrown across the room!\"\n\"I was nice little snack.\"\n\"Crunch.\"\n\"I shine it on the photocells and walk through.\"\n\"WOW!! That was powerful.  It almost tasted like gasoline.\"\n\" \"\n\"SSSSSSS\"\n\"I fall through a trap door!\"\n\"The girl swoons!  She says she sees the error in her\nways and will now join in the fight for truth and justice.\nShe also drops something.\n(When you've got it you've got it!)\"\n\"Bang\"\n\"It's not loaded.\"\n\"BANG. Got him!\nThe rocket takes off on its\nLONG voyage home...\n\"\n\"Shots go right through him?!\"\n\"A perfect shot! I guess he got the point.\"\n\"Be more specific.\"\n\"Welcome to Adventure 13, `James Bond Adventure`\"\n\"The lasers blast me out of the sky.\"\n\"I see nothing special.\"\n\"Hmm... I wonder what she was trying\nto say in that letter.\"\n\"Hmm... now what would I do in this situation.\"\n\"Wee!!\"\n\"Tube is loaded.\"\n\"It's tied to the pipe.\"\n\"\"\n\"\"\n\"\"\n\"\"0\n\"A sign\"3\n\"A large fountain pen/PEN/\"3\n\"A hollow tube/TUB/\"0\n\"A large metal hanger door\"5\n\"A small metal card/CAR/\"0\n\"A vodka martini (shaken not stirred)/DRI/\"19\n\"An empty glass/GLA/\"0\n\"A scantily clad girl\"20\n\"A flashlight/LIG/\"21\n\"A large man with metal teeth\"7\n\"A body/BOD/\"0\n\"A spiked passage lined with a photocell\"11\n\"A poisoned blow dart/DAR/\"12\n\"A westward tunnel\"14\n\"An oxygen tank/OXY/\"16\n\"A small transport rocket\"6\n\"A slip of paper/PAP/\"8\n\"A helicopter\"7\n\"An open hatch\"9\n\"A small firing button\"10\n\"A note/NOT/\"0\n\"A night table\"0\n\"A book/BOO/\"0\n\"Some piping running overhead\"43\n\"Some coiled rope/ROP/\"49\n\"Large fuel cells/FUE/\"53\n\"An open ventilating duct\"0\n\"A heavy metal grill\"0\n\"Two bare live wires\"52\n\"An electrified fence\"44\n\"A large bean bag chair/CUS/\"24\n\"A battery/BAT/\"45\n\"A deflated basket ball/BAL/\"24\n\"A valve\"50\n\"A lever\"25\n\"A radar\"34\n\"A large wheel attached to the wall\"36\n\"A portal\"0\n\"The Fiendish Dr. Yes\"0\n\"A golden gun/GUN/\"38\n\"A large spark plug/SPA/\"42\n\"A slot in the wall\"5\n\"\"0\n\"A cattle prod/CAT/\"50\n\"The entrance to the hanger\"0\n\"A door\"18\n\"\"0\n\"A tunnel\"16\n\"A closed hatch\"0\n\"A book on a night table\"20\n\"Piping with rope tied to it\"0\n\"A rope hanging down from the ledge\"51\n\"Fuel cells tied to a rope\"42\n\"A fence\"0\n\"An inflated basket ball/BAL/\"0\n\"A ventilating duct with a metal grill\"54\n\"An open door hanging ajar\"0\n\"\"0\n\"\"0\n\"\"0\n\"LAUPHTER\"\n\"CHAIR CHECK\"\n\"\"\n\"TROOP STORM\"\n\"OFF WE GO!!\"\n\"DARK CHECK\"\n\"\"\n\"EXIT HELIC\"\n\"PREP. LAND\"\n\"\"\n\"\"\n\"JAWS LEAVES\"\n\"JAWS ATTACKS\"\n\"JAWS KILLS\"\n\"JAWS APPEARS\"\n\"\"\n\"JAWS CHECK\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"ATT JAW\"\n\"\"\n\"SWIM (WADE)\"\n\"\"\n\"\"\n\"\"\n\"PUL\"\n\"PUL\"\n\"\"\n\"OPEN PORT\"\n\"\"\n\"CLOSE PORT\"\n\"TAKE OFF!!\"\n\"PUL\"\n\"FUEL SHTUFF\"\n\"PUL\"\n\"POSS OPTIONAL\"\n\"PULL FOPE\"\n\"\"\n\"PUL\"\n\"\"\n\"CLOSE HATCH\"\n\"\"\n\"PUL\"\n\"READ SIGN\"\n\"\"\n\"\"\n\"READ BOOK\"\n\"\"\n\"THROW BALL\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"ZAP GENERATOR\"\n\"SAFE LAKE\"\n\"BYE BYE RADAR\"\n\"\"\n\"GET INFL BALL\"\n\"\"\n\"GET FUEL\"\n\"\"\n\"GET WIRE\"\n\"ATT YVOL\"\n\"INS OXY\"\n\"GET BOOK\"\n\"DIRTY DIRTY\"\n\"\"\n\"\"\n\"GO HANGER\"\n\"GO PORTAL\"\n\"\"\n\"GO FENCE\"\n\"\"\n\"GO\"\n\"GO DUCT\"\n\"\"\n\"GO ROPE\"\n\"\"\n\"\"\n\"\"\n\"GO HELICOPTER\"\n\"\"\n\"SAVE GAME\"\n\"END\"\n\"GO TUNNEL\"\n\"\"\n\"\"\n\"PIN CUSION\"\n\"\"\n\"\"\n\"\"\n\"CONT\"\n\"HERE GOES\"\n\"SHINE LIGHT\"\n\"\"\n\"GLUG\"\n\"\"\n\"\"\n\"\"\n\"REPLACE BOOK\"\n\"REP\"\n\"KISS\"\n\"HA HA\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"TIES\"\n\"TIE PIPE\"\n\"\"\n\"\"\n\"\"\n\"UNT\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n\"\"\n149\n13\n471\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000";
 if(HAS_DOM) COLS = measureCols();
 newGame(parseDatabase(EMBEDDED));

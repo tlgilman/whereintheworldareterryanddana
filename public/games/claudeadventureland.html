@@ -5,35 +5,54 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MIDNIGHT CARNIVAL</title>
 <style>
-  :root{ --scr:#e8e8e8; --bg:#0a0a0a; }
+  :root{ --scr:#e8e8e8; --bg:#0a0a0a; --apph:100dvh; }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:#111;color:var(--scr);
        font-family:"Courier New",ui-monospace,monospace;
-       display:flex;align-items:center;justify-content:center;padding:16px}
+       display:flex;align-items:center;justify-content:center;padding:16px;
+       -webkit-text-size-adjust:100%;overscroll-behavior:none}
   #case{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:14px;
-        width:min(96vw,880px);height:min(94vh,700px);display:flex;flex-direction:column;
-        box-shadow:0 10px 40px #000}
-  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;
+        width:min(96vw,880px);height:min(94dvh,700px);display:flex;flex-direction:column;
+        min-height:0;box-shadow:0 10px 40px #000}
+  #screen{background:var(--bg);flex:1;display:flex;flex-direction:column;min-height:0;
           padding:12px 14px;overflow:hidden;font-size:16px;line-height:1.28;
           white-space:pre-wrap;word-break:break-word}
-  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:hidden}
-  #bar{height:3px;background:var(--scr);margin:8px 0}
-  #log{flex:1;overflow-y:auto;scrollbar-width:thin}
+  #room{flex:0 0 auto;min-height:5.6em;max-height:11em;overflow:auto}
+  #bar{height:3px;background:var(--scr);margin:8px 0;flex:0 0 auto}
+  #log{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;
+       -webkit-overflow-scrolling:touch}
   #log::-webkit-scrollbar{width:8px}
   #log::-webkit-scrollbar-thumb{background:#444}
   #inline{display:flex}
   #cmd{background:transparent;border:0;outline:0;color:var(--scr);
-       font:inherit;flex:1;padding:0;caret-color:var(--scr)}
-  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+       font:inherit;font-size:16px;flex:1;padding:0;caret-color:var(--scr);
+       min-width:0;border-radius:0}
+  #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;
+          flex:0 0 auto}
   button,label.btn{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
-          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer}
+          font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer;
+          touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   button:hover,label.btn:hover{background:#2c352a}
+  button:active,label.btn:active{background:#3c4a38}
   input[type=file]{display:none}
   .hint{color:#6f7a6c;font-size:11px;margin-left:auto}
-  #mapwrap{display:none;flex:1;overflow:auto;background:var(--bg);padding:6px}
-  #mapwrap.on{display:block}
   #screen.hide{display:none}
+
+  /* ---- touch keypad: hidden until the screen is small or the pointer coarse ---- */
+  #pad{display:none;gap:5px;flex-wrap:wrap;margin-top:8px;flex:0 0 auto}
+  #pad button{flex:1 1 0;min-width:0;padding:11px 4px;font-size:14px;font-weight:bold}
+  #pad .row{display:flex;gap:5px;width:100%}
+  #pad .w{font-weight:normal;font-size:12px}
+
+  /* ---- map ---- */
+  #mapwrap{display:none;flex:1;min-height:0;background:var(--bg);flex-direction:column}
+  #mapwrap.on{display:flex}
+  #mapbar{flex:0 0 auto;display:flex;gap:6px;padding:6px;justify-content:center;
+          align-items:center}
+  #mapbar button{padding:7px 14px;font-size:14px}
+  #mapscroll{flex:1;min-height:0;overflow:auto;padding:6px;
+             -webkit-overflow-scrolling:touch}
   #mapsvg{display:block;margin:0 auto}
   .nd{fill:#141a12;stroke:#3f5c39;stroke-width:1.5}
   .nd.here{fill:#26361f;stroke:#e8e8e8;stroke-width:2.5}
@@ -46,17 +65,80 @@
       paint-order:stroke;stroke:#0a0a0a;stroke-width:4px;stroke-linejoin:round}
   .el.sp{fill:#e8c35a}
   .pz{fill:#e8c35a}
-  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px}
+  .eg.todo{stroke:#2f4a2b;stroke-dasharray:3 3}
+  .el.todo{fill:#54683f}
+  .ah{fill:#3f5c39;stroke:none}
+  .ah.sp{fill:#e8c35a}
+  .tag{fill:#0a0a0a;stroke:#9fd18f;stroke-width:1.5}
+  .tag.sp{stroke:#e8c35a}
+  .tagl{fill:#cfe6c8;font:bold 12px "Courier New",monospace;text-anchor:middle}
+  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px;
+           line-height:1.5;flex:0 0 auto}
   b{font-weight:bold}
+
+  /* ------------------------------------------------------------------
+     Phones. The desktop layout is a 1979 terminal sitting on a desk;
+     on a phone the case chrome is wasted space, so the screen fills the
+     device and the keypad takes over from the keyboard. --apph is kept
+     in step with visualViewport, because on iOS the soft keyboard slides
+     over the layout viewport instead of shrinking it - 100dvh alone
+     leaves the prompt underneath the keys.
+     ------------------------------------------------------------------ */
+  @media (max-width:760px), (pointer:coarse) and (max-width:1024px){
+    body{padding:0;align-items:stretch}
+    #case{width:100%;height:var(--apph);max-height:none;border:0;border-radius:0;
+          padding:5px;box-shadow:none}
+    #screen{padding:8px 9px;line-height:1.3}
+    #room{max-height:42%;min-height:4.2em}
+    #bar{margin:6px 0}
+    #bottom{gap:5px;margin-top:7px}
+    #bottom button,#bottom label.btn{flex:1 1 auto;padding:9px 8px;font-size:13px;
+                                     text-align:center}
+    #pad{display:flex}
+    .hint{display:none}
+    #mapbar button{flex:1 1 auto}
+    .mapfoot{font-size:10px}
+  }
+  /* Landscape phone: almost no height, so shed the keypad and shrink the room
+     pane. Keyed on height alone, not on pointer:coarse - the constraint really
+     is the height, and #pad is display:none by default anyway, so this can
+     only ever take the keypad away from a viewport too short to hold it. */
+  @media (max-height:460px){
+    #pad{display:none}
+    #room{max-height:34%;min-height:2.6em}
+    #bottom button,#bottom label.btn{padding:6px 8px}
+  }
 </style>
 </head>
 <body>
 <div id="case">
-  <div id="mapwrap"><svg id="mapsvg"></svg><div class="mapfoot" id="mapfoot"></div></div>
+  <div id="mapwrap">
+    <div id="mapbar">
+      <button id="zOut" title="zoom out">&minus;</button>
+      <button id="zFit" title="fit to screen">Fit</button>
+      <button id="zIn" title="zoom in">+</button>
+      <button id="zClose">Close map</button>
+    </div>
+    <div id="mapscroll"><svg id="mapsvg"></svg></div>
+    <div class="mapfoot" id="mapfoot"></div>
+  </div>
   <div id="screen">
     <div id="room"></div>
     <div id="bar"></div>
     <div id="log"></div>
+  </div>
+  <div id="pad">
+    <div class="row">
+      <button data-c="NORTH">N</button><button data-c="SOUTH">S</button>
+      <button data-c="EAST">E</button><button data-c="WEST">W</button>
+      <button data-c="UP">U</button><button data-c="DOWN">D</button>
+    </div>
+    <div class="row">
+      <button class="w" data-c="LOOK">LOOK</button>
+      <button class="w" data-c="INVENTORY">INVENT</button>
+      <button class="w" data-c="HELP ME">HELP ME</button>
+      <button class="w" id="bKeys">Keyboard</button>
+    </div>
   </div>
   <div id="bottom">
     <button id="bMap">Map</button>
@@ -65,8 +147,9 @@
     <button id="bLoad">Load</button>
     <button id="bResume" style="display:none">Resume</button>
     <input type="file" id="fRestore" accept=".json,.sav">
-    <label class="btn" for="fGame">Load another database</label><input type="file" id="fGame">
-    <span class="hint">two-word commands &middot; N S E W U D to move</span>
+    <label class="btn" for="fGame">Load another ADVENT/Qn</label><input type="file" id="fGame">
+    <span class="hint">two-word commands &middot; N S E W U D to move
+      &middot; <span id="build" title="engine build — if this is older than you expect, the browser served a cached copy: reload with Ctrl+F5">build ?</span></span>
   </div>
 </div>
 
@@ -100,7 +183,13 @@ function parseDatabase(text){
     const v = parseInt(w,10);
     return isNaN(v) ? {s:w} : {v};
   }
-  const num = ()=>tok().v, str = ()=>tok().s;
+  /* Voodoo Castle and The Count were typed on something with a sticky
+     shift key: they are full of "slAmmed", "grAve", "wAsn't". The byte
+     really is 0x41, so it is in the original data, not the extraction.
+     Only a capital A wedged between two lowercase letters is fixed -
+     a broader rule would wreck legitimate names like TeePee and TimeSwap. */
+  const destick = s => s.replace(/([a-z])A(?=[a-z])/g, '$1a');
+  const num = ()=>tok().v, str = ()=>destick(tok().s);
   const g = {};
   [g.unk,g.nItems,g.nActions,g.nWords,g.nRooms,g.maxCarry,g.startRoom,
    g.treasures,g.wordLen,g.lightTime,g.nMessages,g.treasureRoom] =
@@ -120,7 +209,12 @@ function parseDatabase(text){
   g.messages = Array.from({length:g.nMessages+1}, str);
   g.items=[];
   for(let k=0;k<=g.nItems;k++){
-    const d = str(), loc = num();
+    /* A negative start location means "carried". The original C stored the
+       location in an unsigned char, so -1 wrapped to 255, which is the CARRIED
+       constant. Reproduce that wrap exactly: without it, Claymorgue's six
+       spells, Mystery Fun House's shoes and watch, Secret Mission's bomb
+       detector and the Burglar's flashlight all start in limbo. */
+    const d = str(), loc = num() & 255;
     const cut = d.indexOf('/');
     g.items.push({
       text: cut>=0 ? d.slice(0,cut) : d,
@@ -134,10 +228,47 @@ function parseDatabase(text){
 }
 
 /* ---------- screen ---------- */
-const COLS = 64;
+/* The TRS-80 was 64 columns and the text is wrapped to match. A phone is
+   nowhere near 64 columns wide, and a hard-coded value there means every
+   line overflows and gets chopped mid-word by the CSS. So COLS is measured
+   from the actual rendered character width, capped at 64 so the desktop
+   layout is exactly what it always was, and re-measured when the window
+   resizes or the phone is rotated. Because wrapping is destructive, every
+   line keeps its unwrapped source in a data attribute and the whole
+   backlog is re-wrapped in place. */
+let COLS = 64;
+const HAS_DOM = typeof window !== 'undefined' && !!window.addEventListener;
+const elScreen = document.getElementById('screen');
 const elRoom = document.getElementById('room');
 const elLog  = document.getElementById('log');
-const elCmd  = document.getElementById('cmd');
+
+function measureCols(){
+  if(!elLog || typeof elLog.clientWidth !== 'number') return 64;   /* headless */
+  const avail = elLog.clientWidth;
+  if(!avail) return COLS;
+  const probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit';
+  probe.textContent = 'M'.repeat(40);
+  elScreen.appendChild(probe);
+  const chw = probe.getBoundingClientRect().width / 40;
+  probe.remove();
+  if(!chw) return COLS;
+  return Math.max(28, Math.min(64, Math.floor(avail / chw)));
+}
+function setText(el, raw){
+  if(el.dataset) el.dataset.raw = raw;     /* absent in the headless harnesses */
+  el.textContent = wrap(raw);
+}
+function rewrap(){
+  const c = measureCols();
+  if(c === COLS) return;
+  COLS = c;
+  if(elRoom.dataset && elRoom.dataset.raw !== undefined)
+    elRoom.textContent = wrap(elRoom.dataset.raw);
+  for(const d of Array.from(elLog.children))
+    if(d.dataset && d.dataset.raw !== undefined) d.textContent = wrap(d.dataset.raw);
+  elLog.scrollTop = elLog.scrollHeight;
+}
 
 function wrap(s){
   const out=[];
@@ -159,14 +290,14 @@ function out(s){ pending += s; }
 function flush(){
   if(!pending) return;
   const d=document.createElement('div');
-  d.textContent = wrap(pending.replace(/\n+$/,''));
+  setText(d, pending.replace(/\n+$/,''));
   elLog.appendChild(d);
   pending='';
   elLog.scrollTop = elLog.scrollHeight;
 }
 function echo(s){
   const d=document.createElement('div');
-  d.textContent = s;
+  setText(d, String(s));
   elLog.appendChild(d);
   elLog.scrollTop = elLog.scrollHeight;
 }
@@ -177,8 +308,10 @@ function echo(s){
    labelled at the end you left from - so the letter beside a room is the
    direction you took OUT of that room. */
 const MAPLAYOUT = {"pos": {"1": [6, 9], "2": [6, 8], "3": [6, 7], "4": [5, 6], "5": [7, 7], "6": [8, 8], "7": [8, 7], "8": [9, 7], "9": [9, 6], "10": [4, 8], "11": [4, 7], "12": [3, 8], "13": [2, 7], "14": [2, 9], "15": [6, 6], "16": [6, 5], "17": [6, 4], "18": [6, 3], "19": [7, 3], "20": [7, 2], "21": [8, 4], "22": [7, 4], "23": [4, 6], "24": [1, 9], "25": [4, 10], "26": [12, 9], "27": [11, 8]}, "names": {"1": "CAR PARK", "2": "MAIN AVENUE", "3": "BIG TOP", "4": "BLEACHERS", "5": "CENTRE RING", "6": "COCONUT SHY", "7": "DUCK POND", "8": "HIGH STRIKER", "9": "PRIZE BOOTH", "10": "FLOSS STALL", "11": "ZOLTAN", "12": "MIRRORS I", "13": "MIRRORS II", "14": "MIRRORS III", "15": "GHOST TRAIN", "16": "TUNNEL", "17": "WORKSHOP", "18": "GENERATOR", "19": "FERRIS WHEEL", "20": "TOP CAR", "21": "SKELTER TOP", "22": "SKELTER FOOT", "23": "CARAVAN", "24": "LOST PROPERTY", "25": "STORM DRAIN", "26": "HELL", "27": "LIMBO"}};
-let MP=null, compassMove=false, mapOn=false;
+let MP=null, compassMove=false, mapOn=false, bootAuto=false;
+let mapZoom=1, mapFit=true;
 const elMapWrap=document.getElementById('mapwrap');
+const elMapScroll=document.getElementById('mapscroll');
 const elMapSvg =document.getElementById('mapsvg');
 const elMapFoot=document.getElementById('mapfoot');
 const DIRL='NSEWUD';
@@ -203,7 +336,7 @@ function buildLayout(){
   const names={};
   for(let r=1;r<G.rooms.length;r++){
     let s=G.rooms[r].text.replace(/^\*/,'').replace(/^I am (in|at|on) (a |an |the )?/i,'');
-    names[r]=s.split(/[.,]/)[0].slice(0,16).toUpperCase();
+    names[r]=s.split(/[.,]/)[0].replace(/\n/g,' ').slice(0,60).toUpperCase();
   }
   return {pos, names};
 }
@@ -220,69 +353,214 @@ function drawMap(){
   const pos=MP.pos, nm=MP.names;
   const seen=Object.keys(S.seen).map(Number).filter(r=>pos[r]);
   if(!seen.length){ elMapSvg.innerHTML=''; return; }
-  const SX=150, SY=96, NW=112, NH=34, PAD=44;
+  const seenSet=new Set(seen);
+
+  /* Boxes are big enough for three wrapped lines of room name, and every box
+     has six anchor points so a link leaves by the side it actually goes.
+     N and S sit centre-top and centre-bottom, W and E mid-left and mid-right,
+     U and D get their own stubs near the right-hand corners so they never
+     collide with N and S. */
+  const SX=250, SY=170, NW=176, NH=62, PAD=64, CH=10.5, MAXC=22, MAXL=3;
   let a=1e9,b=1e9,c=-1e9,d=-1e9;
   seen.forEach(r=>{const p=pos[r]; a=Math.min(a,p[0]); c=Math.max(c,p[0]);
                                    b=Math.min(b,p[1]); d=Math.max(d,p[1]);});
   const X=r=>(pos[r][0]-a)*SX+PAD+NW/2, Y=r=>(pos[r][1]-b)*SY+PAD+NH/2;
   const W=(c-a)*SX+NW+PAD*2, H=(d-b)*SY+NH+PAD*2;
+  const OPP=[1,0,3,2,5,4];
   const g=[];
-  const seenSet=new Set(seen);
 
-  /* edges */
-  const pairs={}, loops={};
+  function anchor(r,dir){
+    const cx=X(r), cy=Y(r), hw=NW/2, hh=NH/2;
+    if(dir===0) return [cx,cy-hh];
+    if(dir===1) return [cx,cy+hh];
+    if(dir===2) return [cx+hw,cy];
+    if(dir===3) return [cx-hw,cy];
+    if(dir===4) return [cx+hw-26,cy-hh];
+    if(dir===5) return [cx+hw-26,cy+hh];
+    return [cx+hw-8,cy+hh];               /* non-compass links */
+  }
+  function fitLines(s){
+    const words=String(s).split(/\s+/).filter(Boolean); const out=[]; let line='';
+    for(const w of words){
+      if(!line) line=w;
+      else if((line+' '+w).length<=MAXC) line+=' '+w;
+      else { out.push(line); line=w; if(out.length===MAXL) break; }
+    }
+    if(out.length<MAXL && line) out.push(line);
+    if(out.length===MAXL){
+      const rest=words.join(' ');
+      if(rest.length>out.join(' ').length)
+        out[MAXL-1]=out[MAXL-1].slice(0,MAXC-1).replace(/\s+$/,'')+'…';
+    }
+    return out.slice(0,MAXL);
+  }
+  function arrow(x1,y1,x2,y2,cls){
+    const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L, s=6;
+    const px=-uy, py=ux;
+    g.push(`<path class="ah${cls}" d="M${x2},${y2} L${x2-ux*s+px*s*0.5},${y2-uy*s+py*s*0.5}`
+          +` L${x2-ux*s-px*s*0.5},${y2-uy*s-py*s*0.5} Z"/>`);
+  }
+
+  /* rooms that need an off-page tag, in the order they are first needed */
+  const tag={}; let tagN=0;
+  const tagFor=r=>{ if(!(r in tag)) tag[r]=String.fromCharCode(65+(tagN++)%26)
+                      +(tagN>26?String(Math.floor((tagN-1)/26)):''); return tag[r]; };
+
+  /* A link is drawn as a real line only if that line stays clear of every
+     other box. Distance is the wrong test: two boxes three cells apart with
+     nothing between them are fine, whereas a row of rooms whose last exit
+     loops back to the first would drive a line straight through the middle
+     one. When the line would cross a box, the link becomes an off-page tag
+     instead - the flowchart idiom: leave by an arrow marked (A), continue at
+     the box badged (A). */
+  function segHitsBox(x1,y1,x2,y2,r){
+    const hw=NW/2+10, hh=NH/2+10, cx=X(r), cy=Y(r);
+    let t0=0,t1=1; const dx=x2-x1, dy=y2-y1;
+    const p=[-dx,dx,-dy,dy];
+    const q=[x1-(cx-hw),(cx+hw)-x1,y1-(cy-hh),(cy+hh)-y1];
+    for(let i=0;i<4;i++){
+      if(p[i]===0){ if(q[i]<0) return false; }
+      else{ const tt=q[i]/p[i];
+        if(p[i]<0){ if(tt>t1) return false; if(tt>t0) t0=tt; }
+        else      { if(tt<t0) return false; if(tt<t1) t1=tt; } }
+    }
+    return true;
+  }
+  function clear(f,to,x1,y1,x2,y2){
+    if(Math.hypot(pos[f][0]-pos[to][0],pos[f][1]-pos[to][1])>4) return false;
+    for(const r of seen){ if(r===f||r===to) continue;
+      if(segHitsBox(x1,y1,x2,y2,r)) return false; }
+    return true;
+  }
+
+  /* ---- links the player has actually walked ---- */
+  const links=[];
   for(const k in S.link){
     const [f,to]=k.split('>').map(Number);
-    if(!seenSet.has(f)||!seenSet.has(to)) continue;
-    if(f===to){ loops[f]=S.link[k]; continue; }
-    const key=Math.min(f,to)+'|'+Math.max(f,to);
-    (pairs[key]=pairs[key]||{})[f+'>'+to]=S.link[k];
+    if(!seenSet.has(f)) continue;
+    links.push({f,to,lab:S.link[k]});
   }
-  for(const key in pairs){
-    const [p,qq]=key.split('|').map(Number);
-    const x1=X(p), y1=Y(p), x2=X(qq), y2=Y(qq);
-    const ab=pairs[key][p+'>'+qq], ba=pairs[key][qq+'>'+p];
-    const sp=(ab==='~'||ba==='~');
-    g.push(`<line class="eg${sp?' sp':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
-    const at=(t)=>[x1+(x2-x1)*t, y1+(y2-y1)*t];
-    if(ab){ const [lx,ly]=at(0.26);
-            g.push(`<text class="el${ab==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ab}</text>`); }
-    if(ba){ const [lx,ly]=at(0.74);
-            g.push(`<text class="el${ba==='~'?' sp':''}" x="${lx}" y="${ly+4}">${ba}</text>`); }
+  /* work out the geometry and the direct/tag decision first, so that a room
+     needing a badge already has one by the time its box is drawn */
+  for(const L of links){
+    L.sp  = (L.lab==='~');
+    L.dir = L.sp ? 6 : 'NSEWUD'.indexOf(L.lab[0]);
+    if(L.dir<0) L.dir=6;
+    if(L.f===L.to){ L.kind='loop'; continue; }
+    if(!seenSet.has(L.to)){ L.kind='tag'; tagFor(L.to); continue; }
+    const [x1,y1]=anchor(L.f,L.dir);
+    const [x2,y2]=anchor(L.to,L.dir===6?6:OPP[L.dir]);
+    if(clear(L.f,L.to,x1,y1,x2,y2)){ L.kind='line'; L.pts=[x1,y1,x2,y2]; }
+    else { L.kind='tag'; tagFor(L.to); }
   }
-  /* self loops */
-  for(const r in loops){
-    const x=X(r), y=Y(r)-NH/2;
-    g.push(`<path class="eg" d="M${x-16},${y} C${x-26},${y-34} ${x+26},${y-34} ${x+16},${y}"/>`);
-    g.push(`<text class="el" x="${x}" y="${y-24}">${loops[r]}</text>`);
+
+  for(const L of links){
+    const sp=L.sp, dir=L.dir, cls=sp?' sp':'';
+    if(L.kind==='loop'){
+      /* A room can loop back to itself by several directions at once - the
+         forest in Adventureland eats N, S and W. Give each its own arc on its
+         own side of the box rather than one arc labelled "NSW". */
+      for(const ch of (sp ? ['~'] : L.lab.split(''))){
+        const dd = sp ? 6 : 'NSEWUD'.indexOf(ch);
+        const [x,y]=anchor(L.f, dd<0?6:dd);
+        const ux=(dd===2?1:dd===3?-1:dd===4?0.6:dd===5?0.6:0);
+        const uy=(dd===1||dd===5?1:dd===0||dd===4?-1:0);
+        const px=-uy, py=ux;
+        const ax=x+px*12, ay=y+py*12, bx=x-px*12, by=y-py*12;
+        g.push(`<path class="eg${cls}" d="M${ax},${ay} C${ax+ux*44},${ay+uy*44} `
+              +`${bx+ux*44},${by+uy*44} ${bx},${by}"/>`);
+        arrow(bx+ux*14,by+uy*14,bx,by,cls);
+        g.push(`<text class="el${cls}" x="${x+ux*40}" y="${y+uy*40+4}">${ch}</text>`);
+      }
+      continue;
+    }
+    if(L.kind==='line'){                              /* clear run: draw it */
+      let [x1,y1,x2,y2]=L.pts;
+      const dx=x2-x1, dy=y2-y1, Ln=Math.hypot(dx,dy)||1;
+      const ox=-dy/Ln*4, oy=dx/Ln*4;                   /* offset so a return leg is visible */
+      x1+=ox; y1+=oy; x2+=ox; y2+=oy;
+      g.push(`<line class="eg${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
+      arrow(x1,y1,x2,y2,cls);
+      g.push(`<text class="el${cls}" x="${x1+(x2-x1)*0.22}" y="${y1+(y2-y1)*0.22-5}">${L.lab}</text>`);
+    }else{                                       /* would cross a box: tag it */
+      const [x,y]=anchor(L.f,dir);
+      const ux=(dir===2?1:dir===3?-1:dir===4?0.7:dir===5?0.7:0);
+      const uy=(dir===1||dir===5?1:dir===0||dir===4?-1:0);
+      const ex=x+ux*40, ey=y+uy*40;
+      g.push(`<line class="eg${cls}" x1="${x}" y1="${y}" x2="${ex}" y2="${ey}"/>`);
+      arrow(x,y,ex,ey,cls);
+      g.push(`<text class="el${cls}" x="${x+ux*16}" y="${y+uy*16-4}">${L.lab}</text>`);
+      g.push(`<circle class="tag${cls}" cx="${ex+ux*11}" cy="${ey+uy*11}" r="11"/>`);
+      g.push(`<text class="tagl" x="${ex+ux*11}" y="${ey+uy*11+4}">${tagFor(L.to)}</text>`);
+    }
   }
-  /* nodes */
+
+  /* ---- exits the room advertises but you have not walked yet ---- */
+  seen.forEach(r=>{
+    const ex=G.rooms[r].exits;
+    for(let dir=0;dir<6;dir++){
+      const tgt=ex[dir]; if(!tgt) continue;
+      if(S.link[r+'>'+tgt]) continue;                  /* already walked */
+      const [x,y]=anchor(r,dir);
+      const ux=(dir===2?1:dir===3?-1:dir===4?0.7:dir===5?0.7:0);
+      const uy=(dir===1||dir===5?1:dir===0||dir===4?-1:0);
+      g.push(`<line class="eg todo" x1="${x}" y1="${y}" x2="${x+ux*18}" y2="${y+uy*18}"/>`);
+      g.push(`<text class="el todo" x="${x+ux*28}" y="${y+uy*26+4}">${'NSEWUD'[dir]}</text>`);
+    }
+  });
+
+  /* ---- the boxes ---- */
   seen.forEach(r=>{
     const x=X(r)-NW/2, y=Y(r)-NH/2;
-    const here=(r===S.loc);
-    const goal=(r===G.treasureRoom);
-    g.push(`<rect class="nd${here?' here':''}${goal?' goal':''}" x="${x}" y="${y}" `+
-           `width="${NW}" height="${NH}" rx="4"/>`);
-    const label=(nm[r]||('ROOM '+r));
-    g.push(`<text class="nl${here?' here':''}" x="${X(r)}" y="${Y(r)+4}">${label}</text>`);
+    const here=(r===S.loc), goal=(r===G.treasureRoom);
+    g.push(`<rect class="nd${here?' here':''}${goal?' goal':''}" x="${x}" y="${y}" `
+          +`width="${NW}" height="${NH}" rx="5"/>`);
+    const lines=fitLines(nm[r]||('ROOM '+r));
+    const y0=Y(r)-((lines.length-1)*CH)/2+4;
+    lines.forEach((ln,k)=>{
+      g.push(`<text class="nl${here?' here':''}" x="${X(r)}" y="${y0+k*CH}">`
+            +ln.replace(/&/g,'&amp;').replace(/</g,'&lt;')+`</text>`);
+    });
+    if(r in tag){
+      g.push(`<circle class="tag" cx="${x-13}" cy="${y+13}" r="11"/>`);
+      g.push(`<text class="tagl" x="${x-13}" y="${y+17}">${tag[r]}</text>`);
+    }
     const prizes=G.items.filter((it,k)=>S.itemLoc[k]===r && it.text.startsWith('*')).length;
-    if(prizes) g.push(`<text class="pz" x="${x+NW-7}" y="${y+11}" `+
-                      `style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
+    if(prizes) g.push(`<text class="pz" x="${x+NW-7}" y="${y+13}" `
+                     +`style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
   });
+
+  /* Sizing. The map is drawn at its natural size on a desktop, where there is
+     room to scroll it, but a 2000px SVG on a 390px phone is a postage stamp
+     you can only pan around blind. On a narrow viewport the default is
+     therefore to fit the width, and the +/- buttons scale from there. */
+  const avail   = Math.max(200, (elMapScroll.clientWidth||0) - 14);
+  const natural = Math.min(W, 2200);
+  const narrow  = avail < natural * 0.75;
+  const base    = (mapFit && narrow) ? Math.min(natural, avail) : natural;
+  const px      = Math.max(200, base * mapZoom);
   elMapSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  elMapSvg.setAttribute('width', Math.min(W,1600));
-  elMapSvg.setAttribute('height', Math.min(W,1600)*H/W);
+  elMapSvg.setAttribute('width', px);
+  elMapSvg.setAttribute('height', px*H/W);
   elMapSvg.innerHTML=g.join('');
   const total=G.rooms.length-1;
-  elMapFoot.textContent=`${seen.length} of ${total} places found`+
-    `   |   letters show the way OUT of the room they sit beside`+
-    `   |   * = prize here   |   dashed gold = not a compass move`;
+  const brief = avail < 520;
+  elMapFoot.textContent = brief
+    ? `${seen.length} of ${total} places found`
+      + `  |  a letter by a box is the way OUT of it`
+      + `  |  (A) = continue at the box marked A`
+    : `${seen.length} of ${total} places found`
+      + `   |   a letter by a box is the way OUT of it`
+      + `   |   (A) means "continue at the box marked A"`
+      + `   |   faint stubs are exits you have not walked`
+      + `   |   * = prize here`;
 }
+
 function toggleMap(on){
   mapOn = (on===undefined) ? !mapOn : on;
   elMapWrap.classList.toggle('on', mapOn);
   document.getElementById('screen').classList.toggle('hide', mapOn);
-  if(mapOn) drawMap(); else document.querySelector('#cmd')?.focus();
+  if(mapOn) drawMap(); else if(kbUp) document.querySelector('#cmd')?.focus();
 }
 
 /* ---------- game state ---------- */
@@ -302,17 +580,17 @@ function newGame(db){
     seen: {}, link: {}
   };
   S.seen[S.loc]=1; MP=null; toggleMap(false);
+  /* Let the game initialise itself before the first prompt. Several titles put
+     their whole setup - counters, starting room, welcome text - in a CONT chain
+     hanging off an automatic line. Run it now, or the player's first command
+     gets silently undone by the startup GOTO. */
+  bootAuto = true;
   over=false;
   elLog.innerHTML='';
-  echo('*** MIDNIGHT CARNIVAL ***');
+  echo('* ADVENTURE * Adventure number: '+G.advNum+'   Version: '+(G.version/100).toFixed(1));
+  echo('Copyright Adams 1979.');
   echo('');
-  echo('It is midnight. The carnival should have closed hours ago.');
-  echo('It has not. There are 13 PRIZES loose on the field and one');
-  echo('prize booth to hang them in.');
-  echo('');
-  echo('Two words at a time. Type MAP to see where you have been.');
-  echo('Say HELP if you get stuck.');
-  echo('');
+  if(bootAuto){ bootAuto=false; performActions(0,0); flush(); S.seen[S.loc]=1; }
   look();
   prompt_();
 }
@@ -324,7 +602,7 @@ const isDark  = ()=> (S.bits & (1<<DARKBIT)) &&
 
 /* ---------- room display (top pane) ---------- */
 function look(){
-  if(isDark()){ elRoom.textContent = wrap('Its too dark to see!'); return; }
+  if(isDark()){ setText(elRoom, 'Its too dark to see!'); return; }
   const r = G.rooms[S.loc];
   let t = r.text.startsWith('*') ? r.text.slice(1) : 'I am in a '+r.text;
   let s = t + '. Visible items:\n\n';
@@ -335,7 +613,25 @@ function look(){
   const names=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
   const ex = r.exits.map((v,k)=>v?names[k]:null).filter(Boolean);
   s += '\n     Some obvious exits are: ' + (ex.length?ex.join(' '):'none');
-  elRoom.textContent = wrap(s);
+  setText(elRoom, s);
+}
+
+/* On a touch device the soft keyboard eats half the screen, so it is not
+   raised until the player asks for it - either by tapping the prompt or by
+   tapping Keyboard. Once it is up we keep it up, by refocusing the fresh
+   input each turn. On a desktop the input is always focused, as before. */
+const TOUCH = HAS_DOM && window.matchMedia &&
+              window.matchMedia('(pointer:coarse)').matches;
+let kbUp = !TOUCH;
+
+function submit(txt){
+  const line = document.getElementById('inline');
+  if(!line) return;
+  const inp = line.querySelector('input');
+  if(inp && document.activeElement === inp) kbUp = true;
+  line.remove();
+  echo('  -------> Tell me what to do? ' + txt);
+  handle(txt);
 }
 
 function prompt_(){
@@ -345,17 +641,20 @@ function prompt_(){
   line.innerHTML='<span>  -------&gt; Tell me what to do? </span>';
   const inp=document.createElement('input');
   inp.id='cmd'; inp.autocomplete='off'; inp.spellcheck=false;
+  inp.autocapitalize='characters'; inp.enterKeyHint='go';
   line.appendChild(inp);
   elLog.appendChild(line);
-  inp.focus();
+  if(kbUp) inp.focus();
+  inp.addEventListener('focus', ()=>{ kbUp=true; scrollLog(); });
   elLog.scrollTop = elLog.scrollHeight;
   inp.addEventListener('keydown', e=>{
     if(e.key!=='Enter') return;
-    const txt = inp.value;
-    line.remove();
-    echo('  -------> Tell me what to do? '+txt);
-    handle(txt);
+    submit(inp.value);
   });
+}
+function scrollLog(){
+  elLog.scrollTop = elLog.scrollHeight;
+  if(HAS_DOM) setTimeout(()=>{ elLog.scrollTop = elLog.scrollHeight; }, 120);
 }
 
 /* ---------- vocabulary matching ---------- */
@@ -393,9 +692,15 @@ function performActions(vb, no){
   for(let ct=0; ct<G.actions.length; ct++){
     const A = G.actions[ct];
     const vv = Math.floor(A.vocab/150), nv = A.vocab%150;
+    if(again && A.vocab!==0){
+      /* The chain ends at the first line that is not a continuation.
+         A player command stops there; the automatic pass must carry on
+         scanning, or every timer later in the table stops running. */
+      if(vb!==0) break;
+      again = false;
+    }
     if(again){
-      /* a line ran CONT: keep going through the vocab-0 lines that follow it */
-      if(A.vocab!==0) break;
+      /* inside a CONT chain: run this continuation line, conditions permitting */
     }else if(vb !== 0){
       if(fl===0) break;
       if(vv!==vb) continue;
@@ -443,7 +748,11 @@ function performActions(vb, no){
     /* actions: two ints pack four codes */
     const codes=[Math.floor(A.act[0]/150), A.act[0]%150,
                  Math.floor(A.act[1]/150), A.act[1]%150];
-    let p=0; again=false;
+    /* NB: `again` is deliberately NOT cleared here. Once a line runs CONT the
+       chain continues through ALL following vocab-0 lines, whether or not each
+       of them repeats the CONT. Strange Odyssey's whole startup block - which
+       fills the air tank - hangs off one CONT on line 5. */
+    let p=0;
     for(const c of codes){
       if(c===0) continue;
       if(c>=1 && c<=51){ out(G.messages[c]+'\n'); continue; }
@@ -458,7 +767,7 @@ function performActions(vb, no){
         case 57: S.bits &= ~(1<<DARKBIT); break;
         case 58: S.bits |= (1<<par[p++]); break;
         case 60: S.bits &= ~(1<<par[p++]); break;
-        case 61: out("I am dead.\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
+        case 61: out("I'm DEAD!\n"); S.bits &= ~(1<<DARKBIT); S.loc=G.nRooms; break;
         case 62: { const it=par[p++], rm=par[p++]; S.itemLoc[it]=rm; } break;
         case 63: out("The Adventure is over.\n"); over=true; break;
         case 64: case 76: break;
@@ -491,21 +800,49 @@ function performActions(vb, no){
     if(again) continue;
   }
 
-  /* built-in GET / DROP when no table entry handled it */
-  if(fl!==0){
-    if(vb===10){
-      if(no<0){ out('What ? \n'); return 0; }
-      if(carried()>=G.maxCarry){ out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
-      const it=matchItem(nounText, S.loc);
-      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
-      S.itemLoc[it]=CARRIED; out('OK\n'); return 0;
+  /* Built-in GET / DROP when no table entry handled it.
+     ------------------------------------------------------------------
+     This mirrors ADV/CMD at 7E84-7F71 instruction for instruction, because
+     the failure messages are not interchangeable and players notice. The
+     original does NOT collapse every failure into "beyond my power": it
+     scans every item whose auto-get word matches the typed noun, remembers
+     why each one failed, and reports the last reason:
+
+         1  I'm not carrying it!      DROP something you haven't got
+         2  I don't see it here.      GET something that exists elsewhere
+         4  I already have it.        GET something already carried
+         0  Its beyond my power...    no item anywhere has that word
+
+     Scanning them all matters when a word is shared - Strange Odyssey has
+     two Phasers, Secret Mission two Flasks - because a later copy may be
+     takeable when an earlier one is not. And note "Its", not "It is": the
+     original is punctuated that way, like "Its too dark to see!".         */
+  if(fl!==0 && (vb===10 || vb===18)){
+    if(no<0){ out('HUH?\n'); return 0; }          /* GET/DROP with no noun */
+    if(vb===10 && carried()>=G.maxCarry){
+      out("I'm carrying too much. Try: TAKE INVENTORY\n"); return 0; }
+    const raw = String(nounText).toUpperCase();
+    const L = Math.min(raw.length, G.wordLen);
+    const w = raw.slice(0, L);
+    let err = 0;
+    for(let k=0;k<G.items.length;k++){
+      const it = G.items[k];
+      if(!it.word || it.word.toUpperCase().slice(0,L) !== w) continue;
+      const loc = S.itemLoc[k];
+      if(vb===10){
+        if(loc===CARRIED){ err=4; continue; }
+        if(loc!==S.loc){ err=2; continue; }
+        S.itemLoc[k]=CARRIED; out('OK\n'); return 0;
+      }else{
+        if(loc!==CARRIED){ err=1; continue; }
+        S.itemLoc[k]=S.loc; out('OK\n'); return 0;
+      }
     }
-    if(vb===18){
-      if(no<0){ out('What ? \n'); return 0; }
-      const it=matchItem(nounText, CARRIED);
-      if(it<0){ out('It is beyond my power to do that.\n'); return 0; }
-      S.itemLoc[it]=S.loc; out('OK\n'); return 0;
-    }
+    out(err===1 ? "I'm not carrying it!\n" :
+        err===2 ? "I don't see it here.\n" :
+        err===4 ? 'I already have it.\n'  :
+                  'Its beyond my power to do that.\n');
+    return 0;
   }
   return fl;
 }
@@ -514,13 +851,9 @@ function doScore(){
   let n=0;
   G.items.forEach((it,k)=>{ if(it.text.startsWith('*') && S.itemLoc[k]===G.treasureRoom) n++; });
   if(G.treasures>0){
-    out('I have hung '+n+' PRIZES on the hooks.  On a scale of 0 to 100 '+
-        'that rates: '+Math.floor(n*100/G.treasures)+'\n');
-    if(n===G.treasures){
-      out('The prize hooks fill, the bunting straightens, and every light in the '+
-          'carnival comes on at once. Somewhere the clown is applauding.\n'+
-          'YOU HAVE WON THE MIDNIGHT CARNIVAL.\n');
-      over=true; }
+    out('I stored '+n+' TREASURES.  On a scale of 0 to 100 that rates: '+
+        Math.floor(n*100/G.treasures)+'\n');
+    if(n===G.treasures){ out("FANTASTIC! You've solved it ALL!\n"); over=true; }   /* 83B5 */
   }else{
     /* several of these games are not treasure hunts - they finish on an
        action instead, so there is no percentage to report */
@@ -533,11 +866,226 @@ function doInventory(){
   out((l.length?l.join('. ')+'.':'Nothing At All')+'\n');
 }
 
+/* ---------- HELP ME : hints derived from the action table ----------
+   No hand-written hints. The engine already knows every rule of the game, so
+   the hint system asks it questions:
+
+     which lines would fire right now?          -> "something here responds to X"
+     which lines fail by exactly one condition? -> "you would need the crowbar"
+     which exits have I never walked?           -> "you have not gone west yet"
+
+   Typing HELP ME again in the same room escalates: nudge, then what you are
+   missing, then the actual command. Moving resets it.
+
+   The condition test below duplicates the one in performActions on purpose -
+   help must never be able to change game state. Keep the two in step.       */
+
+const HELP_STATEFUL = new Set([52,53,54,55,58,59,60,61,62,63,69,72,74,75,79,80,81,82,83,87]);
+const HELP_SKIPVERB = new Set(['SCO','INV','QUI','HEL','LOO','SAV','SAY','REA','EXA']);
+
+function helpCondFails(A){
+  const fails=[];
+  for(const c of A.cond){
+    const op=c%20, dv=Math.floor(c/20);
+    if(op===0) continue;
+    let ok=true;
+    switch(op){
+      case 1:  ok = S.itemLoc[dv]===CARRIED; break;
+      case 2:  ok = S.itemLoc[dv]===S.loc; break;
+      case 3:  ok = S.itemLoc[dv]===CARRIED||S.itemLoc[dv]===S.loc; break;
+      case 4:  ok = S.loc===dv; break;
+      case 5:  ok = S.itemLoc[dv]!==S.loc; break;
+      case 6:  ok = S.itemLoc[dv]!==CARRIED; break;
+      case 7:  ok = S.loc!==dv; break;
+      case 8:  ok = !!(S.bits&(1<<dv)); break;
+      case 9:  ok = !(S.bits&(1<<dv)); break;
+      case 10: ok = carried()>0; break;
+      case 11: ok = carried()===0; break;
+      case 12: ok = !(S.itemLoc[dv]===CARRIED||S.itemLoc[dv]===S.loc); break;
+      case 13: ok = S.itemLoc[dv]!==0; break;
+      case 14: ok = S.itemLoc[dv]===0; break;
+      case 15: ok = S.counter<=dv; break;
+      case 16: ok = S.counter>dv; break;
+      case 17: ok = S.itemLoc[dv]===G.items[dv].initLoc; break;
+      case 18: ok = S.itemLoc[dv]!==G.items[dv].initLoc; break;
+      case 19: ok = S.counter===dv; break;
+    }
+    if(!ok) fails.push([op,dv]);
+  }
+  return fails;
+}
+function helpDoes(A){
+  const codes=[Math.floor(A.act[0]/150),A.act[0]%150,
+               Math.floor(A.act[1]/150),A.act[1]%150];
+  return codes.some(c=>HELP_STATEFUL.has(c));
+}
+function helpItemName(i){
+  const it=G.items[i];
+  if(!it) return 'something';
+  const t=it.text.replace(/^\*/,'').replace(/\*$/,'').trim();
+  return t ? (t.length>34?t.slice(0,33)+'…':t) : 'something';
+}
+function helpRoomName(r){
+  if(!S.seen[r]) return null;
+  const t=G.rooms[r].text.replace(/^\*/,'').replace(/^I am (in|at|on) (a |an |the )?/i,'')
+          .replace(/\n/g,' ').split(/[.,]/)[0].trim();
+  return t.length>34?t.slice(0,33)+'…':t;
+}
+function helpCmdOf(A){
+  const vb=Math.floor(A.vocab/150), nn=A.vocab%150;
+  const v=(G.verbs[vb]||'').replace(/^\*/,'');
+  const n=nn?(G.nouns[nn]||'').replace(/^\*/,''):'';
+  return {v,n,txt:(v+(n?' '+n:'')).toUpperCase()};
+}
+function helpNeed(op,dv){
+  switch(op){
+    case 1:  return 'you were carrying the '+helpItemName(dv);
+    case 2:  return 'the '+helpItemName(dv)+' were here';
+    case 3:  return 'the '+helpItemName(dv)+' were here or in your hands';
+    case 4:  { const r=helpRoomName(dv); return r?('you were at the '+r):'you were somewhere else'; }
+    case 5:  return 'the '+helpItemName(dv)+' were not here';
+    case 6:  return 'you were not carrying the '+helpItemName(dv);
+    case 7:  return 'you were somewhere else';
+    case 8:  return 'something else had happened first';
+    case 9:  return 'something else had not happened yet';
+    case 10: return 'you were carrying anything at all';
+    case 11: return 'your hands were empty';
+    case 12: return 'the '+helpItemName(dv)+' were out of reach';
+    case 13: return 'the '+helpItemName(dv)+' existed yet';
+    case 14: return 'the '+helpItemName(dv)+' were gone';
+    case 15: case 16: case 19: return 'the timing were different';
+    case 17: return 'the '+helpItemName(dv)+' were back where it started';
+    case 18: return 'the '+helpItemName(dv)+' had been moved';
+  }
+  return 'something were different';
+}
+
+function helpMe(){
+  if(over){ echo('The game is over. Restart to play again.'); return; }
+  if(!S.help || S.help.at!==S.loc) S.help={at:S.loc, level:1};
+  else S.help.level=Math.min(3,S.help.level+1);
+  const lvl=S.help.level;
+  const say=t=>echo(wrap(t));
+
+  if(isDark()){
+    say('It is too dark to make anything out. Find a light and turn it on.');
+    return;
+  }
+
+  /* what would fire right now, and what is one step away */
+  const now=[], near=[];
+  for(const A of G.actions){
+    /* skip every automatic line, not just the continuations: an auto with a
+       percentage has vocab = 0*150 + pct, which is not zero */
+    if(Math.floor(A.vocab/150)===0) continue;
+    if(!helpDoes(A)) continue;
+    const c=helpCmdOf(A);
+    if(HELP_SKIPVERB.has(c.v.toUpperCase().slice(0,3))) continue;
+    if((c.v==='GET'||c.v==='DRO') && !A.vocab%150) continue;
+    const f=helpCondFails(A);
+    /* Is this line about HERE? Either it names this room, or it needs an
+       object that is in this room. Without that test, "you would need the
+       crowbar" surfaces at every location in the game, because lighting a
+       torch has no room condition and so is always one step away. */
+    let anchored=false;
+    for(const cc of A.cond){
+      const o=cc%20, v=Math.floor(cc/20);
+      if(o===4 && v===S.loc) anchored=true;
+      if((o===2||o===3) && S.itemLoc[v]===S.loc) anchored=true;
+    }
+    if(f.length===0){ now.push(c); continue; }
+    if(f.length!==1) continue;
+    const [op,dv]=f[0];
+    if(op===4||op===7) continue;   /* "if you were somewhere else" is not a clue */
+    near.push({c, need:helpNeed(op,dv), anchored});
+  }
+  const uniq=(arr,k)=>{const s=new Set(),o=[];for(const x of arr){const v=k(x);
+    if(!s.has(v)){s.add(v);o.push(x);}}return o;};
+  const nowU =uniq(now, x=>x.txt).slice(0,4);
+  const anchoredNear = near.filter(x=>x.anchored);
+  const nearU=uniq(anchoredNear.length?anchoredNear:near, x=>x.need).slice(0,3);
+
+  /* progress */
+  if(G.treasures>0){
+    const n=G.items.filter((it,k)=>it.text.startsWith('*')&&S.itemLoc[k]===G.treasureRoom).length;
+    const held=G.items.filter((it,k)=>it.text.startsWith('*')&&S.itemLoc[k]===CARRIED).length;
+    const where=helpRoomName(G.treasureRoom);
+    say(`You have stored ${n} of ${G.treasures}.`
+        + (held?` You are carrying ${held} more.`:'')
+        + (where?` They go in the ${where}.`:''));
+  }
+
+  /* Unwalked exits, nearest first: the room you are in, then anywhere seen.
+     An exit that leads back to the room you are standing in is not somewhere
+     to go, and must never be offered as one - Strange Odyssey's methane storm
+     room has all four compass exits pointing at itself, so it advertises
+     NORTH SOUTH EAST WEST and every one of them is a lie. Saying "you have not
+     yet tried NORTH" there sends the player round a maze that has no walking
+     exit at all; the way out is a verb. */
+  const LONG=['NORTH','SOUTH','EAST','WEST','UP','DOWN'];
+  const hereTodo=[], hereLoop=[]; let hereReal=0;
+  for(let d=0;d<6;d++){
+    const t=G.rooms[S.loc].exits[d];
+    if(!t) continue;
+    if(t===S.loc){ hereLoop.push(LONG[d]); continue; }
+    hereReal++;
+    if(!S.link[S.loc+'>'+t]) hereTodo.push(LONG[d]);
+  }
+  const elseTodo=[];
+  for(const r of Object.keys(S.seen).map(Number)){
+    if(r===S.loc) continue;
+    for(let d=0;d<6;d++){
+      const t=G.rooms[r].exits[d];
+      if(t && t!==r && !S.link[r+'>'+t]){ const nmr=helpRoomName(r);
+        if(nmr) elseTodo.push(['N','S','E','W','UP','DOWN'][d]+' from the '+nmr); }
+    }
+  }
+  if(hereTodo.length) say('From here you have not yet tried: '+hereTodo.join(', ')+'.');
+  else if(!hereReal && hereLoop.length)
+    say('Every direction here leads straight back to this room. Walking will '
+       +'not get you out - look for something to do instead.');
+  else if(hereLoop.length && !hereTodo.length)
+    say('These lead back to this room: '+hereLoop.join(', ')+'.');
+  else if(elseTodo.length) say('Still unexplored: '+uniq(elseTodo,x=>x).slice(0,3).join('; ')+'.');
+
+  /* graduated nudges */
+  if(lvl===1){
+    if(nowU.length) say(`Something here will respond to ${nowU.length} thing`
+        + (nowU.length>1?'s':'') + ' you have not tried. Ask again for a clue.');
+    else if(nearU.length) say('Nothing here works yet. Ask again to hear what is missing.');
+    else say('Nothing here reacts. Try somewhere else, or look at what you carry.');
+    return;
+  }
+  if(lvl===2){
+    if(nowU.length){
+      say('There is something here that works. Ask once more for the words.');
+      return;
+    }
+    if(nearU.length){
+      say('Close, but not yet:');
+      nearU.forEach(x=>echo(wrap('   - something would work here if '+x.need+'.')));
+    }else say('Nothing here is close. The answer is elsewhere.');
+    return;
+  }
+  if(nowU.length){
+    say('Try:');
+    nowU.forEach(x=>{
+      const item=G.items.find(it=>it.word&&it.word.toUpperCase().slice(0,3)===x.n.slice(0,3));
+      echo(wrap('   '+x.txt+(item?'      ('+helpItemName(G.items.indexOf(item))+')':'')));
+    });
+  }else if(nearU.length){
+    say('Nothing here works yet. It would work if '+nearU[0].need+'.');
+  }else{
+    say('There is nothing to do here. Go somewhere else.');
+  }
+}
+
 /* ---------- turn ---------- */
 function handle(line){
   if(over){ prompt_(); return; }
   const words = line.trim().split(/\s+/).filter(Boolean);
   if(words.length===1 && /^MAP$/i.test(words[0])){ toggleMap(); prompt_(); return; }
+  if(/^(HELP\s+ME|HINT)$/i.test(line.trim())){ helpMe(); prompt_(); return; }
   const startLoc = S.loc; compassMove=false;
   if(!words.length){ flush(); prompt_(); return; }
   if(words.length>2){ echo('Use no more than 2 words'); prompt_(); return; }
@@ -558,13 +1106,13 @@ function handle(line){
   /* movement is hard-wired, exactly as in the original */
   if(vb===1 && no>=1 && no<=6){
     const dark = isDark();
-    if(dark) out('Dangerous to move in the dark!\n');
+    if(dark) out('Its dangerous to move in the dark!\n');
     const nl = G.rooms[S.loc].exits[no-1];
     if(nl){ recordEdge(S.loc, no-1, nl); S.loc = nl; }
-    else if(dark){ out('I fell down and broke my neck.\n'); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
-    else out("I can't go in that direction\n");
+    else if(dark){ out("I fell & broke my neck! I'm DEAD!\n"); S.loc=G.nRooms; S.bits&=~(1<<DARKBIT); }
+    else out("I can't go in THAT direction\n");
   }else if(vb===1 && no<0){
-    out('Give me a direction too.\n');
+    out('I need a direction too\n');
   }else{
     const r = performActions(vb, no);
     if(r===-1) out("I must be stupid, but I just don't understand what you mean.\n");
@@ -587,6 +1135,7 @@ function handle(line){
     }
   }
 
+  if(S.loc!==startLoc) { if(S.help) S.help=null; }
   if(S.loc!==startLoc && !compassMove) recordSpecial(startLoc, S.loc);
   S.seen[S.loc]=1;
   autosave();
@@ -671,10 +1220,78 @@ document.getElementById('fGame').onchange = e=>{
   r.readAsText(f,'ISO-8859-1');
 };
 
+/* ---------- touch and small screens ---------- */
+/* The keypad submits through the same path a typed line takes, so nothing
+   downstream can tell the difference. pointerdown is preventDefaulted so
+   tapping a key never blurs the text input: if the keyboard is already up
+   it stays up, and if it is not, it does not spring open. */
+if(HAS_DOM){
+  const pad = document.getElementById('pad');
+  pad.addEventListener('pointerdown', e=>{
+    const b = e.target.closest('button[data-c]');
+    if(!b) return;
+    e.preventDefault();
+    if(mapOn) toggleMap(false);
+    submit(b.dataset.c);
+  });
+  document.getElementById('bKeys').addEventListener('click', ()=>{
+    if(mapOn) toggleMap(false);
+    const inp = document.querySelector('#cmd');
+    if(!inp) return;
+    if(document.activeElement === inp){ inp.blur(); kbUp = false; }
+    else { kbUp = true; inp.focus(); }
+  });
+
+  /* iOS slides the keyboard over the layout viewport rather than shrinking
+     it, so 100dvh alone leaves the prompt hidden underneath the keys. Track
+     the visual viewport and drive the case height from it. */
+  const vv = window.visualViewport;
+  const fitHeight = ()=>{
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty('--apph', h + 'px');
+    scrollLog();
+  };
+  if(vv){ vv.addEventListener('resize', fitHeight); vv.addEventListener('scroll', fitHeight); }
+  window.addEventListener('resize', ()=>{ fitHeight(); rewrap(); if(mapOn) drawMap(); });
+  window.addEventListener('orientationchange', ()=>
+    setTimeout(()=>{ fitHeight(); rewrap(); if(mapOn) drawMap(); }, 250));
+  fitHeight();
+
+  /* tapping anywhere on the transcript puts the caret back in the prompt */
+  elLog.addEventListener('click', e=>{
+    if(e.target.tagName === 'INPUT') return;
+    if(window.getSelection && String(window.getSelection())) return;   /* copying */
+    if(kbUp) document.querySelector('#cmd')?.focus();
+  });
+
+  /* map zoom */
+  document.getElementById('zIn').onclick    = ()=>{ mapZoom=Math.min(4, mapZoom*1.35); drawMap(); };
+  document.getElementById('zOut').onclick   = ()=>{ mapZoom=Math.max(0.3, mapZoom/1.35); drawMap(); };
+  document.getElementById('zFit').onclick   = ()=>{ mapZoom=1; mapFit=true; drawMap(); };
+  document.getElementById('zClose').onclick = ()=>toggleMap(false);
+}
+
 /* ---------- boot ---------- */
+/* Measure before the first word is printed. rewrap() only fires on a resize,
+   and a phone that is simply opened never resizes - so without this the
+   opening screen, which is the one thing every player sees, would stay
+   wrapped for a 64-column terminal on a 37-column phone. */
+/* Stamped by tools/rebuild.py. Shown under the screen, outside the emulated
+   terminal so it cannot pollute a side-by-side comparison with the original.
+   Its only job is to answer "am I actually running the build I just made?" —
+   a file:// page reopened in the same browser will happily serve a cached
+   copy, which looks exactly like a fix that did not work. */
+const BUILD = "2026-09-21.7851b7";
+if(HAS_DOM){
+  const b = document.getElementById('build');
+  if(b) b.textContent = 'build ' + BUILD;
+}
+
 const EMBEDDED = " 4242 \n 52 \n 87 \n 78 \n 27 \n 7 \n 1 \n 13 \n 3 \n 90 \n 65 \n 9 \n 10950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9750 \n 0 \n 11100 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9900 \n 0 \n 11700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 17163 \n 0 \n 159 \n 24 \n 28 \n 40 \n 0 \n 0 \n 8100 \n 0 \n 4209 \n 24 \n 101 \n 100 \n 20 \n 40 \n 8308 \n 354 \n 159 \n 24 \n 101 \n 100 \n 20 \n 40 \n 8308 \n 354 \n 3157 \n 24 \n 101 \n 100 \n 20 \n 40 \n 8308 \n 354 \n 4209 \n 24 \n 0 \n 0 \n 0 \n 0 \n 450 \n 0 \n 159 \n 24 \n 0 \n 0 \n 0 \n 0 \n 450 \n 0 \n 8711 \n 123 \n 0 \n 0 \n 0 \n 0 \n 600 \n 0 \n 8713 \n 63 \n 0 \n 0 \n 0 \n 0 \n 750 \n 0 \n 8720 \n 741 \n 0 \n 0 \n 0 \n 0 \n 1800 \n 0 \n 8747 \n 783 \n 0 \n 0 \n 0 \n 0 \n 7650 \n 0 \n 8775 \n 1023 \n 0 \n 0 \n 0 \n 0 \n 7500 \n 0 \n 8700 \n 0 \n 0 \n 0 \n 0 \n 0 \n 9600 \n 0 \n 1515 \n 204 \n 694 \n 680 \n 0 \n 0 \n 7806 \n 0 \n 1515 \n 694 \n 0 \n 0 \n 0 \n 0 \n 1050 \n 0 \n 3165 \n 44 \n 681 \n 680 \n 700 \n 0 \n 8302 \n 1200 \n 3165 \n 44 \n 0 \n 0 \n 0 \n 0 \n 1350 \n 0 \n 1517 \n 44 \n 714 \n 0 \n 0 \n 0 \n 1350 \n 0 \n 4218 \n 224 \n 701 \n 700 \n 740 \n 0 \n 8302 \n 1650 \n 3167 \n 224 \n 701 \n 700 \n 740 \n 0 \n 8302 \n 1650 \n 4218 \n 224 \n 0 \n 0 \n 0 \n 0 \n 1500 \n 0 \n 3172 \n 221 \n 203 \n 220 \n 200 \n 240 \n 8305 \n 7813 \n 3172 \n 221 \n 0 \n 0 \n 0 \n 0 \n 2100 \n 0 \n 3174 \n 221 \n 203 \n 220 \n 200 \n 240 \n 8305 \n 7813 \n 3624 \n 241 \n 240 \n 180 \n 0 \n 0 \n 10815 \n 0 \n 3624 \n 201 \n 0 \n 0 \n 0 \n 0 \n 2550 \n 0 \n 3924 \n 181 \n 180 \n 240 \n 0 \n 0 \n 10816 \n 0 \n 100 \n 324 \n 0 \n 0 \n 0 \n 0 \n 8400 \n 0 \n 100 \n 344 \n 0 \n 0 \n 0 \n 0 \n 8400 \n 0 \n 100 \n 327 \n 347 \n 0 \n 0 \n 0 \n 8550 \n 0 \n 35 \n 324 \n 192 \n 0 \n 0 \n 0 \n 7261 \n 0 \n 7380 \n 381 \n 48 \n 0 \n 0 \n 0 \n 16950 \n 0 \n 7380 \n 381 \n 40 \n 420 \n 440 \n 0 \n 8772 \n 16800 \n 1534 \n 144 \n 49 \n 0 \n 0 \n 0 \n 2700 \n 0 \n 1534 \n 144 \n 346 \n 0 \n 0 \n 0 \n 3150 \n 0 \n 1534 \n 144 \n 341 \n 474 \n 460 \n 0 \n 7820 \n 0 \n 20 \n 442 \n 0 \n 0 \n 0 \n 0 \n 2850 \n 0 \n 4536 \n 541 \n 502 \n 534 \n 520 \n 0 \n 7823 \n 0 \n 4536 \n 502 \n 0 \n 0 \n 0 \n 0 \n 3600 \n 0 \n 1536 \n 502 \n 534 \n 0 \n 0 \n 0 \n 3300 \n 0 \n 4836 \n 502 \n 0 \n 0 \n 0 \n 0 \n 3600 \n 0 \n 4845 \n 601 \n 622 \n 620 \n 640 \n 0 \n 8302 \n 3750 \n 4845 \n 622 \n 0 \n 0 \n 0 \n 0 \n 3900 \n 0 \n 4846 \n 601 \n 622 \n 620 \n 640 \n 0 \n 8302 \n 3750 \n 4846 \n 622 \n 0 \n 0 \n 0 \n 0 \n 3900 \n 0 \n 5465 \n 364 \n 261 \n 260 \n 60 \n 0 \n 8308 \n 4050 \n 5465 \n 364 \n 0 \n 0 \n 0 \n 0 \n 4350 \n 0 \n 5467 \n 364 \n 261 \n 260 \n 60 \n 0 \n 8308 \n 4050 \n 5467 \n 364 \n 0 \n 0 \n 0 \n 0 \n 4350 \n 0 \n 5769 \n 364 \n 88 \n 0 \n 0 \n 0 \n 4650 \n 0 \n 5769 \n 364 \n 68 \n 80 \n 280 \n 300 \n 8772 \n 4200 \n 5769 \n 364 \n 0 \n 0 \n 0 \n 0 \n 4500 \n 0 \n 5767 \n 364 \n 88 \n 0 \n 0 \n 0 \n 4650 \n 0 \n 5767 \n 364 \n 68 \n 80 \n 280 \n 300 \n 8772 \n 4200 \n 5767 \n 364 \n 0 \n 0 \n 0 \n 0 \n 4500 \n 0 \n 6504 \n 384 \n 88 \n 901 \n 0 \n 0 \n 5161 \n 0 \n 6504 \n 384 \n 88 \n 400 \n 0 \n 0 \n 5004 \n 0 \n 6504 \n 384 \n 0 \n 0 \n 0 \n 0 \n 4800 \n 0 \n 220 \n 444 \n 420 \n 0 \n 0 \n 0 \n 8100 \n 0 \n 6750 \n 424 \n 321 \n 40 \n 0 \n 0 \n 5304 \n 0 \n 6750 \n 424 \n 0 \n 0 \n 0 \n 0 \n 5461 \n 0 \n 7108 \n 104 \n 108 \n 0 \n 0 \n 0 \n 5700 \n 0 \n 7108 \n 104 \n 88 \n 100 \n 20 \n 0 \n 8755 \n 5739 \n 7108 \n 104 \n 0 \n 0 \n 0 \n 0 \n 5550 \n 0 \n 1562 \n 2 \n 109 \n 0 \n 0 \n 0 \n 6000 \n 0 \n 1562 \n 2 \n 108 \n 0 \n 0 \n 0 \n 7800 \n 0 \n 7726 \n 180 \n 0 \n 0 \n 0 \n 0 \n 6204 \n 0 \n 7727 \n 108 \n 40 \n 0 \n 0 \n 0 \n 6354 \n 0 \n 7727 \n 0 \n 0 \n 0 \n 0 \n 0 \n 6450 \n 0 \n 8414 \n 44 \n 500 \n 0 \n 0 \n 0 \n 6654 \n 0 \n 8472 \n 44 \n 500 \n 0 \n 0 \n 0 \n 6654 \n 0 \n 222 \n 44 \n 500 \n 0 \n 0 \n 0 \n 6654 \n 0 \n 7950 \n 504 \n 40 \n 0 \n 0 \n 0 \n 6804 \n 0 \n 7950 \n 0 \n 0 \n 0 \n 0 \n 0 \n 6900 \n 0 \n 9482 \n 401 \n 0 \n 0 \n 0 \n 0 \n 7111 \n 0 \n 9750 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15300 \n 0 \n 10050 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15450 \n 0 \n 10350 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15600 \n 0 \n 10650 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15750 \n 0 \n 900 \n 0 \n 0 \n 0 \n 0 \n 0 \n 15900 \n 0 \n 1200 \n 0 \n 0 \n 0 \n 0 \n 0 \n 16050 \n 0 \n 4 \n 507 \n 0 \n 0 \n 0 \n 0 \n 7350 \n 0 \n 11400 \n 224 \n 0 \n 0 \n 0 \n 0 \n 16309 \n 0 \n 11400 \n 244 \n 0 \n 0 \n 0 \n 0 \n 16310 \n 0 \n 11400 \n 144 \n 0 \n 0 \n 0 \n 0 \n 16311 \n 0 \n 11400 \n 0 \n 0 \n 0 \n 0 \n 0 \n 16200 \n 0 \n\"AUT\"\n\"ANY\"\n\"GO\"\n\"NOR\"\n\"*ENT\"\n\"SOU\"\n\"*WAL\"\n\"EAS\"\n\"*RUN\"\n\"WES\"\n\"*CLI\"\n\"UP\"\n\"JUM\"\n\"DOW\"\n\"*HOP\"\n\"TOK\"\n\"SWI\"\n\"*COI\"\n\"*DIV\"\n\"TUR\"\n\"GET\"\n\"*GAT\"\n\"*TAK\"\n\"POS\"\n\"*PIC\"\n\"*BIL\"\n\"*HOO\"\n\"SIG\"\n\"*CAT\"\n\"GRA\"\n\"*COL\"\n\"FLO\"\n\"*FET\"\n\"*SUG\"\n\"*SEI\"\n\"BUT\"\n\"DRO\"\n\"ZOL\"\n\"*LEA\"\n\"*MAC\"\n\"*REL\"\n\"CAR\"\n\"PUT\"\n\"*FOR\"\n\"*FIT\"\n\"BAT\"\n\"*INS\"\n\"*CEL\"\n\"LIG\"\n\"TOR\"\n\"*IGN\"\n\"*FLA\"\n\"UNL\"\n\"MAT\"\n\"*EXT\"\n\"*RUG\"\n\"PAY\"\n\"ROD\"\n\"*USE\"\n\"MUG\"\n\"PRY\"\n\"NOS\"\n\"*LEV\"\n\"*RED\"\n\"HIT\"\n\"EGG\"\n\"*SMA\"\n\"*JAR\"\n\"*BAS\"\n\"DUC\"\n\"*RIN\"\n\"GOO\"\n\"POU\"\n\"COC\"\n\"*FIL\"\n\"*NUT\"\n\"PUL\"\n\"CRO\"\n\"*YAN\"\n\"*BAR\"\n\"*STA\"\n\"PEN\"\n\"*TUR\"\n\"FIS\"\n\"*CRA\"\n\"*BAG\"\n\"RID\"\n\"HAM\"\n\"*BOA\"\n\"*MAL\"\n\"SLI\"\n\"STR\"\n\"*SLE\"\n\"BEL\"\n\"PLA\"\n\"MIR\"\n\"*BLO\"\n\"*GLA\"\n\"WEA\"\n\"TIA\"\n\"*DON\"\n\"UNI\"\n\"SAY\"\n\"*HOR\"\n\"*SPE\"\n\"GLO\"\n\"SHO\"\n\"*SNO\"\n\"*YEL\"\n\"WHE\"\n\"*SCR\"\n\"*FER\"\n\"OPE\"\n\"ROS\"\n\"*LIF\"\n\"BAL\"\n\"LOO\"\n\"ORG\"\n\"*L\"\n\"*CAL\"\n\"*EXA\"\n\"TRO\"\n\"*REA\"\n\"*CUP\"\n\"*STU\"\n\"TED\"\n\"EAT\"\n\"*BEA\"\n\"*DRI\"\n\"CLO\"\n\"DAN\"\n\"DIE\"\n\"*BOO\"\n\"*FUE\"\n\"SIN\"\n\"GEN\"\n\"*WHI\"\n\"*MOT\"\n\"SME\"\n\"COR\"\n\"*SNI\"\n\"STA\"\n\"KIS\"\n\"*STE\"\n\"*HUG\"\n\"DRA\"\n\"SCO\"\n\"PRI\"\n\"INV\"\n\"*TRE\"\n\"*I\"\n\"SAW\"\n\"HEL\"\n\"FLU\"\n\"*HIN\"\n\"BUM\"\n\"QUI\"\n\"*Z78\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*nowhere at all\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I am in a muddy car park. A rusty turnstile is the only way in, and somewhere behind me a car alarm is having a bad night\"\n 3 \n 1 \n 6 \n 10 \n 0 \n 0 \n\"*I am on the main avenue. Bunting sags overhead like tired eyelids\"\n 15 \n 2 \n 5 \n 0 \n 0 \n 4 \n\"big top. It smells of sawdust and old ambition\"\n 0 \n 0 \n 0 \n 23 \n 3 \n 0 \n\"crawlspace under the bleachers. Forty years of dropped things\"\n 0 \n 0 \n 0 \n 3 \n 0 \n 0 \n\"centre ring, under one working spotlight\"\n 7 \n 0 \n 0 \n 2 \n 0 \n 0 \n\"coconut shy\"\n 0 \n 6 \n 8 \n 0 \n 0 \n 0 \n\"*I am at the hook-a-duck pond. The water is a colour that water should not be\"\n 9 \n 0 \n 0 \n 7 \n 0 \n 0 \n\"*I am at the high striker. A bell glints at the top of the pole\"\n 0 \n 8 \n 0 \n 0 \n 0 \n 0 \n\"prize booth\"\n 11 \n 0 \n 2 \n 12 \n 0 \n 0 \n\"candy floss stall\"\n 0 \n 10 \n 0 \n 0 \n 0 \n 0 \n\"fortune teller's tent\"\n 13 \n 12 \n 10 \n 12 \n 0 \n 0 \n\"hall of mirrors\"\n 13 \n 14 \n 12 \n 13 \n 0 \n 0 \n\"hall of mirrors\"\n 12 \n 14 \n 13 \n 24 \n 0 \n 0 \n\"hall of mirrors\"\n 16 \n 3 \n 0 \n 0 \n 0 \n 0 \n\"*I am on the ghost train platform\"\n 17 \n 15 \n 0 \n 0 \n 0 \n 0 \n\"ghost train tunnel\"\n 0 \n 16 \n 0 \n 0 \n 18 \n 0 \n\"ghost train workshop, full of retired monsters\"\n 0 \n 0 \n 19 \n 0 \n 0 \n 17 \n\"generator shed\"\n 0 \n 22 \n 0 \n 18 \n 0 \n 0 \n\"*I am at the foot of the ferris wheel\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 19 \n\"*I am in the top car of the ferris wheel. The whole carnival is laid out below me like a dropped tray\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 22 \n\"*I am at the top of the helter skelter\"\n 19 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I am at the bottom of the helter skelter\"\n 0 \n 0 \n 4 \n 0 \n 0 \n 0 \n\"clown's caravan. It is smaller on the inside, which is worse\"\n 0 \n 0 \n 14 \n 0 \n 0 \n 0 \n\"lost property office\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I am in a storm drain. It is dark, it is damp, and I have made a serious error\"\n 0 \n 0 \n 0 \n 0 \n 0 \n 0 \n\"*I am in the Ministry of Health and Safety. A man with a clipboard is smiling at me. Forever\"\n 27 \n 26 \n 1 \n 26 \n 2 \n 26 \n\"large mirrored room with nothing reflected in it\"\n\"OK\"\n\"Nothing happens\"\n\"The turnstile eats the token and grudgingly turns.\"\n\"The turnstile does not move. It wants a token, and it wants respect.\"\n\"MIDNIGHT CARNIVAL - ONE NIGHT ONLY - NO REFUNDS - THE MANAGEMENT ACCEPTS NO RESPONSIBILITY FOR ANYTHING AT ALL\"\n\"The sign says: Leave *PRIZES* here, then say SCORE.\"\n\"The machine coughs and winds up a stick of pink cloud.\"\n\"I would need the candy floss machine for that.\"\n\"I poke the floss through the grate. It comes back up with a trouser button stuck to it. The floss is ruined. Somewhere a dentist relaxes.\"\n\"I would need something sticky, on a stick.\"\n\"ZOLTAN stares through the glass. ZOLTAN wants paying, and not in tokens.\"\n\"ZOLTAN grinds, rolls his eyes and spits out a card. His glass eye follows me out. I do not care for ZOLTAN.\"\n\"THE MIRRORS LIE EXCEPT ALONG NORTH, SOUTH, WEST. YOUR LUCKY WORDS ARE FLUMMOX AND BUMBLE. YOU WILL MEET A TALL DARK GOOSE.\"\n\"The battery goes in with a satisfying clunk. The torch is now merely off.\"\n\"There is nothing here to put it in.\"\n\"The torch lights. It is not a strong torch, but it is mine.\"\n\"Torch off.\"\n\"Nothing happens. This torch has no battery and no opinions.\"\n\"The goose looks at me. The goose has looked at men before, and those men are not here any more. I decide against it.\"\n\"The goose sees the nose, stiffens, and salutes. Clowns outrank geese.\"\n\"I hook something heavy. It is a GOLDEN DUCK. The plastic ducks look sick with envy.\"\n\"Not with my bare hands. Not in that water.\"\n\"The coconuts are glued down. Of course they are.\"\n\"The crowbar makes a noise like a small crime, and one coconut comes free.\"\n\"I need something to lever with.\"\n\"DING. The bell leaves the pole at a speed that would worry an engineer, and I catch it out of pure surprise.\"\n\"I need something heavy and stupid. A hammer, ideally.\"\n\"I slosh the diesel in. The generator burps.\"\n\"I pull the cord. The generator catches, and all over the carnival things begin to hum that should probably have stayed quiet.\"\n\"I have nothing to pour into it.\"\n\"The cord snaps back at me. Nothing. It is bone dry.\"\n\"It is already running. Let us not push our luck.\"\n\"The wheel is dead. No power.\"\n\"The wheel groans round and stops with me at the very top.\"\n\"The wheel lifts, the balloon lifts harder, and I learn that I weigh very little and understand even less. The carnival gets small. I keep going.\"\n\"I sit on the mat and go down the helter skelter at a speed my mother would not approve of, arriving in the avenue with my dignity intact.\"\n\"I go down the helter skelter without a mat. The friction is educational. The bottom of the slide is not.\"\n\"The calliope has no steam. No power.\"\n\"I play the calliope. It sounds like a church organ having a breakdown.\"\n\"A caravan door bangs. The clown marches past, says THAT IS MY SONG, and begins to dance in the ring. He has left his teddy behind.\"\n\"The clown is asleep on it. Waking a clown is how people go missing.\"\n\"FLUMMOX! The world does that folding thing again.\"\n\"BUMBLE! The clown appears, carries me at shoulder height to the avenue, sets me down, and boops my nose. I will think about this later.\"\n\"BUMBLE! ... Nothing. The clown is asleep. The clown is always asleep.\"\n\"I lift the grate and immediately regret every choice that led me here.\"\n\"I shout. A bored voice says AGAIN?, a ladder comes down, and I am hauled out into the avenue.\"\n\"I shout. The carnival absorbs it, the way carnivals do.\"\n\"I eat a pickled egg. The label says 1974. The egg says nothing, but it clearly has plans.\"\n\"Something enormous rushes past in the dark, laughing on a loop. It is a ghost train. It is on rails. I was standing on the rails.\"\n\"The tannoy crackles: WOULD THE OWNER OF A SMALL BOY PLEASE COLLECT HIM, HE IS FRIGHTENING THE STAFF.\"\n\"It smells of every circus that ever was, and faintly of feet.\"\n\"A thousand of me shrug back. Several of them are doing it wrong.\"\n\"I dance. Somewhere a clown awards me four out of ten.\"\n\"I sing. The goose files a formal complaint.\"\n\"Diesel, burnt sugar, and the ghost of a hot dog.\"\n\"I am alone at a carnival at midnight. Let us not make it stranger.\"\n\"I jump. Nothing about my situation improves.\"\n\"In THAT? I have seen what lives in that.\"\n\"The tannoy says: TRY LOOK, GET, DROP, GO, CLIMB, RIDE, SLIDE, HIT, PRY, PLAY, WEAR, POUR, PULL, SHOUT, EAT, PAY, SAY, SCORE.\"\n\"ZOLTAN knows things. ZOLTAN charges for things, and not in tokens.\"\n\"The mirrors lie about exactly one direction in four.\"\n\"That goose respects precisely one profession.\"\n\"I put on the red nose. I feel both sillier and considerably safer.\"\n\"I am already wearing it. That is rather the point.\"\n\"Fine. The carnival packs itself up behind me as I go.\"\n\"Not from here.\"\n\"*GIANT TEDDY BEAR*/TED/\"\n 23 \n\"Sleeping clown. Even asleep he looks pleased with himself\"\n 23 \n\"Empty prize hooks\"\n 9 \n\"Sign `Leave *PRIZES* here, then say: SCORE`\"\n 9 \n\"Deep and unhappy puddle\"\n 1 \n\"Brass token, slightly chewed/TOK/\"\n 1 \n\"Peeling poster\"\n 1 \n\"Rusty turnstile with a coin slot\"\n 1 \n\"Iron grate. Something glints down there\"\n 2 \n\"Lit torch/TOR/\"\n 0 \n\"Torch with no battery/TOR/\"\n 24 \n\"Fat battery/BAT/\"\n 4 \n\"Torch, switched off/TOR/\"\n 0 \n\"Can of diesel/DIE/\"\n 4 \n\"Silent generator with a pull cord\"\n 18 \n\"Generator, chugging away, pull cord swinging\"\n 0 \n\"Coir mat/MAT/\"\n 24 \n\"Fishing rod with a hook on it/ROD/\"\n 24 \n\"*WORLD'S BEST DAD MUG*/MUG/\"\n 24 \n\"Red nose/NOS/\"\n 23 \n\"*JAR OF PICKLED EGGS*/EGG/\"\n 23 \n\"Bad-tempered goose\"\n 7 \n\"Goose, saluting\"\n 0 \n\"*GOLDEN DUCK*/DUC/\"\n 0 \n\"Bobbing plastic ducks\"\n 7 \n\"Coconuts, firmly glued down\"\n 6 \n\"*LUCKY COCONUT*/COC/\"\n 0 \n\"Crowbar/CRO/\"\n 17 \n\"*GIANT NOVELTY PENCIL*/PEN/\"\n 6 \n\"*GOLDFISH IN A BAG*/FIS/\"\n 6 \n\"Big hammer/HAM/\"\n 8 \n\"High striker. A bell sits on top of the pole\"\n 8 \n\"*BRASS BELL*/BEL/\"\n 0 \n\"Candy floss machine, still warm\"\n 10 \n\"Stick of candy floss/FLO/\"\n 0 \n\"Trouser button/BUT/\"\n 0 \n\"ZOLTAN the Astounding, behind glass\"\n 11 \n\"Fortune card/CAR/\"\n 0 \n\"*PLASTIC TIARA*/TIA/\"\n 13 \n\"A thousand of me, all judging\"\n 12 \n\"*GLASS UNICORN*/UNI/\"\n 17 \n\"Ghost train car, going nowhere\"\n 15 \n\"*SNOW GLOBE*/GLO/\"\n 21 \n\"The ferris wheel\"\n 19 \n\"*STAR PRIZE ROSETTE*/ROS/\"\n 20 \n\"Red balloon/BAL/\"\n 10 \n\"Steam calliope - a fairground organ, of sorts\"\n 5 \n\"*SILVER TROPHY*/TRO/\"\n 5 \n\"Rickety stairs going up\"\n 22 \n\"The slide. It looks fast\"\n 21 \n\"A shopping trolley. Obviously\"\n 25 \n\"Sawdust\"\n 5 \n\"A form. It is asking questions about me\"\n 26 \n\"score\"\n\"inventory\"\n\"quit\"\n\"already paid\"\n\"pay the turnstile\"\n\"GO also pays\"\n\"PUT TOKEN pays too\"\n\"no token\"\n\"no token\"\n\"read poster\"\n\"read sign\"\n\"read card\"\n\"mirrors\"\n\"sawdust\"\n\"plain look - must come after the specific ones\"\n\"spin some floss\"\n\"no machine\"\n\"fish the button out\"\n\"no floss\"\n\"button is out of reach\"\n\"pay ZOLTAN a button\"\n\"same\"\n\"no button\"\n\"fit the battery\"\n\"nothing to fit\"\n\"PUT TORCH works too\"\n\"light the torch\"\n\"no battery\"\n\"put the torch out\"\n\"tunnel is dark\"\n\"workshop is dark\"\n\"everywhere else is lit\"\n\"ghost train in the dark\"\n\"already on\"\n\"wear the red nose\"\n\"the goose objects\"\n\"no rod\"\n\"hook the golden duck\"\n\"goose salutes\"\n\"lever a coconut free\"\n\"no crowbar\"\n\"glued down\"\n\"hitting will not do it\"\n\"ring the bell\"\n\"no hammer\"\n\"ring the bell\"\n\"no hammer\"\n\"fuel the generator\"\n\"nothing to pour\"\n\"fuel the generator\"\n\"nothing to pour\"\n\"already running\"\n\"start the generator\"\n\"no fuel\"\n\"already running\"\n\"start the generator\"\n\"no fuel\"\n\"balloon plus wheel\"\n\"ride to the top\"\n\"no power\"\n\"climb up\"\n\"slide with the mat\"\n\"slide without the mat\"\n\"encore\"\n\"wake the clown\"\n\"no steam\"\n\"the clown is on it\"\n\"take the teddy\"\n\"FLUMMOX\"\n\"BUMBLE\"\n\"clown asleep\"\n\"open the grate\"\n\"same\"\n\"same\"\n\"shout for a ladder\"\n\"shout\"\n\"1974 eggs\"\n\"dance\"\n\"sing\"\n\"smell\"\n\"kiss\"\n\"jump\"\n\"swim\"\n\"tannoy\"\n\"help\"\n\"help\"\n\"help\"\n\"help\"\n 100 \n 99 \n 0 \n";
+if(HAS_DOM) COLS = measureCols();
 newGame(parseDatabase(EMBEDDED));
 offerResume();
+if(HAS_DOM) rewrap();          /* in case fonts settled after the first pass */
 </script>
 <script>
 (function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
