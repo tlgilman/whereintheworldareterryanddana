@@ -595,6 +595,45 @@ function newGame(db){
   prompt_();
 }
 
+/* ------------------------------------------------------------------
+   The percentage roll for an automatic line, reproducing ADV/CMD at
+   7FE0 rather than the obvious `random < percent`. The original has no
+   random number generator: it reads the Z80's memory-refresh register.
+
+       7FE0  LD A,R          ; 7-bit counter, so 0..127
+       7FE2  JP m,7FE0       ; retry if bit 7 set
+       7FE5  JR z,7FE0       ; retry if zero
+       7FE7  CP 101
+       7FE9  RET m           ; 1..100 -> use it
+       7FEA  LD A,50         ; 101..127 -> use 50
+       7FEC  RET
+
+   and the caller at 7D0D fires the line when that value <= percent.
+
+   Two consequences, both visible next to the real machine:
+
+     - the value spans 1..127, not 1..100, so every percentage below 50
+       fires about a fifth less often than the number in the data. The
+       9% bomb in Secret Mission is really 7.1%; the 30% tape theft is
+       23.6%; the 15% intruder is 11.8%.
+     - values 101..127 all collapse to exactly 50, so a 50% line fires
+       60.6% of the time. Fourteen lines across the games are 50%.
+
+   What cannot be reproduced here is that R is a *counter*, not random:
+   successive reads differ by however many instructions ran in between,
+   so on real hardware an auto can be near-deterministic at a given
+   point in a given turn. That is why the original appears never to do
+   something ours does occasionally. Matching the distribution is as
+   close as we can get without cycle-accurate Z80 emulation.
+   ------------------------------------------------------------------ */
+function rollPercent(pct){
+  if(pct <= 0) return false;
+  let v = 0;
+  while(v === 0) v = Math.floor(Math.random() * 128);   /* 0 is retried */
+  if(v > 100) v = 50;
+  return v <= pct;
+}
+
 const carried = ()=> S.itemLoc.filter(l=>l===CARRIED).length;
 const isDark  = ()=> (S.bits & (1<<DARKBIT)) &&
                      S.itemLoc[LIGHT_SOURCE]!==CARRIED &&
@@ -713,7 +752,7 @@ function performActions(vb, no){
          always run is written with a percentage of 100. */
       if(vv!==0) continue;
       if(nv===0) continue;
-      if(Math.random()*100 >= nv) continue;
+      if(!rollPercent(nv)) continue;
     }
     /* conditions */
     const par=[]; let ok=true;
@@ -1281,7 +1320,7 @@ if(HAS_DOM){
    Its only job is to answer "am I actually running the build I just made?" —
    a file:// page reopened in the same browser will happily serve a cached
    copy, which looks exactly like a fix that did not work. */
-const BUILD = "2026-09-21.7851b7";
+const BUILD = "2026-09-21.6682bf";
 if(HAS_DOM){
   const b = document.getElementById('build');
   if(b) b.textContent = 'build ' + BUILD;
