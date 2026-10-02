@@ -1,0 +1,33 @@
+app/types/Travel-data.ts
+  s_1e48f27203c972::t_53355b4f91241a 14
+components/Navigation.tsx
+  s_1e48f27203c972::t_ff874e4f7bb037 7,105,113,120-129,139
+lib/google-sheets.ts
+  s_1e48f27203c972::t_29e94280fa0a2e 135
+public/preview/d3.min.js
+  s_1e48f27203c972::t_33227b9fe46d82 1-2
+public/preview/geo.js
+  s_1e48f27203c972::t_2809f4906af034 1
+public/preview/index.html
+  s_1e48f27203c972::t_7233bbcd05b38c 1-991
+public/preview/snapshot.js
+  s_1e48f27203c972::t_e654dc96396dca 1
+public/preview/topojson.min.js
+  s_1e48f27203c972::t_69fe11763906a6 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "84c8f979495a2ef2c1d8ac45d1088b5ab79cd6a0",
+  "prompts": {},
+  "sessions": {
+    "s_1e48f27203c972": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_1e48f27203c972",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
