@@ -4,7 +4,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, User, LogOut, Image as ImageIcon, Shield, Camera, Gamepad2 } from "lucide-react";
+import { Menu, X, User, LogOut, Image as ImageIcon, Shield, Camera, Gamepad2, Sparkles } from "lucide-react";
 import WeatherIndicator from "./WeatherIndicator";
 
 export default function Navigation() {
@@ -102,7 +102,7 @@ export default function Navigation() {
             ) : (
               <button
                 onClick={() => signIn()}
-                className={`font-medium text-sm ${isHome ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
+                className={`font-medium text-sm whitespace-nowrap ${isHome ? 'text-white hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`}
               >
                 Sign in
               </button>
@@ -110,15 +110,23 @@ export default function Navigation() {
 
             {/* Logo next to menu */}
             <Link href="/" className="flex-shrink-0 flex items-center ml-2">
-              <span className={`text-xl font-bold ${isHome ? 'text-white' : 'text-gray-800'}`}>Travel Tracker</span>
+              <span className={`text-base sm:text-xl font-bold whitespace-nowrap ${isHome ? 'text-white' : 'text-gray-800'}`}>Travel Tracker</span>
             </Link>
 
             {/* Weather Indicator (Home only) */}
             {isHome && <WeatherIndicator />}
           </div>
 
-          {/* Right Side: Quick Picture Book Link */}
-          <div className="flex items-center space-x-3">
+          {/* Right Side: Preview of the next version + Quick Picture Book Link */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <a
+              href="/preview/index.html"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-amber-400 hover:bg-amber-300 text-gray-900 shadow-md transition-all"
+            >
+              <Sparkles className="hidden sm:block w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Preview Next Version</span>
+              <span className="lg:hidden">Preview</span>
+            </a>
             <Link
               href="/pictures"
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
@@ -128,7 +136,7 @@ export default function Navigation() {
               }`}
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>Picture Book</span>
+              <span className="hidden lg:inline">Picture Book</span>
             </Link>
           </div>
         </div>

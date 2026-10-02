@@ -11,6 +11,7 @@ export interface TravelData {
   residing: boolean; // Whether the person is residing in the location
   vacationStart?: string; // ISO date string for vacation start (optional)
   vacationEnd?: string; // ISO date string for vacation end (optional)
+  note?: string; // One-line memory for this stop, from the optional "note" column in the sheet
   coordinates?: {
     // Optional for backward compatibility
     lat: number;

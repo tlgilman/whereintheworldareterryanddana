@@ -132,6 +132,7 @@ export const fetchTravelData = async (): Promise<TravelData[]> => {
       booked: parseBoolean(row.get('booked')),
       vacationStart: row.get('vacationStart'),
       vacationEnd: row.get('vacationEnd'),
+      note: row.get('note') || '',
       coordinates: {
         lat: parseFloat(row.get('lat')),
         lon: parseFloat(row.get('lon')),
