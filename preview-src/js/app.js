@@ -449,6 +449,24 @@ function renderStrip() {
     card.addEventListener('click', () => viewer.open(gallery, gallery.indexOf(cover)));
     strip.appendChild(card);
   }
+  stripArrows();
+}
+
+/** The two arrows over the postcard row, for a mouse: shown only when the row is longer than the page is wide. */
+function stripArrows() {
+  const strip = $('strip'), nav = $('stripnav'), prev = $('stripprev'), next = $('stripnext');
+  const room = strip.scrollWidth - strip.clientWidth;
+  nav.hidden = room < 8;
+  prev.setAttribute('aria-disabled', String(strip.scrollLeft < 4));
+  next.setAttribute('aria-disabled', String(strip.scrollLeft > room - 4));
+}
+function wireStrip() {
+  const strip = $('strip');
+  const move = by => strip.scrollBy({ left: by * Math.max(190, strip.clientWidth * 0.8), behavior: reduced ? 'auto' : 'smooth' });
+  $('stripprev').addEventListener('click', () => move(-1));
+  $('stripnext').addEventListener('click', () => move(1));
+  strip.addEventListener('scroll', stripArrows, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(stripArrows).observe(strip);
 }
 
 // ---------- the numbers, the plan, the log ----------
@@ -816,6 +834,7 @@ function wire() {
   $('zin').addEventListener('click', () => globe.zoomBy(1.5));
   $('zout').addEventListener('click', () => globe.zoomBy(1 / 1.5));
   $('whole').addEventListener('click', () => globe.showWhole());
+  wireStrip();
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { if (state.playing) { state.playing = false; sync(true); } return; }
     requestFrame();                                          // phones drop the canvas of a page in the background

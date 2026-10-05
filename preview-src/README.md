@@ -1,7 +1,8 @@
 # The preview page (public/preview)
 
 The page at `/preview/index.html` is plain HTML, CSS and JavaScript. It uses no framework and nothing from the
-Next.js app except the data the app already serves.
+Next.js app except the data the app already serves. The short address `/preview` is sent there by a redirect in
+`next.config.ts` (Next serves files in `public` only by their full name).
 
 ## What is where
 

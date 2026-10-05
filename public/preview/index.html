@@ -58,7 +58,7 @@
 @font-face{font-family:"Yellowtail Fallback";src:local("Arial"),local("Helvetica"),local("Roboto"),local("Liberation Sans"),local("DejaVu Sans");size-adjust:83%}
 @font-face{font-family:"Caveat Fallback";src:local("Arial"),local("Helvetica"),local("Roboto"),local("Liberation Sans"),local("DejaVu Sans");size-adjust:76%}
 :root{
-  --bg:#F3F6FB; --surface:#FFFFFF; --ink:#14213D; --muted:#4D5A73; --line:#D3DCE8; --accent:#B4284A; --focus:#14213D;
+  --bg:#F3F6FB; --surface:#FFFFFF; --ink:#14213D; --muted:#4D5A73; --line:#D3DCE8; --accent:#B4284A; --focus:#14213D; --thumb:#77839B;
   --sign:#0A6A4D; --sign-ink:#FFFFFF; --stripe:#F6B817; --stripe-ink:#231C00;
   /* the sky, the band and the footer are scenes of their own and look the same in both themes */
   --sky-ink:#FFFFFF; --sky-soft:#DCE8F8; --glass:rgba(6,12,34,.52); --glass-line:rgba(255,255,255,.28); --neon:#FFF3D2;
@@ -71,11 +71,11 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0B1226; --surface:#141E3C; --ink:#EDF1F8; --muted:#A3AFC8; --line:#27345A; --accent:#FF8FA1; --focus:#F8C22E; color-scheme:dark;
+    --bg:#0B1226; --surface:#141E3C; --ink:#EDF1F8; --muted:#A3AFC8; --line:#27345A; --accent:#FF8FA1; --focus:#F8C22E; --thumb:#66749C; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0B1226; --surface:#141E3C; --ink:#EDF1F8; --muted:#A3AFC8; --line:#27345A; --accent:#FF8FA1; --focus:#F8C22E; color-scheme:dark;
+  --bg:#0B1226; --surface:#141E3C; --ink:#EDF1F8; --muted:#A3AFC8; --line:#27345A; --accent:#FF8FA1; --focus:#F8C22E; --thumb:#66749C; color-scheme:dark;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
@@ -213,7 +213,20 @@ h2{font-size:clamp(1.7rem,2.8vw,2.3rem);font-weight:900;letter-spacing:-.015em;l
 .block{padding-block:60px 0}
 .block p.sub{margin:8px 0 0;color:var(--muted);max-width:62ch}
 .block p.sub a{color:var(--ink);font-weight:600}
+.striphead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.striphead > div:first-child{min-width:0}
+.stripnav{display:flex;gap:6px;flex:none}
+.stripnav button{width:42px;height:42px;padding:0;display:grid;place-items:center;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:50%}
+.stripnav button:hover:not([aria-disabled="true"]){border-color:var(--ink)}
+.stripnav button[aria-disabled="true"]{opacity:.4;cursor:default}
+.stripnav svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4}
+@media (hover:none) and (pointer:coarse){.stripnav{display:none}}       /* a finger swipes the row; the arrows are for a mouse */
 .strip{display:flex;gap:22px;overflow-x:auto;padding:26px 10px 30px;margin-inline:-10px;scroll-snap-type:x proximity}
+.strip::-webkit-scrollbar{height:10px}
+.strip::-webkit-scrollbar-track{background:transparent}
+.strip::-webkit-scrollbar-thumb{background:var(--thumb);border-radius:99px;border:2px solid var(--bg)}
+.strip::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+@supports not selector(::-webkit-scrollbar){.strip{scrollbar-width:thin;scrollbar-color:var(--thumb) transparent}}
 .pc{position:relative;flex:0 0 auto;width:190px;background:var(--paper);color:var(--paper-ink);border:0;border-radius:3px;padding:9px 9px 10px;text-align:left;scroll-snap-align:center;cursor:zoom-in;
   box-shadow:0 1px 2px rgba(10,17,48,.25),0 14px 24px -14px rgba(10,17,48,.55);transform:rotate(-2deg);transition:transform .18s}
 .pc:nth-child(2n){transform:rotate(1.6deg) translateY(6px)}
@@ -460,8 +473,16 @@ dialog.viewer::backdrop{background:rgba(5,9,26,.6)}
 
   <section class="block" id="postcards">
     <div class="wrap">
-      <h2>Postcards from the road</h2>
-      <p class="sub">Pick one to see it full size. <a href="/pictures">Every photo is in the Picture Book.</a></p>
+      <div class="striphead">
+        <div>
+          <h2>Postcards from the road</h2>
+          <p class="sub">Pick one to see it full size. <a href="/pictures">Every photo is in the Picture Book.</a></p>
+        </div>
+        <div class="stripnav" id="stripnav" hidden>
+          <button type="button" id="stripprev" aria-label="Earlier postcards" aria-controls="strip"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.5 5 8l5.5 5.5"/></svg></button>
+          <button type="button" id="stripnext" aria-label="More postcards" aria-controls="strip"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 2.5 11 8l-5.5 5.5"/></svg></button>
+        </div>
+      </div>
       <div class="strip" id="strip"></div>
     </div>
   </section>

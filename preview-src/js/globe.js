@@ -201,7 +201,11 @@ export class Globe {
 
   zoomBy(factor) {
     const cam = this.cam;
-    if (cam.mode === 'follow') {
+    if (cam.mode === 'overview' && factor > 1 && this.view.pos) {
+      // From the whole-Earth view, zooming in closes in on the place the page is showing, not on the middle of the picture.
+      cam.mode = 'follow';
+      cam.followZoom = clamp(cam.toZoom * factor, 1.4, ZOOM_MAX);
+    } else if (cam.mode === 'follow') {
       // While following, the buttons set how close the camera keeps to each stop (on a long hop it still pulls back to show both ends).
       if (factor < 1 && cam.followZoom <= 1.4 + 1e-6) { this.showWhole(); return; }       // already as far out as following goes
       cam.followZoom = clamp(cam.followZoom * factor, 1.4, ZOOM_MAX);
