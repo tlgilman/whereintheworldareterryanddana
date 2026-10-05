@@ -1,0 +1,19 @@
+app/api/visitors/route.ts
+  s_3009d2f993a2c9::t_e716e1dfe255e5 2-3,9-15,18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a1548e9fa274da5ab4dba393c84b84e91ed76fa8",
+  "prompts": {},
+  "sessions": {
+    "s_3009d2f993a2c9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_3009d2f993a2c9",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
