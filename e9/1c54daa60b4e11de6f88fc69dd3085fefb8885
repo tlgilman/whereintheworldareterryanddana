@@ -1,0 +1,41 @@
+app/home-page.json
+  s_44c40f5974a65f::t_1ab1d071be3bfb 1
+app/previous/page.tsx
+  s_44c40f5974a65f::t_dbe2c74e5c9b50 1-2,4-10
+app/route.ts
+  s_44c40f5974a65f::t_954b67c4d11a35 1-41
+components/Navigation.tsx
+  s_44c40f5974a65f::t_0d515ad7e4eb48 14-16,113-115,117,123,125-134
+next.config.ts
+  s_44c40f5974a65f::t_64f347542d7a83 4-5,8-9
+package.json
+  s_44c40f5974a65f::t_c2e2f404b8c2bf 7
+preview-src/README.md
+  s_44c40f5974a65f::t_1eea552b127ca2 1,3-7,13-15,24-35,67,72-74,81-84
+preview-src/index.html
+  s_44c40f5974a65f::t_ad8cef1beef924 8,11,38,45-47,52,56-57,402,527,550
+preview-src/js/app.js
+  s_44c40f5974a65f::t_b4311a50adac41 14-16,290,306,623,732,893-894
+preview-src/tools/make-home.mjs
+  s_44c40f5974a65f::t_cde85e678db05a 1-18
+public/preview/app.js
+  s_44c40f5974a65f::t_bf3e4de695bece 1,3,63-65,69,71
+public/preview/app.js.map
+  s_44c40f5974a65f::t_ed1ae471f08fd1 4-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e91c54daa60b4e11de6f88fc69dd3085fefb8885",
+  "prompts": {},
+  "sessions": {
+    "s_44c40f5974a65f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_44c40f5974a65f",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
