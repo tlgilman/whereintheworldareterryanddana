@@ -1,0 +1,31 @@
+next.config.ts
+  s_c1c233223baa2a::t_9468269141c112 4-10
+preview-src/README.md
+  s_c1c233223baa2a::t_25856cd4247560 4-5
+preview-src/js/app.js
+  s_c1c233223baa2a::t_c5cb5f7a0689fb 452-469,837
+preview-src/js/globe.js
+  s_c1c233223baa2a::t_8805665f5abf1d 204-208
+public/preview/app.js
+  s_c1c233223baa2a::t_62b8a04bc10d3a 1,3,63-65,69,71
+public/preview/app.js.map
+  s_c1c233223baa2a::t_d59cf7fb3156e1 4-6
+public/preview/index.html
+  s_c1c233223baa2a::t_c2f99c490d9f56 61,74,78,216-223,225-229,476-485
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "76d9b3982cc2e79c17d83644bb1dff16e6bcdb30",
+  "prompts": {},
+  "sessions": {
+    "s_c1c233223baa2a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_c1c233223baa2a",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
