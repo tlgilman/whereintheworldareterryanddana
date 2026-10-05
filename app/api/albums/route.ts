@@ -20,7 +20,15 @@ export async function GET(request: NextRequest) {
       albums = albums.filter((a) => a.country.toLowerCase() === countryParam.toLowerCase());
     }
 
-    return NextResponse.json(albums);
+    // "createdBy" is the email address of whoever added an album. This list is public, so the address goes only
+    // to people who are signed in. (Copies, not edits: these rows are shared with every other request.)
+    const session = await getServerSession(authOptions).catch(() => null);
+    if (!session?.user) {
+      albums = albums.map((album) => ({ ...album, createdBy: "" }));
+    }
+
+    // The answer depends on who is asking, so nothing between here and the browser may keep a copy to hand to someone else.
+    return NextResponse.json(albums, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Error fetching albums:", error);
     return NextResponse.json({ error: "Failed to fetch albums" }, { status: 500 });
