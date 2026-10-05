@@ -11,7 +11,9 @@ export default function Navigation() {
   const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
-  const isHome = pathname === "/";
+  // This bar belongs to the previous site, whose home page now lives at /previous.
+  // The front door (/) is the new page, which is plain HTML and has its own header.
+  const isHome = pathname === "/previous";
 
   return (
     <nav className={`${isHome ? 'fixed top-0 left-0 w-full z-50 bg-transparent text-white' : 'bg-white shadow-sm text-gray-800'}`}>
@@ -108,25 +110,28 @@ export default function Navigation() {
               </button>
             )}
 
-            {/* Logo next to menu */}
-            <Link href="/" className="flex-shrink-0 flex items-center ml-2">
+            {/* Logo next to menu. A plain link on purpose: the front door is not a React page, so it needs a full page load. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/" className="flex-shrink-0 flex items-center ml-2">
               <span className={`text-base sm:text-xl font-bold whitespace-nowrap ${isHome ? 'text-white' : 'text-gray-800'}`}>Travel Tracker</span>
-            </Link>
+            </a>
 
             {/* Weather Indicator (Home only) */}
             {isHome && <WeatherIndicator />}
           </div>
 
-          {/* Right Side: Preview of the next version + Quick Picture Book Link */}
+          {/* Right Side: the way back to the new site (previous home page only) + Quick Picture Book Link */}
           <div className="flex items-center space-x-2 sm:space-x-3">
-            <a
-              href="/preview/index.html"
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-amber-400 hover:bg-amber-300 text-gray-900 shadow-md transition-all"
-            >
-              <Sparkles className="hidden sm:block w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Preview Next Version</span>
-              <span className="lg:hidden">Preview</span>
-            </a>
+            {isHome && (
+              // eslint-disable-next-line @next/next/no-html-link-for-pages
+              <a
+                href="/"
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-amber-400 hover:bg-amber-300 text-gray-900 shadow-md transition-all"
+              >
+                <Sparkles className="hidden sm:block w-3.5 h-3.5" />
+                <span>New site</span>
+              </a>
+            )}
             <Link
               href="/pictures"
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${

@@ -11,6 +11,9 @@ import SNAPSHOT from './snapshot.js';
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// The page's own files (maps, photos, outlines) sit next to this script, wherever the page itself is served from.
+const HERE = new URL('./', ($('appjs') || {}).src || document.baseURI);
+const asset = path => new URL(path, HERE).href;
 // A copy of the page shown away from the site (a prototype link, a file on disk) sets this: it then runs on the saved trip and asks nobody for anything.
 const offline = Boolean(window.__early && window.__early.offline);
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
@@ -284,7 +287,7 @@ function askWeather(s) {
 function seedPhotos() {
   photos.clear();
   for (const [key, list] of Object.entries(HERO)) {
-    photos.set(key, list.map(([name, caption]) => ({ thumb: `img/${name}-480.webp`, large: `img/${name}-1600.jpg`, caption })));
+    photos.set(key, list.map(([name, caption]) => ({ thumb: asset(`img/${name}-480.webp`), large: asset(`img/${name}-1600.jpg`), caption })));
   }
   if (Array.isArray(SNAPSHOT.photos)) addPhotos(SNAPSHOT.photos, true);
 }
@@ -300,7 +303,7 @@ function addPhotos(entries, trusted) {
   for (const list of photos.values()) for (const p of list) seen.add(p.large);
   const when = entry => String(entry.uploadedAt || '');
   entries.filter(entry => entry && typeof entry === 'object').sort((a, b) => (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : 0)).forEach(entry => {
-    const photo = trusted ? entry : photoFromApi(entry, location.origin);
+    const photo = trusted ? { ...entry, thumb: asset(entry.thumb), large: asset(entry.large) } : photoFromApi(entry, location.origin);
     if (photo) pushPhoto(photo.key, { ...photo, remote: !trusted }, seen);
   });
 }
@@ -617,7 +620,7 @@ function renderFoot() {
     : sheetAnswered === null ? 'Checking our travel sheet for the latest.'
     : source === 'kept' ? 'Our travel sheet did not answer just now, so this is the trip as it stood on your last visit.'
     : `Our travel sheet did not answer just now, so this is a saved copy from ${dMDY(SNAPSHOT.asOf)}.`;
-  $('foot').textContent = `This is a preview of the next version of our site. ${where} The sky up top, day and night on the globe, local time and sunset all follow the real clock where we are. Earth imagery: NASA. Weather: Open-Meteo.`;
+  $('foot').textContent = `${where} The sky up top, day and night on the globe, local time and sunset all follow the real clock where we are. Earth imagery: NASA. Weather: Open-Meteo.`;
 }
 
 let belowTimer = 0;
@@ -726,7 +729,7 @@ function useRows(rows, from) {
 }
 
 async function loadImage(file) {
-  const response = await fetch(file);
+  const response = await fetch(asset(file));
   if (!response.ok) throw new Error(file + ' ' + response.status);
   const blob = await response.blob();
   if (window.createImageBitmap) {
@@ -887,8 +890,8 @@ async function start() {
     onHover: tooltip,
   }, { reducedMotion: reduced, renderer: new URLSearchParams(location.search).get('globe') || undefined });
   loadEarth();
-  fetch('data/borders.json').then(r => r.json()).then(lines => globe.setBorders(lines)).catch(() => {});
-  fetch('data/states.json').then(r => r.json()).then(data => { statesData = data; if (stats) renderStates(); }).catch(() => {});
+  fetch(asset('data/borders.json')).then(r => r.json()).then(lines => globe.setBorders(lines)).catch(() => {});
+  fetch(asset('data/states.json')).then(r => r.json()).then(data => { statesData = data; if (stats) renderStates(); }).catch(() => {});
   wire();
   await new Promise(resolve => setTimeout(resolve, 0));      // two short turns rather than one long one, so a slow phone stays responsive
 

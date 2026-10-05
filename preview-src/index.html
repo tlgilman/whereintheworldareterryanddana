@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Where in the World Are Terry and Dana</title>
 <meta name="description" content="Digital nomads on the move. See where Terry and Dana are right now, everywhere they have been since selling the house, and where they are headed next.">
-<meta name="robots" content="noindex">
+<link rel="canonical" href="https://www.whereintheworldareterryanddana.com/">
 <meta name="theme-color" content="#0B1233">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://www.whereintheworldareterryanddana.com/">
 <meta property="og:title" content="Where in the world are Terry and Dana?">
 <meta property="og:description" content="Digital nomads on the move. See where we are right now, replay the whole trip, and find out where we are headed next.">
 <meta property="og:image" content="https://www.whereintheworldareterryanddana.com/preview/og.jpg">
@@ -34,26 +35,26 @@
     document.documentElement.className += ' failed';
     document.getElementById('tab').textContent = 'Sorry';
     place.className = 'place long'; place.textContent = 'Something went wrong';
-    region.innerHTML = 'Please reload, or use <a href="/">the current site</a> for now.';
+    region.innerHTML = 'Please reload, or use <a href="/previous">the previous site</a> for now.';
   };
   /* Only this page's own code counts: browsers, apps and extensions add scripts that can raise errors of their own. */
   window.addEventListener('error', function (event) { if (!window.__trip && /\/app\.js/.test(String(event.filename || ''))) window.__fail(); });
   setTimeout(function () { window.__fail(); }, 12000);
 })();
 </script>
-<link rel="preload" href="fonts/overpass.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="earth/day-1k.webp" as="fetch" crossorigin fetchpriority="low">
-<link rel="modulepreload" href="app.js">
+<link rel="preload" href="/preview/fonts/overpass.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/preview/earth/day-1k.webp" as="fetch" crossorigin fetchpriority="low">
+<link rel="modulepreload" href="/preview/app.js">
 <style>
 /* A roadside scene. The opener is the sky where we are right now, with a neon-script wordmark, a highway guide sign that
    answers the site's question, and the Earth as the stage: real satellite imagery, lit by where the sun really is.
    One time slider drives it all. Below: postcards, a marigold band of numbers, then the plan and the log on a calm page. */
-@font-face{font-family:"Overpass";src:url(fonts/overpass.woff2) format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Overpass";src:url(/preview/fonts/overpass.woff2) format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 /* The wordmark and the sign-off are the only script lettering, so the few letters they use travel inside the page:
    the neon sign is lit from the first paint. Any other letter would be fetched from the full face on demand. */
 @font-face{font-family:"Yellowtail Mark";src:url(data:font/woff2;base64,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) format("woff2");font-weight:400;font-style:normal;unicode-range:U+20,U+26,U+2E,U+44,U+53,U+54,U+61,U+64,U+65,U+68,U+6E,U+6F,U+72,U+74,U+75,U+77,U+79}
-@font-face{font-family:"Yellowtail";src:url(fonts/yellowtail.woff2) format("woff2");font-weight:400;font-style:normal;font-display:block}
-@font-face{font-family:"Caveat";src:url(fonts/caveat.woff2) format("woff2");font-weight:500 700;font-style:normal;font-display:block}
+@font-face{font-family:"Yellowtail";src:url(/preview/fonts/yellowtail.woff2) format("woff2");font-weight:400;font-style:normal;font-display:block}
+@font-face{font-family:"Caveat";src:url(/preview/fonts/caveat.woff2) format("woff2");font-weight:500 700;font-style:normal;font-display:block}
 /* Stand-ins the same width as the two script faces, so nothing moves when the real ones arrive. */
 @font-face{font-family:"Yellowtail Fallback";src:local("Arial"),local("Helvetica"),local("Roboto"),local("Liberation Sans"),local("DejaVu Sans");size-adjust:83%}
 @font-face{font-family:"Caveat Fallback";src:local("Arial"),local("Helvetica"),local("Roboto"),local("Liberation Sans"),local("DejaVu Sans");size-adjust:76%}
@@ -107,7 +108,6 @@ h2{font-size:clamp(1.7rem,2.8vw,2.3rem);font-weight:900;letter-spacing:-.015em;l
 .brand{display:flex;align-items:center;gap:10px}
 .mark{font-family:var(--script);font-size:clamp(2.1rem,3.4vw,2.8rem);line-height:1.1;color:var(--neon);text-decoration:none;
   text-shadow:0 0 2px rgba(255,255,255,.55),0 0 16px rgba(255,186,84,.7),0 0 38px rgba(255,120,90,.45);padding:2px 6px 2px 0}
-.badge{font-size:.72rem;font-weight:800;color:var(--stripe-ink);background:var(--stripe);border-radius:99px;padding:3px 9px}
 .top nav{display:flex;gap:2px 4px;flex-wrap:wrap;align-items:center;margin-left:auto}
 .top nav a{padding:7px 10px;border-radius:6px;font-weight:600;color:var(--sky-ink);text-decoration:none}
 .top nav a:hover{background:rgba(255,255,255,.16)}
@@ -348,7 +348,6 @@ dialog.viewer::backdrop{background:rgba(5,9,26,.6)}
 @media (max-width:384px){
   .mark{font-size:1.85rem}
   .brand{gap:6px}
-  .badge{font-size:.68rem;padding:2px 7px}
   .top{gap:4px 6px}
   .top .site{padding:5px 8px;font-size:.84rem}
 }
@@ -393,7 +392,6 @@ dialog.viewer::backdrop{background:rgba(5,9,26,.6)}
       <header class="top">
         <div class="brand">
           <a class="mark" href="#stage">Terry &amp; Dana</a>
-          <span class="badge">Preview</span>
         </div>
         <nav aria-label="Sections">
           <a href="#postcards">Postcards</a>
@@ -401,7 +399,7 @@ dialog.viewer::backdrop{background:rgba(5,9,26,.6)}
           <a href="#plan">What's next</a>
           <a href="#log">Every stop</a>
         </nav>
-        <a class="site" href="/">Current site</a>
+        <a class="site" href="/previous">Previous site</a>
       </header>
 
       <section class="stage" id="stage" aria-label="Where we are">
@@ -526,7 +524,7 @@ dialog.viewer::backdrop{background:rgba(5,9,26,.6)}
       <li><a href="/pictures">Picture Book</a></li>
       <li><a href="/games/index.html">Retro games</a></li>
       <li id="account"><a href="/auth/signin">Sign in</a></li>
-      <li><a href="/">Current site</a></li>
+      <li><a href="/previous">Previous site</a></li>
     </ul>
     <p class="fine" id="foot"></p>
   </div>
@@ -549,7 +547,7 @@ dialog.viewer::backdrop{background:rgba(5,9,26,.6)}
 </dialog>
 
 <noscript><p style="padding:16px">This page needs JavaScript to show where we are.</p></noscript>
-<script type="module" src="app.js" onerror="window.__fail && window.__fail()"></script>
+<script type="module" id="appjs" src="/preview/app.js" onerror="window.__fail && window.__fail()"></script>
 <script nomodule>document.getElementById('place').textContent = 'Please update your browser'; document.getElementById('region').textContent = 'This page needs a newer one.';</script>
 </body>
 </html>
