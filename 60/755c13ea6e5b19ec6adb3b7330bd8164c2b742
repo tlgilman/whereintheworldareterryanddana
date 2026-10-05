@@ -1,0 +1,47 @@
+preview-src/README.md
+  s_960ed7f15fe5b9::t_8b5b2b72dcfe9c 1-62
+preview-src/js/app.js
+  s_960ed7f15fe5b9::t_ff8de347ccb1c3 1-969
+preview-src/js/data.js
+  s_960ed7f15fe5b9::t_fdbec3eaf09ee0 1-251
+preview-src/js/earth.js
+  s_960ed7f15fe5b9::t_625e957a1c7d34 1-386
+preview-src/js/geo.js
+  s_960ed7f15fe5b9::t_97fa9264a28ccf 1-36
+preview-src/js/globe.js
+  s_960ed7f15fe5b9::t_a13718e804fa21 1-522
+preview-src/js/model.js
+  s_960ed7f15fe5b9::t_ae3391cb4c43c1 1-183
+preview-src/js/snapshot.js
+  s_960ed7f15fe5b9::t_684c4d4143e7d6 1-2
+preview-src/js/sun.js
+  s_960ed7f15fe5b9::t_c516e5d3f98e75 1-40
+preview-src/js/viewer.js
+  s_960ed7f15fe5b9::t_9d197f597d0c92 1-70
+preview-src/js/weather.js
+  s_960ed7f15fe5b9::t_bee285d798cdff 1-36
+preview-src/tools/make-images.py
+  s_960ed7f15fe5b9::t_1ea86ef66b97bb 1-78
+public/preview/app.js.map
+  s_960ed7f15fe5b9::t_41a74006a31963 1-7
+public/preview/data/states.json
+  s_960ed7f15fe5b9::t_d793e1efbc7311 1
+public/preview/index.html
+  s_960ed7f15fe5b9::t_b4495308c64996 7,9-16,18-46,48-59,61,64,66,68-69,74,78,81-86,88-93,96-100,102,106-122,125,127-137,139-165,168-186,190,192-193,196,198,200,203-205,207,210,214-215,217,223-224,227-229,231-241,246-248,254-255,264,268,270-292,295,298,300-301,303,305-315,319-327,330-372,381-384,386-389,391,400-407,409-413,418-431,434,438,443-444,453,464,472-480,504-509,514-528,530-532
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "60755c13ea6e5b19ec6adb3b7330bd8164c2b742",
+  "prompts": {},
+  "sessions": {
+    "s_960ed7f15fe5b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_960ed7f15fe5b9",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
