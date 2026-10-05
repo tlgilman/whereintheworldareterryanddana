@@ -1,0 +1,21 @@
+app/api/albums/route.ts
+  s_b707e060bff25e::t_911c68ffbb3593 23-31
+app/api/photos/route.ts
+  s_b707e060bff25e::t_cf7001ac0f05da 3,8-28,35,90,95
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7a20a236591bcef461e1b4c545f1e73ee000657",
+  "prompts": {},
+  "sessions": {
+    "s_b707e060bff25e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_b707e060bff25e",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
