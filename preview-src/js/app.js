@@ -583,7 +583,9 @@ function renderLog(year) {
   past.filter(s => +s.arr.slice(0, 4) === logYear).forEach(s => {
     const here = s === model.current && !model.stale;
     const chip = el('span', 'c');
-    chip.appendChild(el('span', 'chip ' + (here ? 'here' : s.base ? 'base' : 'stop'), here ? 'We are here now' : s.base ? 'Home base' : 'Stopover'));
+    // a stopover with vacation dates in the sheet is a vacation; a home base or the place we are now keeps its own label
+    const kind = here ? 'here' : s.base ? 'base' : s.vacation ? 'vac' : 'stop';
+    chip.appendChild(el('span', 'chip ' + kind, { here: 'We are here now', base: 'Home base', vac: 'Vacation', stop: 'Stopover' }[kind]));
     const nights = stats.nightsSoFar(s);
     row(list, s, [
       el('span', 'd', `${dMD(s.arr)} to ${here ? 'now' : dMD(s.dep)}`),

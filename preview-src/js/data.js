@@ -162,7 +162,8 @@ const nextDay = iso => {
 /**
  * Sheet rows -> { stops, someday, notes }.
  * A stop has: name, region, country, key, arr, dep (ISO dates), base, booked, lat, lon, tz, how ('drive' | 'fly' | ''),
- * travel (text), note, off ([start, end] time off work, or null) and flag (a data problem worth showing, or undefined).
+ * travel (text), note, off ([start, end] time off work, or null), vacation (the sheet has both a vacation start and a
+ * vacation end date for this stop) and flag (a data problem worth showing, or undefined).
  * Rows with no arrival date become "someday" places. A row with a date but no position, or no departure date, is kept
  * and flagged. `notes` lists problems found in the sheet, for the site owner.
  */
@@ -195,6 +196,7 @@ export function normalizeRows(rows) {
       travel: travel.replace(/^flying:?\s*/i, ''),
       note: String(row.note || '').trim(),
       off: offOk ? [offStart, offEnd] : null,
+      vacation: Boolean(offStart && offEnd),
     });
   }
   if (!stops.length) throw new Error('The travel sheet has no dated stops');
