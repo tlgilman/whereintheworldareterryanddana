@@ -601,16 +601,23 @@ function renderTicks() {
   const pct = iso => clamp((dayIndex(iso) - dayIndex(model.startIso)) / max * 100, 0, 100);
   box.textContent = '';
   const today = pct(model.today);
+  const mark = el('span', 'today', 'Today');
+  mark.style.left = today + '%';
+  box.appendChild(mark);
+  // The labels must not run into each other, however narrow the slider is. "Today" always shows; a year is left out
+  // if it would come within a few pixels of "Today" or of the year before it.
+  const at = x => x / 100 * box.clientWidth, half = mark.offsetWidth / 2;
+  let last = -1e9;
   for (let y = +model.startIso.slice(0, 4) + 1; y <= +model.stops[model.stops.length - 1].dep.slice(0, 4); y++) {
     const x = pct(`${y}-01-01`);
     if (Math.abs(x - today) < 7 || x > 97) continue;
     const tick = el('span', null, String(y));
     tick.style.left = x + '%';
     box.appendChild(tick);
+    const w = tick.offsetWidth / 2;
+    if (Math.abs(at(x) - at(today)) < w + half + 5 || at(x) - last < 2 * w + 6) { tick.remove(); continue; }
+    last = at(x);
   }
-  const mark = el('span', 'today', 'Today');
-  mark.style.left = today + '%';
-  box.appendChild(mark);
   $('tplan').style.left = today + '%';
 }
 
@@ -847,6 +854,7 @@ function wire() {
   window.addEventListener('hashchange', () => openHash());
   if (window.IntersectionObserver) new IntersectionObserver(entries => { heroVisible = entries[0].isIntersecting; }).observe($('stage'));
   if (window.ResizeObserver) new ResizeObserver(drawStars).observe($('sky')); else window.addEventListener('resize', drawStars);
+  if (window.ResizeObserver) new ResizeObserver(() => { if (model) renderTicks(); }).observe($('ticks'));      // which labels fit depends on how wide the slider is
   const dark = matchMedia('(prefers-color-scheme: dark)');
   if (dark.addEventListener) dark.addEventListener('change', requestFrame);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(requestFrame);
