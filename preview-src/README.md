@@ -76,6 +76,11 @@ Commit both the changed source and the rebuilt `app.js` and `app.js.map`.
   they are there from the first paint. If that text changes to use other letters, the browser fetches the full
   Yellowtail font by itself.
 - Photos that ship with the page are listed near the top of `app.js` (`HERO`), by place.
+- The photo beside the globe: on a wide screen it stands to the left of the globe. Where the globe fills its column
+  from side to side (phones, and tablets and narrow windows in two columns) it hangs below the globe instead, next to
+  the map key and the zoom buttons, so it never covers the globe. The rule is in `index.html`, under "Where the globe's
+  column is not much wider than the globe is tall". To check a change there, measure it: the photo should cover
+  next to nothing of the globe at every screen size.
 - Adding `?globe=canvas` to the address forces the simpler Earth renderer and `?globe=webgl` forces WebGL.
   Useful when testing.
 - `/previous` is marked `noindex`, so search engines list the new page and not the old one.

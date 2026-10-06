@@ -113,8 +113,10 @@ export class Globe {
       if (canvas.height !== ch) canvas.height = ch;
     }
     const lens = Math.max(60, Math.min(w / 2, h / 2) - 6);
-    // in a wide box, sit to the right so the photo has room on the left
-    const cx = w - 2 * lens > 120 ? w - lens - Math.min(40, (w - 2 * lens) * 0.12) : w / 2;
+    // In a box wider than the globe, sit to the right so the photo has room on the left. On screens where the page
+    // hangs the photo below the globe instead (it says so with --photo), stay in the middle.
+    const spare = w - 2 * lens, below = getComputedStyle(this.box).getPropertyValue('--photo').trim() === 'below';
+    const cx = below || spare <= 0 ? w / 2 : w - lens - Math.min(40, spare * 0.12);
     this.geom = { w, h, dpr, lens, cx, cy: h / 2 };
     this.box.style.setProperty('--globe-x', cx + 'px');
     this.box.style.setProperty('--globe-y', h / 2 + 'px');
