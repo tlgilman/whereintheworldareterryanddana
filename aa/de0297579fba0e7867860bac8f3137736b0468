@@ -1,0 +1,27 @@
+app/home-page.json
+  s_33b304b6daaf6d::t_7d0762fae07b6a 1
+preview-src/index.html
+  s_33b304b6daaf6d::t_f52870ab06c931 355-360,384-389
+preview-src/js/app.js
+  s_33b304b6daaf6d::t_8f40fd6ca7a0d0 604-610,617-619,857
+public/preview/app.js
+  s_33b304b6daaf6d::t_7dfd4ae9459f4a 1,63,69,71
+public/preview/app.js.map
+  s_33b304b6daaf6d::t_ee2b0f35a78fa9 4-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aade0297579fba0e7867860bac8f3137736b0468",
+  "prompts": {},
+  "sessions": {
+    "s_33b304b6daaf6d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_33b304b6daaf6d",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
