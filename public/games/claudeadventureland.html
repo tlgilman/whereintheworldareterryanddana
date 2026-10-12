@@ -45,35 +45,88 @@
   #pad .row{display:flex;gap:5px;width:100%}
   #pad .w{font-weight:normal;font-size:12px}
 
-  /* ---- map ---- */
-  #mapwrap{display:none;flex:1;min-height:0;background:var(--bg);flex-direction:column}
+  /* ---- map: a glowing stack of floors, drawn on a canvas ---- */
+  #mapwrap{display:none;flex:1;min-height:0;flex-direction:column;background:#050907;
+           border:1px solid #1f2d1d;border-radius:3px}
   #mapwrap.on{display:flex}
-  #mapbar{flex:0 0 auto;display:flex;gap:6px;padding:6px;justify-content:center;
-          align-items:center}
-  #mapbar button{padding:7px 14px;font-size:14px}
-  #mapscroll{flex:1;min-height:0;overflow:auto;padding:6px;
-             -webkit-overflow-scrolling:touch}
-  #mapsvg{display:block;margin:0 auto}
-  .nd{fill:#141a12;stroke:#3f5c39;stroke-width:1.5}
-  .nd.here{fill:#26361f;stroke:#e8e8e8;stroke-width:2.5}
-  .nd.goal{stroke:#e8c35a;stroke-dasharray:4 3}
-  .nl{fill:#cfe6c8;font:11px "Courier New",monospace;text-anchor:middle}
-  .nl.here{fill:#fff;font-weight:bold}
-  .eg{stroke:#3f5c39;stroke-width:1.6;fill:none}
-  .eg.sp{stroke:#e8c35a;stroke-dasharray:5 4}
-  .el{fill:#9fd18f;font:10px "Courier New",monospace;text-anchor:middle;
-      paint-order:stroke;stroke:#0a0a0a;stroke-width:4px;stroke-linejoin:round}
-  .el.sp{fill:#e8c35a}
-  .pz{fill:#e8c35a}
-  .eg.todo{stroke:#2f4a2b;stroke-dasharray:3 3}
-  .el.todo{fill:#54683f}
-  .ah{fill:#3f5c39;stroke:none}
-  .ah.sp{fill:#e8c35a}
-  .tag{fill:#0a0a0a;stroke:#9fd18f;stroke-width:1.5}
-  .tag.sp{stroke:#e8c35a}
-  .tagl{fill:#cfe6c8;font:bold 12px "Courier New",monospace;text-anchor:middle}
-  .mapfoot{color:#6f7a6c;font:11px "Courier New",monospace;text-align:center;padding:4px;
-           line-height:1.5;flex:0 0 auto}
+  /* the screen is hidden while the map is up, so the case may grow to give
+     the map room without touching the terminal's measured width */
+  #case.mapping{width:min(96vw,1240px);height:min(94dvh,880px)}
+  #mapbar{flex:0 0 auto;display:flex;gap:6px;padding:6px;align-items:center;flex-wrap:wrap;
+          border-bottom:1px solid #1a2618}
+  #mapbar button{padding:6px 12px;font-size:13px}
+  #mapbar .seg{display:inline-flex}
+  #mapbar .seg button{border-radius:0}
+  #mapbar .seg button:first-child{border-radius:4px 0 0 4px}
+  #mapbar .seg button:last-child{border-radius:0 4px 4px 0;border-left:0}
+  #mapbar button[aria-pressed="true"]{background:#2b4527;color:#fff;border-color:#5b8a52}
+  #mapbar .zoom{margin-left:auto;display:inline-flex;gap:4px}
+  #mapbar .zoom button{min-width:34px;font-weight:bold}
+  #mapstage{position:relative;flex:1;min-height:0;overflow:hidden;
+            background:radial-gradient(ellipse 80% 70% at 55% 45%, #0f1d11 0%, #070c08 60%, #040604 100%)}
+  #mapstage::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
+            background:repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+  #mapcv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;
+         outline:none;cursor:grab}
+  #mapcv:active{cursor:grabbing}
+  #mapcv:focus-visible{box-shadow:inset 0 0 0 2px #5b8a52}
+  #maprail{position:absolute;left:8px;top:50%;transform:translateY(-50%);z-index:2;
+           display:flex;flex-direction:column;gap:3px;max-height:calc(100% - 16px);overflow-y:auto}
+  #maprail button{display:flex;justify-content:space-between;gap:10px;min-width:96px;text-align:left;
+           background:rgba(10,20,11,.82);border-color:#2c4229;color:#9fd18f;padding:5px 8px;font-size:12px}
+  #maprail button .n{color:#5f7f58}
+  #maprail button .sh{display:none}
+  #maprail button.on{background:#203a1d;border-color:#8fe388;color:#fff}
+  #maprail button.here .lv::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
+           background:#fff;margin-right:6px;box-shadow:0 0 6px #fff;vertical-align:1px}
+  #mapcard{position:absolute;right:10px;bottom:10px;z-index:3;width:min(310px,calc(100% - 20px));
+           max-height:calc(100% - 20px);overflow:auto;background:rgba(6,13,7,.93);
+           border:1px solid #33502f;border-radius:6px;color:#d9f7d2;
+           font:13px/1.45 "Courier New",ui-monospace,monospace;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+  #mapcard .ch{display:flex;align-items:stretch}
+  #mapcard .tg{flex:1;background:none;border:0;border-radius:0;text-align:left;padding:9px 11px;
+           color:inherit;display:flex;flex-direction:column;gap:2px;font:inherit}
+  #mapcard .tg:hover{background:rgba(143,227,136,.06)}
+  #mapcard .nm{font-weight:bold;font-size:14px;color:#fff}
+  #mapcard .sub{font-size:11px;color:#7fa877}
+  #mapcard .x{background:none;border:0;border-left:1px solid #22361f;border-radius:0;color:#9fd18f;padding:0 12px}
+  #mapcard .cb{padding:0 11px 11px}
+  #mapcard .sec{color:#8fb987;font-size:12px;margin:9px 0 5px}
+  #mapcard .sec i,#mapcard .ways i{color:#6f8f69;font-style:normal}
+  #mapcard .goal{color:#f0c050}
+  #mapcard .ways{display:flex;flex-direction:column;gap:4px}
+  #mapcard .go{text-align:left;font-size:12px;padding:6px 8px;color:#cfe6c8}
+  #mapcard .go b{color:#fff;margin-right:2px}
+  #mapcard .go.new{border-style:dashed}
+  #mapcard .go:disabled{opacity:.45;cursor:default}
+  #mapcard .go.sp{border-color:#6b5a2a;color:#f0d79a}
+  #mapcard .route{color:#fff;letter-spacing:.5px;word-spacing:2px;margin-bottom:8px}
+  #mapcard .walk{width:100%;padding:8px;font-size:13px;background:#24401f;color:#fff;border-color:#5b8a52}
+  #mapcard .walk:disabled{opacity:.45;cursor:default}
+  #mapcard .items{margin:0;padding:0 0 0 2px;list-style:none}
+  #mapcard .items li::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;
+           background:#8fe388;margin-right:8px;vertical-align:1px}
+  #mapcard .items li.tr{color:#f5d58a}
+  #mapcard .items li.tr::before{border-radius:0;transform:rotate(45deg);background:#f0c050}
+  #mapcard .tip{color:#5f7f58;font-size:11px;margin-top:8px}
+  #maphint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:2;pointer-events:none;
+           color:#9fd18f;font:12px "Courier New",monospace;background:rgba(6,13,7,.85);
+           border:1px solid #2c4229;border-radius:14px;padding:5px 12px;white-space:nowrap;
+           transition:opacity .8s}
+  #maphint.gone{opacity:0}
+  #mapfoot{flex:0 0 auto;display:flex;gap:14px;justify-content:space-between;align-items:baseline;
+           padding:5px 9px;font:11px "Courier New",monospace;color:#6f8a69;border-top:1px solid #1a2618;min-height:24px}
+  #maplegend{color:#5f7f58;white-space:nowrap;overflow:hidden;flex:0 1 auto}
+  #maplegend i{display:inline-block;vertical-align:1px;margin:0 4px 0 10px}
+  #maplegend b{color:#8fe388;margin:0 3px 0 10px}
+  #maplegend .k-you{width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 5px #fff}
+  #maplegend .k-tr{width:6px;height:6px;background:#f0c050;transform:rotate(45deg)}
+  #maplegend .k-it{width:6px;height:6px;border-radius:50%;background:#8fe388}
+  #maplegend .k-ud{width:2px;height:10px;background:#63d6ff;vertical-align:-1px}
+  #maplegend .k-sp{width:16px;height:0;border-top:2px dashed #f0c050}
+  @media (max-width:1100px){ #maplegend{display:none} }
+  #mapticker{color:#cfe6c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-align:right}
+  @media (prefers-reduced-motion: reduce){ #maphint{transition:none} }
   b{font-weight:bold}
 
   /* ------------------------------------------------------------------
@@ -96,8 +149,21 @@
                                      text-align:center}
     #pad{display:flex}
     .hint{display:none}
-    #mapbar button{flex:1 1 auto}
-    .mapfoot{font-size:10px}
+    #mapbar{gap:4px;padding:4px}
+    #mapbar button{padding:8px 10px;font-size:13px}
+    #mapbar #mBack{flex:1 1 auto}
+    #maprail{left:4px;top:auto;bottom:8px;transform:none;max-height:45%}
+    #maprail button{min-width:0;padding:6px 9px;font-size:12px;justify-content:center}
+    #maprail button .lv,#maprail button .n{display:none}
+    #maprail button .sh{display:inline}
+    #maprail button.here .sh::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;
+             background:#fff;margin-right:5px;box-shadow:0 0 6px #fff;vertical-align:1px}
+    #case.mapping{width:100%;height:var(--apph)}
+    #mapcard{left:6px;right:6px;bottom:6px;width:auto;max-height:52%}
+    #mapcard.closed{max-height:none}
+    #maphint{white-space:normal;width:86%;text-align:center;top:8px;bottom:auto}
+    #mapfoot{flex-direction:column;gap:2px;align-items:stretch}
+    #mapticker{text-align:left}
   }
   /* Landscape phone: almost no height, so shed the keypad and shrink the room
      pane. Keyed on height alone, not on pointer:coarse - the constraint really
@@ -112,15 +178,25 @@
 </head>
 <body>
 <div id="case">
-  <div id="mapwrap">
+  <div id="mapwrap" aria-label="Map">
     <div id="mapbar">
-      <button id="zOut" title="zoom out">&minus;</button>
-      <button id="zFit" title="fit to screen">Fit</button>
-      <button id="zIn" title="zoom in">+</button>
-      <button id="zClose">Close map</button>
+      <button id="mBack">Back to game</button>
+      <span class="seg" role="group" aria-label="View">
+        <button id="m3d" aria-pressed="true" title="All floors in three dimensions">3D</button><button id="mPlan" aria-pressed="false" title="One floor seen from above">Plan</button>
+      </span>
+      <button id="mFind" title="Centre the map on where you are">Find me</button>
+      <span class="zoom"><button id="mOut" aria-label="Zoom out">&minus;</button><button id="mIn" aria-label="Zoom in">+</button></span>
     </div>
-    <div id="mapscroll"><svg id="mapsvg"></svg></div>
-    <div class="mapfoot" id="mapfoot"></div>
+    <div id="mapstage">
+      <canvas id="mapcv" tabindex="0" role="img" aria-label="Map of the places you have found"></canvas>
+      <div id="maprail" aria-label="Floors"></div>
+      <div id="mapcard"></div>
+      <div id="maphint"></div>
+    </div>
+    <div id="mapfoot"><span id="mapstat"></span>
+      <span id="maplegend" aria-hidden="true"><i class="k-you"></i>you <i class="k-tr"></i>treasure seen <i class="k-it"></i>other things
+        <i class="k-ud"></i>up/down <i class="k-sp"></i>moved by a command <b>?</b> not tried yet</span>
+      <span id="mapticker" aria-live="polite"></span></div>
   </div>
   <div id="screen">
     <div id="room"></div>
@@ -338,264 +414,990 @@ function echo(s){
 }
 
 /* ---------- automap ---------- */
-/* The room graph is known up front, so the layout is computed once and then
-   revealed a room at a time. An edge appears only when you actually walk it,
-   labelled at the end you left from - so the letter beside a room is the
-   direction you took OUT of that room. */
+/* The map is ours, not the original's. It lives outside the emulated screen,
+   reads the game state and never changes it - except when the player asks it
+   to move or to walk somewhere, which it does by typing the same commands a
+   player would, through the same submit() a typed line takes.
+
+   Layout. Every room gets a cell on a 3D grid: east-west and north-south on
+   a floor, UP and DOWN between floors. The grid is worked out once per game
+   from the whole room table plus the moves the action table makes (GO TREE,
+   GO HOLE, CLIMB ROPE), so a room never moves as you explore: the map only
+   reveals. Adams maps are not geometry - exits are one-way, mazes contradict
+   themselves - so the layout is a compromise found by annealing: each exit
+   would like its room one cell away in its own direction, and the
+   arrangement that upsets the fewest of them wins. It is seeded from the
+   database, so the same game always gets the same map.
+
+   Recording. An edge appears only once you have walked it. S.link holds the
+   walked edges ('from>to' -> direction letters, or '~' for a move the game
+   made happen), S.via the command that made a '~' move, S.saw what was lying
+   in each room when you last stood in it with a light, S.trail your last few
+   rooms. All four ride along in saves. */
 const MAPLAYOUT = {"pos": {"1": [6, 9], "2": [6, 8], "3": [6, 7], "4": [5, 6], "5": [7, 7], "6": [8, 8], "7": [8, 7], "8": [9, 7], "9": [9, 6], "10": [4, 8], "11": [4, 7], "12": [3, 8], "13": [2, 7], "14": [2, 9], "15": [6, 6], "16": [6, 5], "17": [6, 4], "18": [6, 3], "19": [7, 3], "20": [7, 2], "21": [8, 4], "22": [7, 4], "23": [4, 6], "24": [1, 9], "25": [4, 10], "26": [12, 9], "27": [11, 8]}, "names": {"1": "CAR PARK", "2": "MAIN AVENUE", "3": "BIG TOP", "4": "BLEACHERS", "5": "CENTRE RING", "6": "COCONUT SHY", "7": "DUCK POND", "8": "HIGH STRIKER", "9": "PRIZE BOOTH", "10": "FLOSS STALL", "11": "ZOLTAN", "12": "MIRRORS I", "13": "MIRRORS II", "14": "MIRRORS III", "15": "GHOST TRAIN", "16": "TUNNEL", "17": "WORKSHOP", "18": "GENERATOR", "19": "FERRIS WHEEL", "20": "TOP CAR", "21": "SKELTER TOP", "22": "SKELTER FOOT", "23": "CARAVAN", "24": "LOST PROPERTY", "25": "STORM DRAIN", "26": "HELL", "27": "LIMBO"}};
 let MP=null, compassMove=false, mapOn=false, bootAuto=false;
-let mapZoom=1, mapFit=true;
-const elMapWrap=document.getElementById('mapwrap');
-const elMapScroll=document.getElementById('mapscroll');
-const elMapSvg =document.getElementById('mapsvg');
-const elMapFoot=document.getElementById('mapfoot');
 const DIRL='NSEWUD';
+const DIRWORD=['North','South','East','West','Up','Down'];
+const MAPV=[[0,-1,0],[0,1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]];
+const MOPP=[1,0,3,2,5,4];
 
-function buildLayout(){
-  if(MAPLAYOUT && MAPLAYOUT.pos) return MAPLAYOUT;
-  /* fall back to walking the graph from the start room */
-  const pos={}, taken=new Set();
-  const D=[[0,-1],[0,1],[1,0],[-1,0],[1,-1],[1,1]];
-  const put=(r,x,y)=>{ while(taken.has(x+','+y)) x++; pos[r]=[x,y]; taken.add(x+','+y); };
-  put(G.startRoom,0,0);
-  const q=[G.startRoom], done=new Set([G.startRoom]);
-  while(q.length){
-    const r=q.shift(), [x,y]=pos[r];
-    G.rooms[r].exits.forEach((tg,d)=>{
-      if(!tg||tg===r||done.has(tg)) return;
-      done.add(tg); put(tg, x+D[d][0], y+D[d][1]); q.push(tg);
-    });
+/* ---- the navigation graph: exits, plus moves the action table makes ---- */
+function mapGraph(){
+  const R=G.rooms, n=R.length, E=[];
+  for(let a=1;a<n;a++) R[a].exits.forEach((b,k)=>{ if(b>0 && b<n && b!==a) E.push({a,b,dir:k,kind:'exit'}); });
+  const word=(list,i)=>{ let j=i; while(j>0 && String(list[j]||'').startsWith('*')) j--;
+                         return String(list[j]||'').replace(/^\*/,'').toUpperCase(); };
+  const codesOf=l=>[Math.floor(l.act[0]/150),l.act[0]%150,Math.floor(l.act[1]/150),l.act[1]%150];
+  /* how many parameters each action code takes, so the GOTO finds its own */
+  const PAR={52:1,53:1,54:1,55:1,58:1,59:1,60:1,62:2,72:2,74:1,75:2,79:1,81:1,82:1,83:1,87:1};
+  const MOVEV=/^(GO|WAL|RUN|CLI|SWI|STE|CRA|ENT|JUM|DES|ASC|SLI|FLY|RID|ROW|SAI|DIV|LEA|EXI|HIK)/;
+  const A=G.actions||[];
+  for(let i=0;i<A.length;i++){
+    const L=A[i], vv=Math.floor(L.vocab/150), nv=L.vocab%150;
+    if(vv===0) continue;                      /* automatic lines are not the player's moves */
+    const chain=[L];
+    if(codesOf(L).includes(73)) for(let j=i+1;j<A.length && A[j].vocab===0;j++) chain.push(A[j]);
+    let from=[];
+    for(const l of chain){
+      const par=[], rooms=[], props=[];
+      for(const c of l.cond){ const op=c%20, dv=Math.floor(c/20); if(op===0) par.push(dv); if(op===4) rooms.push(dv);
+        /* GO DOOR is usually "the door is here", not "you are in room 12":
+           take the room the door starts in */
+        if(op===2 && G.items[dv]){ const l0=G.items[dv].loc&255; if(l0>0 && l0<n && l0!==255) props.push(l0); } }
+      if(rooms.length) from=rooms; else if(props.length && !from.length) from=props;
+      let p=0;
+      for(const c of codesOf(l)){
+        if(c===54){ const b=par[p]; for(const a of from) if(a!==b && b>0 && b<n)
+          E.push({a,b,dir:-1,kind:'act',verb:word(G.verbs,vv),noun:nv?word(G.nouns,nv):''}); }
+        p+=PAR[c]||0;
+      }
+    }
   }
-  let k=0;
-  for(let r=1;r<G.rooms.length;r++) if(!(r in pos)) put(r,-4,k++);
-  const names={};
-  for(let r=1;r<G.rooms.length;r++){
-    let s=G.rooms[r].text.replace(/^\*/,'').replace(/^I am (in|at|on) (a |an |the )?/i,'');
-    names[r]=s.split(/[.,]/)[0].replace(/\n/g,' ').slice(0,60).toUpperCase();
+  const seen=new Set(), out=[];
+  for(const e of E){
+    if(e.kind==='act'){
+      /* which way is it? Best evidence: an exit straight back */
+      const back=R[e.b].exits.indexOf(e.a), fwd=R[e.a].exits.indexOf(e.b), mv=MOVEV.test(e.verb);
+      if(back>=0) e.dir=MOPP[back];
+      else if(fwd>=0) e.dir=fwd;
+      else if(mv && /^UP/.test(e.noun)) e.dir=4;
+      else if(mv && /^DOW/.test(e.noun)) e.dir=5;
+      e.kind = e.dir>=0 ? 'pass' : (mv ? 'near' : 'warp');
+    }
+    const k=e.a+'>'+e.b+'>'+e.dir; if(seen.has(k)) continue; seen.add(k); out.push(e);
   }
-  return {pos, names};
+  return out;
 }
+
+function mapRng(seed){ let s=seed>>>0||1;
+  return ()=>{ s=(s+0x6D2B79F5)>>>0; let t=s; t=Math.imul(t^(t>>>15),t|1);
+               t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)/4294967296; }; }
+
+function mapLayout(){
+  const n=G.rooms.length, E=mapGraph();
+  if(MAPLAYOUT && MAPLAYOUT.v===3 && MAPLAYOUT.pos) return {pos:MAPLAYOUT.pos, edges:E, comp:MAPLAYOUT.comp||[]};
+  const C=E.filter(e=>e.kind!=='warp');
+  const inc=Array.from({length:n},()=>[]);
+  C.forEach((e,i)=>{ inc[e.a].push(i); inc[e.b].push(i); });
+  const comp=new Array(n).fill(-1), comps=[];
+  const order=[G.startRoom]; for(let r=1;r<n;r++) if(r!==G.startRoom) order.push(r);
+  const blank=r=>!String(G.rooms[r].text||'').trim() && !inc[r].length;   /* unused slots in the room table */
+  for(const r0 of order){ if(r0<1||comp[r0]>=0||blank(r0)) continue; const list=[r0]; comp[r0]=comps.length;
+    for(let k=0;k<list.length;k++){ const r=list[k];
+      for(const i of inc[r]){ const e=C[i], o=e.a===r?e.b:e.a; if(comp[o]<0){ comp[o]=comps.length; list.push(o);} } }
+    comps.push(list); }
+  const P=new Array(n).fill(null), occ=new Map(), key=(x,y,z)=>x+','+y+','+z;
+  const W={level:40, perp:4, back:25, stretch:1.2, stack:3, vstretch:6, thru:8, near:0.8, nearz:4};
+  function edgeCost(e,pa,pb){
+    const dx=pb[0]-pa[0], dy=pb[1]-pa[1], dz=pb[2]-pa[2];
+    if(e.kind==='near'){ const d=Math.abs(dx)+Math.abs(dy);
+      return W.near*Math.max(0,d-1)**2 + W.nearz*Math.abs(dz); }
+    const v=MAPV[e.dir]; let c=0;
+    if(e.dir<4){
+      const along=dx*v[0]+dy*v[1], perp=v[0]?dy:dx;
+      c+=W.level*dz*dz + W.perp*perp*perp;
+      c+= along<1 ? W.back*(1-along)**2 : W.stretch*(along-1);
+      if(along>1 && !perp && !dz) for(let t=1;t<along;t++) if(occ.has(key(pa[0]+v[0]*t,pa[1]+v[1]*t,pa[2]))) c+=W.thru;
+    }else{
+      const along=dz*v[2];
+      c+=W.stack*(dx*dx+dy*dy);
+      c+= along<1 ? W.back*(1-along)**2 : W.vstretch*(along-1)**2;
+      if(along>1 && !dx && !dy) for(let t=1;t<along;t++) if(occ.has(key(pa[0],pa[1],pa[2]+v[2]*t))) c+=W.thru;
+    }
+    return e.kind==='pass' ? c*0.8 : c;
+  }
+  const costOf=r=>{ let c=0; for(const i of inc[r]){ const e=C[i]; if(P[e.a]&&P[e.b]) c+=edgeCost(e,P[e.a],P[e.b]); } return c; };
+  const rnd=mapRng(n*7919+C.length*31+G.startRoom);
+  const place=(r,p)=>{ P[r]=p; occ.set(key(p[0],p[1],p[2]),r); };
+  const unplace=r=>{ const p=P[r]; occ.delete(key(p[0],p[1],p[2])); P[r]=null; };
+  function freeNear(p,vertical){
+    if(!occ.has(key(p[0],p[1],p[2]))) return p;
+    for(let rad=1;rad<14;rad++){
+      const cand=[];
+      if(vertical) cand.push([p[0],p[1],p[2]+rad],[p[0],p[1],p[2]-rad]);
+      for(let dx=-rad;dx<=rad;dx++) for(let dy=-rad;dy<=rad;dy++)
+        if(Math.max(Math.abs(dx),Math.abs(dy))===rad) cand.push([p[0]+dx,p[1]+dy,p[2]]);
+      for(const c of cand) if(!occ.has(key(c[0],c[1],c[2]))) return c;
+    }
+    return [p[0]+40,p[1],p[2]];
+  }
+  const rank=e=>e.kind==='exit'?0:e.kind==='pass'?1:2;
+  let ox=0;
+  for(const list of comps){
+    const root=list[0]; place(root,[ox,0,0]);
+    const done=new Set([root]), q=[root];
+    while(q.length){
+      const r=q.shift();
+      const es=inc[r].map(i=>C[i]).sort((a,b)=>rank(a)-rank(b));
+      for(const e of es){
+        const o=e.a===r?e.b:e.a; if(done.has(o)) continue;
+        let v=e.kind==='near'?[1,0,0]:MAPV[e.dir]; if(e.b===r && e.kind!=='near') v=v.map(x=>-x);
+        place(o, freeNear([P[r][0]+v[0],P[r][1]+v[1],P[r][2]+v[2]], v[2]!==0)); done.add(o); q.push(o);
+      }
+    }
+    const rooms=list.filter(r=>inc[r].length);
+    const N=rooms.length<2 ? 0 : Math.max(4000, rooms.length*400);
+    for(let it=0;it<N;it++){
+      const T=4*Math.pow(0.0025, it/N);
+      const r=rooms[Math.floor(rnd()*rooms.length)];
+      let t;
+      if(rnd()<0.5){
+        const e=C[inc[r][Math.floor(rnd()*inc[r].length)]], o=e.a===r?e.b:e.a;
+        const v=e.kind==='near'?MAPV[Math.floor(rnd()*4)]:MAPV[e.dir], s=(e.a===r)?-1:1;
+        t=[P[o][0]+s*v[0],P[o][1]+s*v[1],P[o][2]+s*v[2]];
+      }else{
+        const v=MAPV[Math.floor(rnd()*(rnd()<0.85?4:6))]; t=[P[r][0]+v[0],P[r][1]+v[1],P[r][2]+v[2]];
+      }
+      const s2=occ.get(key(t[0],t[1],t[2]));
+      if(s2===r || (s2!==undefined && comp[s2]!==comp[r])) continue;
+      const pr=P[r];
+      const before=costOf(r)+(s2!==undefined?costOf(s2):0);
+      unplace(r); if(s2!==undefined) unplace(s2);
+      place(r,t); if(s2!==undefined) place(s2,pr);
+      const dE=costOf(r)+(s2!==undefined?costOf(s2):0)-before;
+      if(dE<=0 || rnd()<Math.exp(-dE/T)) continue;
+      unplace(r); if(s2!==undefined) unplace(s2);
+      place(r,pr); if(s2!==undefined) place(s2,t);
+    }
+    /* each island starts at its own left edge, its first room on level 0 */
+    let mn=1e9, mx=-1e9; for(const r of list){ mn=Math.min(mn,P[r][0]); mx=Math.max(mx,P[r][0]); }
+    const ry=P[root][1], rz=P[root][2];
+    for(const r of list) occ.delete(key(P[r][0],P[r][1],P[r][2]));
+    for(const r of list){ P[r]=[P[r][0]-mn+ox,P[r][1]-ry,P[r][2]-rz]; occ.set(key(P[r][0],P[r][1],P[r][2]),r); }
+    ox+=(mx-mn)+3;
+  }
+  /* Islands - places joined to the rest only by a magic word or a ride -
+     are stacked in columns beside the main map rather than strung out in a
+     line, so the map stays compact. Biggest first. */
+  { const bb=list=>{ let a=1e9,b=1e9,c=-1e9,d=-1e9; for(const r of list){ a=Math.min(a,P[r][0]); c=Math.max(c,P[r][0]); b=Math.min(b,P[r][1]); d=Math.max(d,P[r][1]); } return [a,b,c,d]; };
+    const main=bb(comps[0]); const isl=comps.slice(1).sort((p,q)=>q.length-p.length);
+    let cx=main[2]+2, cy=main[1], colW=0;
+    for(const list of isl){
+      const b=bb(list), w=b[2]-b[0], h=b[3]-b[1];
+      if(cy>main[1] && cy+h>Math.max(main[3],main[1]+3)){ cx+=colW+2; cy=main[1]; colW=0; }
+      for(const r of list) P[r]=[P[r][0]-b[0]+cx, P[r][1]-b[1]+cy, P[r][2]];
+      cy+=h+2; colW=Math.max(colW,w);
+    } }
+  /* close up the levels and number them from the start room's */
+  const zs=[...new Set(P.filter(Boolean).map(p=>p[2]))].sort((a,b)=>a-b);
+  const zi=new Map(zs.map((z,i)=>[z,i])), z0=zi.get(P[G.startRoom][2]);
+  for(let r=1;r<n;r++) if(P[r]) P[r]=[P[r][0],P[r][1],zi.get(P[r][2])-z0];
+  return {pos:P, edges:E, comp};
+}
+
+function mapName(r, long){
+  let t=String((G.rooms[r]||{}).text||'').replace(/\s*\n\s*/g,' ').trim();
+  if(t.startsWith('*')) t=t.slice(1);
+  t=t.replace(/^(I'm|I am|Im)\s+((in|at|on)\s+)?((a|an|the)\s+)?/i,'');
+  t=t.split(/[.!;]/)[0].trim();
+  if(!t) return 'Room '+r;
+  t=t[0].toUpperCase()+t.slice(1);
+  const max=long?80:40;
+  return t.length>max ? t.slice(0,max-1).replace(/\s+\S*$/,'')+'…' : t;
+}
+function mapItemName(k){
+  const t=String(G.items[k].text||'').replace(/^\*/,'').replace(/\*$/,'').trim();
+  return t || 'something';
+}
+function levelName(z){ return z===0 ? 'Start level' : z>0 ? z+' up' : (-z)+' down'; }
+
+/* ---- recording what the player has done ---- */
 function recordEdge(from,dir,to){
   const L=DIRL[dir], k=from+'>'+to;
   if(from===to){ const cur=S.link[k]||''; if(!cur.includes(L)) S.link[k]=cur+L; }
   else S.link[k]=L;
   S.seen[to]=1; compassMove=true;
 }
-function recordSpecial(from,to){ if(from!==to && !S.link[from+'>'+to]) S.link[from+'>'+to]='~'; S.seen[to]=1; }
+function recordSpecial(from,to,cmd){
+  const k=from+'>'+to;
+  if(from!==to && !S.link[k]) S.link[k]='~';
+  if(from!==to && S.link[k]==='~' && cmd){ S.via=S.via||{}; S.via[k]=cmd.trim().toUpperCase(); }
+  S.seen[to]=1;
+}
+function recordSight(){
+  S.saw=S.saw||{}; S.trail=S.trail||[];
+  if(S.trail[S.trail.length-1]!==S.loc){ S.trail.push(S.loc); if(S.trail.length>16) S.trail.shift(); }
+  if(isDark()) return;
+  const here=[]; for(let k=0;k<G.items.length;k++) if(S.itemLoc[k]===S.loc) here.push(k);
+  S.saw[S.loc]=here;
+}
+function mapState(){ S.seen=S.seen||{}; S.link=S.link||{}; S.via=S.via||{}; S.saw=S.saw||{}; S.trail=S.trail||[]; }
 
-function drawMap(){
-  if(!MP) MP=buildLayout();
-  const pos=MP.pos, nm=MP.names;
-  const seen=Object.keys(S.seen).map(Number).filter(r=>pos[r]);
-  if(!seen.length){ elMapSvg.innerHTML=''; return; }
-  const seenSet=new Set(seen);
-
-  /* Boxes are big enough for three wrapped lines of room name, and every box
-     has six anchor points so a link leaves by the side it actually goes.
-     N and S sit centre-top and centre-bottom, W and E mid-left and mid-right,
-     U and D get their own stubs near the right-hand corners so they never
-     collide with N and S. */
-  const SX=250, SY=170, NW=176, NH=62, PAD=64, CH=10.5, MAXC=22, MAXL=3;
-  let a=1e9,b=1e9,c=-1e9,d=-1e9;
-  seen.forEach(r=>{const p=pos[r]; a=Math.min(a,p[0]); c=Math.max(c,p[0]);
-                                   b=Math.min(b,p[1]); d=Math.max(d,p[1]);});
-  const X=r=>(pos[r][0]-a)*SX+PAD+NW/2, Y=r=>(pos[r][1]-b)*SY+PAD+NH/2;
-  const W=(c-a)*SX+NW+PAD*2, H=(d-b)*SY+NH+PAD*2;
-  const OPP=[1,0,3,2,5,4];
-  const g=[];
-
-  function anchor(r,dir){
-    const cx=X(r), cy=Y(r), hw=NW/2, hh=NH/2;
-    if(dir===0) return [cx,cy-hh];
-    if(dir===1) return [cx,cy+hh];
-    if(dir===2) return [cx+hw,cy];
-    if(dir===3) return [cx-hw,cy];
-    if(dir===4) return [cx+hw-26,cy-hh];
-    if(dir===5) return [cx+hw-26,cy+hh];
-    return [cx+hw-8,cy+hh];               /* non-compass links */
-  }
-  function fitLines(s){
-    const words=String(s).split(/\s+/).filter(Boolean); const out=[]; let line='';
-    for(const w of words){
-      if(!line) line=w;
-      else if((line+' '+w).length<=MAXC) line+=' '+w;
-      else { out.push(line); line=w; if(out.length===MAXL) break; }
-    }
-    if(out.length<MAXL && line) out.push(line);
-    if(out.length===MAXL){
-      const rest=words.join(' ');
-      if(rest.length>out.join(' ').length)
-        out[MAXL-1]=out[MAXL-1].slice(0,MAXC-1).replace(/\s+$/,'')+'…';
-    }
-    return out.slice(0,MAXL);
-  }
-  function arrow(x1,y1,x2,y2,cls){
-    const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L, s=6;
-    const px=-uy, py=ux;
-    g.push(`<path class="ah${cls}" d="M${x2},${y2} L${x2-ux*s+px*s*0.5},${y2-uy*s+py*s*0.5}`
-          +` L${x2-ux*s-px*s*0.5},${y2-uy*s-py*s*0.5} Z"/>`);
-  }
-
-  /* rooms that need an off-page tag, in the order they are first needed */
-  const tag={}; let tagN=0;
-  const tagFor=r=>{ if(!(r in tag)) tag[r]=String.fromCharCode(65+(tagN++)%26)
-                      +(tagN>26?String(Math.floor((tagN-1)/26)):''); return tag[r]; };
-
-  /* A link is drawn as a real line only if that line stays clear of every
-     other box. Distance is the wrong test: two boxes three cells apart with
-     nothing between them are fine, whereas a row of rooms whose last exit
-     loops back to the first would drive a line straight through the middle
-     one. When the line would cross a box, the link becomes an off-page tag
-     instead - the flowchart idiom: leave by an arrow marked (A), continue at
-     the box badged (A). */
-  function segHitsBox(x1,y1,x2,y2,r){
-    const hw=NW/2+10, hh=NH/2+10, cx=X(r), cy=Y(r);
-    let t0=0,t1=1; const dx=x2-x1, dy=y2-y1;
-    const p=[-dx,dx,-dy,dy];
-    const q=[x1-(cx-hw),(cx+hw)-x1,y1-(cy-hh),(cy+hh)-y1];
-    for(let i=0;i<4;i++){
-      if(p[i]===0){ if(q[i]<0) return false; }
-      else{ const tt=q[i]/p[i];
-        if(p[i]<0){ if(tt>t1) return false; if(tt>t0) t0=tt; }
-        else      { if(tt<t0) return false; if(tt<t1) t1=tt; } }
-    }
-    return true;
-  }
-  function clear(f,to,x1,y1,x2,y2){
-    if(Math.hypot(pos[f][0]-pos[to][0],pos[f][1]-pos[to][1])>4) return false;
-    for(const r of seen){ if(r===f||r===to) continue;
-      if(segHitsBox(x1,y1,x2,y2,r)) return false; }
-    return true;
-  }
-
-  /* ---- links the player has actually walked ---- */
-  const links=[];
+/* Known ways out of a room: walked compass links, and walked special moves
+   whose command we know. A route uses nothing the player has not done. */
+function mapLinksFrom(r){
+  const out=[];
   for(const k in S.link){
-    const [f,to]=k.split('>').map(Number);
-    if(!seenSet.has(f)) continue;
-    links.push({f,to,lab:S.link[k]});
+    const i=k.indexOf('>'), f=+k.slice(0,i), t=+k.slice(i+1);
+    if(f!==r || t===r) continue;
+    const lab=S.link[k];
+    if(lab==='~'){ const via=S.via&&S.via[k]; if(via) out.push({to:t,cmd:via,special:true}); }
+    else out.push({to:t,cmd:lab[0],dir:DIRL.indexOf(lab[0])});
   }
-  /* work out the geometry and the direct/tag decision first, so that a room
-     needing a badge already has one by the time its box is drawn */
-  for(const L of links){
-    L.sp  = (L.lab==='~');
-    L.dir = L.sp ? 6 : 'NSEWUD'.indexOf(L.lab[0]);
-    if(L.dir<0) L.dir=6;
-    if(L.f===L.to){ L.kind='loop'; continue; }
-    if(!seenSet.has(L.to)){ L.kind='tag'; tagFor(L.to); continue; }
-    const [x1,y1]=anchor(L.f,L.dir);
-    const [x2,y2]=anchor(L.to,L.dir===6?6:OPP[L.dir]);
-    if(clear(L.f,L.to,x1,y1,x2,y2)){ L.kind='line'; L.pts=[x1,y1,x2,y2]; }
-    else { L.kind='tag'; tagFor(L.to); }
-  }
-
-  for(const L of links){
-    const sp=L.sp, dir=L.dir, cls=sp?' sp':'';
-    if(L.kind==='loop'){
-      /* A room can loop back to itself by several directions at once - the
-         forest in Adventureland eats N, S and W. Give each its own arc on its
-         own side of the box rather than one arc labelled "NSW". */
-      for(const ch of (sp ? ['~'] : L.lab.split(''))){
-        const dd = sp ? 6 : 'NSEWUD'.indexOf(ch);
-        const [x,y]=anchor(L.f, dd<0?6:dd);
-        const ux=(dd===2?1:dd===3?-1:dd===4?0.6:dd===5?0.6:0);
-        const uy=(dd===1||dd===5?1:dd===0||dd===4?-1:0);
-        const px=-uy, py=ux;
-        const ax=x+px*12, ay=y+py*12, bx=x-px*12, by=y-py*12;
-        g.push(`<path class="eg${cls}" d="M${ax},${ay} C${ax+ux*44},${ay+uy*44} `
-              +`${bx+ux*44},${by+uy*44} ${bx},${by}"/>`);
-        arrow(bx+ux*14,by+uy*14,bx,by,cls);
-        g.push(`<text class="el${cls}" x="${x+ux*40}" y="${y+uy*40+4}">${ch}</text>`);
-      }
-      continue;
-    }
-    if(L.kind==='line'){                              /* clear run: draw it */
-      let [x1,y1,x2,y2]=L.pts;
-      const dx=x2-x1, dy=y2-y1, Ln=Math.hypot(dx,dy)||1;
-      const ox=-dy/Ln*4, oy=dx/Ln*4;                   /* offset so a return leg is visible */
-      x1+=ox; y1+=oy; x2+=ox; y2+=oy;
-      g.push(`<line class="eg${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
-      arrow(x1,y1,x2,y2,cls);
-      g.push(`<text class="el${cls}" x="${x1+(x2-x1)*0.22}" y="${y1+(y2-y1)*0.22-5}">${L.lab}</text>`);
-    }else{                                       /* would cross a box: tag it */
-      const [x,y]=anchor(L.f,dir);
-      const ux=(dir===2?1:dir===3?-1:dir===4?0.7:dir===5?0.7:0);
-      const uy=(dir===1||dir===5?1:dir===0||dir===4?-1:0);
-      const ex=x+ux*40, ey=y+uy*40;
-      g.push(`<line class="eg${cls}" x1="${x}" y1="${y}" x2="${ex}" y2="${ey}"/>`);
-      arrow(x,y,ex,ey,cls);
-      g.push(`<text class="el${cls}" x="${x+ux*16}" y="${y+uy*16-4}">${L.lab}</text>`);
-      g.push(`<circle class="tag${cls}" cx="${ex+ux*11}" cy="${ey+uy*11}" r="11"/>`);
-      g.push(`<text class="tagl" x="${ex+ux*11}" y="${ey+uy*11+4}">${tagFor(L.to)}</text>`);
+  return out;
+}
+function mapRoute(from,to){
+  if(from===to) return [];
+  const prev=new Map([[from,null]]), q=[from];
+  while(q.length){
+    const r=q.shift();
+    for(const l of mapLinksFrom(r)){
+      if(prev.has(l.to)) continue;
+      prev.set(l.to,{r,l}); if(l.to===to){ q.length=0; break; } q.push(l.to);
     }
   }
-
-  /* ---- exits the room advertises but you have not walked yet ---- */
-  seen.forEach(r=>{
-    const ex=G.rooms[r].exits;
-    for(let dir=0;dir<6;dir++){
-      const tgt=ex[dir]; if(!tgt) continue;
-      if(S.link[r+'>'+tgt]) continue;                  /* already walked */
-      const [x,y]=anchor(r,dir);
-      const ux=(dir===2?1:dir===3?-1:dir===4?0.7:dir===5?0.7:0);
-      const uy=(dir===1||dir===5?1:dir===0||dir===4?-1:0);
-      g.push(`<line class="eg todo" x1="${x}" y1="${y}" x2="${x+ux*18}" y2="${y+uy*18}"/>`);
-      g.push(`<text class="el todo" x="${x+ux*28}" y="${y+uy*26+4}">${'NSEWUD'[dir]}</text>`);
-    }
-  });
-
-  /* ---- the boxes ---- */
-  seen.forEach(r=>{
-    const x=X(r)-NW/2, y=Y(r)-NH/2;
-    const here=(r===S.loc), goal=(r===G.treasureRoom);
-    g.push(`<rect class="nd${here?' here':''}${goal?' goal':''}" x="${x}" y="${y}" `
-          +`width="${NW}" height="${NH}" rx="5"/>`);
-    const lines=fitLines(nm[r]||('ROOM '+r));
-    const y0=Y(r)-((lines.length-1)*CH)/2+4;
-    lines.forEach((ln,k)=>{
-      g.push(`<text class="nl${here?' here':''}" x="${X(r)}" y="${y0+k*CH}">`
-            +ln.replace(/&/g,'&amp;').replace(/</g,'&lt;')+`</text>`);
-    });
-    if(r in tag){
-      g.push(`<circle class="tag" cx="${x-13}" cy="${y+13}" r="11"/>`);
-      g.push(`<text class="tagl" x="${x-13}" y="${y+17}">${tag[r]}</text>`);
-    }
-    const prizes=G.items.filter((it,k)=>S.itemLoc[k]===r && it.text.startsWith('*')).length;
-    if(prizes) g.push(`<text class="pz" x="${x+NW-7}" y="${y+13}" `
-                     +`style="font:11px monospace;text-anchor:end">${'*'.repeat(Math.min(prizes,3))}</text>`);
-  });
-
-  /* Sizing. The map is drawn at its natural size on a desktop, where there is
-     room to scroll it, but a 2000px SVG on a 390px phone is a postage stamp
-     you can only pan around blind. On a narrow viewport the default is
-     therefore to fit the width, and the +/- buttons scale from there. */
-  const avail   = Math.max(200, (elMapScroll.clientWidth||0) - 14);
-  const natural = Math.min(W, 2200);
-  const narrow  = avail < natural * 0.75;
-  const base    = (mapFit && narrow) ? Math.min(natural, avail) : natural;
-  const px      = Math.max(200, base * mapZoom);
-  elMapSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  elMapSvg.setAttribute('width', px);
-  elMapSvg.setAttribute('height', px*H/W);
-  elMapSvg.innerHTML=g.join('');
-  const total=G.rooms.length-1;
-  const brief = avail < 520;
-  elMapFoot.textContent = brief
-    ? `${seen.length} of ${total} places found`
-      + `  |  a letter by a box is the way OUT of it`
-      + `  |  (A) = continue at the box marked A`
-    : `${seen.length} of ${total} places found`
-      + `   |   a letter by a box is the way OUT of it`
-      + `   |   (A) means "continue at the box marked A"`
-      + `   |   faint stubs are exits you have not walked`
-      + `   |   * = prize here`;
+  if(!prev.has(to)) return null;
+  const steps=[]; let c=to;
+  while(c!==from){ const p=prev.get(c); steps.unshift(p.l); c=p.r; }
+  return steps;
+}
+function untried(r){
+  const out=[];
+  G.rooms[r].exits.forEach((t,d)=>{ if(t && t!==r && !S.link[r+'>'+t]) out.push(d); });
+  return out;
 }
 
+/* ---- the view ---- */
+const MCOL={ ink:'143,227,136', shaft:'99,214,255', amber:'240,192,80', you:'255,255,255',
+             label:'#d9f7d2', labelDim:'rgba(217,247,210,0.5)', halo:'rgba(5,9,7,0.92)' };
+const MV={ yaw:0.42, pitch:0.56, dist:12, t:[0,0,0], focus:null, plan:false, spread:0,
+           sel:null, hover:null, tween:null, beacon:null, lastLoc:null, placed:false,
+           W:0, H:0, dpr:1, hits:[], raf:0, last:0, dirty:true, card:true, walking:null };
+const MBOX={w:0.30, d:0.19, h:0.13}, MFONT='"Courier New",ui-monospace,monospace';
+const REDUCED = HAS_DOM && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let elMapWrap=null, elMapCv=null, elMapStage=null, elMapRail=null, elMapCard=null,
+    elMapStat=null, elMapTick=null, elMapHint=null, mapGlow=null;
+
+function levelY(z){
+  const f=MV.focus, LSP=MV.lsp||1.6;
+  let y=z*LSP;
+  if(f!==null && MV.spread>0) y+= (z>f?1.6:z<f?-1.6:0)*MV.spread;
+  return y;
+}
+function roomW(r){ const p=MP.pos[r]; return [p[0], levelY(p[2]), p[1]]; }
+function levelAlpha(z){
+  if(MV.plan) return z===MV.focus ? 1 : 0;
+  if(MV.focus===null) return 1;
+  return z===MV.focus ? 1 : 1-0.85*MV.spread;
+}
+function camBasis(){
+  const cy=Math.cos(MV.yaw), sy=Math.sin(MV.yaw), cp=Math.cos(MV.pitch), sp=Math.sin(MV.pitch);
+  const off=[cp*sy, sp, cp*cy];
+  const C=[MV.t[0]+off[0]*MV.dist, MV.t[1]+off[1]*MV.dist, MV.t[2]+off[2]*MV.dist];
+  const f=[-off[0],-off[1],-off[2]], r=[cy,0,-sy];
+  const u=[r[1]*f[2]-r[2]*f[1], r[2]*f[0]-r[0]*f[2], r[0]*f[1]-r[1]*f[0]];
+  return {C,f,r,u,F:1.25*Math.min(MV.fh||MV.H, (MV.fw||MV.W)*0.9)};
+}
+function mkProj(B){
+  return p=>{
+    const dx=p[0]-B.C[0], dy=p[1]-B.C[1], dz=p[2]-B.C[2];
+    const z=dx*B.f[0]+dy*B.f[1]+dz*B.f[2];
+    if(z<0.2) return null;
+    const x=dx*B.r[0]+dy*B.r[1]+dz*B.r[2], y=dx*B.u[0]+dy*B.u[1]+dz*B.u[2];
+    return [(MV.cx||MV.W/2)+x*B.F/z, (MV.cy||MV.H/2)-y*B.F/z, z];
+  };
+}
+/* the rail and the card cover part of the stage: aim at the middle of the rest */
+function mapInsets(){
+  const W=elMapStage.clientWidth, H=elMapStage.clientHeight;
+  const wide=W>=640;
+  const railW=(elMapRail && elMapRail.childElementCount) ? elMapRail.offsetWidth+12 : 0;
+  const cardW=(wide && elMapCard) ? elMapCard.offsetWidth+16 : 0;
+  const cardH=(!wide && elMapCard) ? elMapCard.offsetHeight+10 : 0;
+  const l=wide?railW:0, r=cardW, b=cardH;
+  MV.W=W; MV.H=H; MV.fw=Math.max(120,W-l-r); MV.fh=Math.max(120,H-b); MV.cx=l+MV.fw/2; MV.cy=MV.fh/2;
+  if(elMapHint && wide) elMapHint.style.left=MV.cx+'px';
+}
+function seenRooms(){
+  return Object.keys(S.seen).map(Number).filter(r=>r>0 && MP.pos[r]);
+}
+
+/* frame the given rooms: aim at their middle, back off until they fit */
+function mapFit(rooms, keep){
+  if(!rooms.length) return null;
+  let a=1e9,b=1e9,c=-1e9,d=-1e9,y0=1e9,y1=-1e9;
+  for(const r of rooms){ const w=roomW(r); a=Math.min(a,w[0]); c=Math.max(c,w[0]); b=Math.min(b,w[2]); d=Math.max(d,w[2]);
+                         y0=Math.min(y0,w[1]); y1=Math.max(y1,w[1]); }
+  const to={yaw:keep?MV.yaw:MV.yaw, pitch:MV.pitch, t:[(a+c)/2,(y0+y1)/2,(b+d)/2], dist:MV.dist};
+  /* find the distance by measuring: project the corners at a trial distance */
+  const save={yaw:MV.yaw,pitch:MV.pitch,t:MV.t,dist:MV.dist};
+  Object.assign(MV,{yaw:to.yaw,pitch:to.pitch,t:to.t.slice(),dist:10});
+  for(let i=0;i<4;i++){
+    const P=mkProj(camBasis()); let sx0=1e9,sx1=-1e9,sy0=1e9,sy1=-1e9;
+    for(const r of rooms){ const w=roomW(r);
+      for(const q of [[w[0]-0.7,w[1],w[2]-0.6],[w[0]+0.7,w[1],w[2]+0.6],[w[0]-0.7,w[1]+0.5,w[2]+0.6],[w[0]+0.7,w[1],w[2]-0.6]]){
+        const s=P(q); if(!s) continue; sx0=Math.min(sx0,s[0]); sx1=Math.max(sx1,s[0]); sy0=Math.min(sy0,s[1]); sy1=Math.max(sy1,s[1]); } }
+    const k=Math.max((sx1-sx0)/((MV.fw||MV.W)*0.82), (sy1-sy0)/((MV.fh||MV.H)*0.70), 0.05);
+    MV.dist=Math.min(70, Math.max(3.2, MV.dist*k));
+  }
+  /* nudge the aim so the framed box sits in the middle of the free area */
+  { const P=mkProj(camBasis()); let sx0=1e9,sx1=-1e9,sy0=1e9,sy1=-1e9;
+    for(const r of rooms){ const w=roomW(r); for(const q of [[w[0]-0.7,w[1],w[2]-0.6],[w[0]+0.7,w[1],w[2]+0.6],[w[0],w[1]+0.6,w[2]]]){
+      const s=P(q); if(!s) continue; sx0=Math.min(sx0,s[0]); sx1=Math.max(sx1,s[0]); sy0=Math.min(sy0,s[1]); sy1=Math.max(sy1,s[1]); } }
+    /* names sit above the rooms, so aim a little high */
+    const B=camBasis(), k=MV.dist/B.F, dx=(sx0+sx1)/2-(MV.cx||MV.W/2), dy=(sy0+sy1)/2-(MV.cy||MV.H/2)-12;
+    to.t=[to.t[0]+B.r[0]*dx*k-B.u[0]*dy*k, to.t[1]+B.r[1]*dx*k-B.u[1]*dy*k, to.t[2]+B.r[2]*dx*k-B.u[2]*dy*k]; }
+  to.dist=MV.dist; Object.assign(MV,save);
+  return to;
+}
+function mapOpeningRooms(){
+  const all=seenRooms();
+  if(!MP.pos[S.loc]) return all;
+  const z=MP.pos[S.loc][2];
+  for(const span of [99,3,2,1,0]){
+    const rs=all.filter(r=>Math.abs(MP.pos[r][2]-z)<=span);
+    const to=mapFit(rs); if(!to) continue;
+    /* a room is about 0.6 wide: is it still a readable size at this distance? */
+    const F=1.25*Math.min(MV.fh||MV.H,(MV.fw||MV.W)*0.9);
+    if(0.6*F/to.dist >= 40 || span===0) return rs;
+  }
+  return all;
+}
+function mapTween(to, ms){
+  const from={yaw:MV.yaw,pitch:MV.pitch,dist:MV.dist,t:MV.t.slice()};
+  if(REDUCED || !ms){ Object.assign(MV,{yaw:to.yaw,pitch:to.pitch,dist:to.dist,t:to.t.slice()}); MV.tween=null; }
+  else MV.tween={from,to,t0:performance.now(),ms};
+  mapKick();
+}
+function mapFindMe(ms){
+  if(!MP||!MP.pos[S.loc]) return;
+  const w=roomW(S.loc);
+  mapTween({yaw:MV.yaw,pitch:MV.pitch,dist:Math.min(MV.dist,11),t:w}, ms===undefined?450:ms);
+}
+
+/* ---- drawing ---- */
+function mapRender(now){
+  const ctx=elMapCv.getContext('2d');
+  const W=elMapStage.clientWidth, H=elMapStage.clientHeight;
+  if(!W||!H) return;
+  const dpr=Math.min(2, window.devicePixelRatio||1);
+  if(elMapCv.width!==Math.round(W*dpr) || elMapCv.height!==Math.round(H*dpr)){
+    elMapCv.width=Math.round(W*dpr); elMapCv.height=Math.round(H*dpr);
+  }
+  mapInsets(); MV.dpr=dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const B=camBasis(), P=mkProj(B);
+  const rooms=seenRooms(), roomSet=new Set(rooms);
+  MV.hits=[];
+  elMapCv.dataset.zoom=MV.dist.toFixed(2);   /* read by tools/make_phonecheck.py */
+  if(!rooms.length){ elMapCv.dataset.rooms='0'; return; }
+  const pos=MP.pos;
+  const byZ=new Map(); for(const r of rooms){ const z=pos[r][2]; if(!byZ.has(z)) byZ.set(z,[]); byZ.get(z).push(r); }
+  const levels=[...byZ.keys()].sort((a,b)=>a-b);
+  const pulse=REDUCED?0.5:((now/1400)%1);
+  const focusRoom = MV.sel!==null ? MV.sel : S.loc;
+  const loud=r=>r===S.loc||r===MV.sel||r===MV.hover;
+
+  const line=(pts,col,w,dash)=>{ const s=pts.map(P); if(s.some(q=>!q)) return null;
+    ctx.beginPath(); ctx.moveTo(s[0][0],s[0][1]); for(let i=1;i<s.length;i++) ctx.lineTo(s[i][0],s[i][1]);
+    ctx.strokeStyle=col; ctx.lineWidth=w; ctx.setLineDash(dash||[]); ctx.stroke(); ctx.setLineDash([]); return s; };
+  const bez=(p0,p1,p2,p3,col,w,dash)=>{ const s=[p0,p1,p2,p3].map(P); if(s.some(q=>!q)) return null;
+    ctx.beginPath(); ctx.moveTo(s[0][0],s[0][1]); ctx.bezierCurveTo(s[1][0],s[1][1],s[2][0],s[2][1],s[3][0],s[3][1]);
+    ctx.strokeStyle=col; ctx.lineWidth=w; ctx.setLineDash(dash||[]); ctx.stroke(); ctx.setLineDash([]); return s; };
+  const arrowAt=(s,col)=>{ /* small chevron at the middle of a projected bezier/segment */
+    const n=s.length, b=t=>{ if(n===2) return [s[0][0]+(s[1][0]-s[0][0])*t, s[0][1]+(s[1][1]-s[0][1])*t];
+      const u=1-t; return [u*u*u*s[0][0]+3*u*u*t*s[1][0]+3*u*t*t*s[2][0]+t*t*t*s[3][0],
+                          u*u*u*s[0][1]+3*u*u*t*s[1][1]+3*u*t*t*s[2][1]+t*t*t*s[3][1]]; };
+    const m=b(0.55), q=b(0.45), dx=m[0]-q[0], dy=m[1]-q[1], L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L, k=5;
+    ctx.beginPath(); ctx.moveTo(m[0]+ux*k, m[1]+uy*k);
+    ctx.lineTo(m[0]-ux*k-uy*k*0.8, m[1]-uy*k+ux*k*0.8); ctx.lineTo(m[0]-ux*k+uy*k*0.8, m[1]-uy*k-ux*k*0.8);
+    ctx.closePath(); ctx.fillStyle=col; ctx.fill(); };
+  const anchor=(r,dir)=>{ const w=roomW(r), m=w[1]+MBOX.h*0.5;
+    switch(dir){ case 0: return [w[0],m,w[2]-MBOX.d]; case 1: return [w[0],m,w[2]+MBOX.d];
+                 case 2: return [w[0]+MBOX.w,m,w[2]]; case 3: return [w[0]-MBOX.w,m,w[2]];
+                 case 4: return [w[0],w[1]+MBOX.h,w[2]]; case 5: return [w[0],w[1],w[2]]; }
+    return [w[0],w[1]+MBOX.h,w[2]]; };
+  const outward=(dir,k)=>{ const v=MAPV[dir]; return [v[0]*k, v[2]*k, v[1]*k]; };
+  const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+
+  /* walked links, grouped so a corridor walked both ways is drawn once */
+  const links=[];
+  for(const k in S.link){
+    const i=k.indexOf('>'), f=+k.slice(0,i), t=+k.slice(i+1);
+    if(!roomSet.has(f)||!roomSet.has(t)) continue;
+    links.push({f,t,lab:S.link[k]});
+  }
+  const drawnPair=new Set();
+  const linkDir=L=>L.lab==='~'?-1:DIRL.indexOf(L.lab[0]);
+  const labels=[];   /* direction letters to print, drawn with the room labels */
+  const plateNames=[];
+
+  function drawLink(L, a){
+    const d=linkDir(L), z1=pos[L.f][2], z2=pos[L.t][2];
+    const hot = loud(L.f)||loud(L.t);
+    if(L.f===L.t){                                   /* loops back to the same room */
+      for(const ch of L.lab){ const dd=DIRL.indexOf(ch); if(dd<0) continue;
+        const p0=anchor(L.f,dd), o=outward(dd,0.28), side=dd<2?[0.12,0,0]:dd<4?[0,0,0.12]:[0.12,0,0];
+        bez(add(p0,side.map(x=>-x)), add(add(p0,o),side.map(x=>-x)), add(add(p0,o),side), add(p0,side),
+            `rgba(${MCOL.ink},${0.55*a})`, 1.2);
+        if(hot && a>0.3){ const s=P(add(p0,outward(dd,0.36))); if(s) labels.push({x:s[0],y:s[1],t:ch,c:`rgba(${MCOL.ink},${a})`}); }
+      }
+      return;
+    }
+    const key2=Math.min(L.f,L.t)+'-'+Math.max(L.f,L.t);
+    const rev=S.link[L.t+'>'+L.f];
+    if(d>=0 && rev && rev!=='~' && DIRL.indexOf(rev[0])===MOPP[d]){
+      if(drawnPair.has(key2)) return; drawnPair.add(key2);
+    }
+    const oneWay = d>=0 && !G.rooms[L.t].exits.includes(L.f) && !(rev);
+    if(d<0){                                         /* a move the game made: an arc over the top */
+      const p0=anchor(L.f,4), p3=anchor(L.t,4);
+      const lift=0.9+0.15*Math.hypot(p3[0]-p0[0],p3[2]-p0[2]);
+      const s=bez(p0,add(p0,[0,lift,0]),add(p3,[0,lift,0]),p3,`rgba(${MCOL.amber},${0.75*a})`,1.4,[5,4]);
+      if(s){ arrowAt(s,`rgba(${MCOL.amber},${0.85*a})`);
+        const via=S.via&&S.via[L.f+'>'+L.t];
+        if(hot && via && a>0.3){ const m=P(add(add(p0,p3).map(x=>x/2),[0,lift*0.75,0])); if(m) labels.push({x:m[0],y:m[1],t:via,c:`rgba(${MCOL.amber},1)`}); } }
+      return;
+    }
+    const vertical=d>=4, col=vertical?MCOL.shaft:MCOL.ink;
+    const p0=anchor(L.f,d), p3=anchor(L.t,MOPP[d]);
+    const ideal=add(roomW(L.f), outward(d,1)), tw=roomW(L.t);
+    const straight=Math.abs(ideal[0]-tw[0])<0.01 && Math.abs(ideal[2]-tw[2])<0.01 && (vertical || z1===z2);
+    const alpha=(hot?1:0.8)*a, wdt=hot?2:1.5;
+    let s;
+    if(straight || (vertical && Math.abs(p0[0]-p3[0])<0.01 && Math.abs(p0[2]-p3[2])<0.01)){
+      s=line([p0,p3],`rgba(${col},${alpha})`, vertical?wdt+0.6:wdt);
+      if(vertical && s){                             /* rungs: it reads as a shaft, not a wire */
+        const n=Math.max(2,Math.round(Math.abs(p3[1]-p0[1])/0.28));
+        for(let i=1;i<n;i++){ const y=p0[1]+(p3[1]-p0[1])*i/n;
+          line([[p0[0]-0.07,y,p0[2]],[p0[0]+0.07,y,p0[2]]],`rgba(${col},${alpha*0.6})`,1); }
+      }
+    }else{
+      const k=Math.max(0.45, 0.35*Math.hypot(p3[0]-p0[0],p3[1]-p0[1],p3[2]-p0[2]));
+      s=bez(p0, add(p0,outward(d,k)), add(p3,outward(MOPP[d],k)), p3, `rgba(${col},${alpha})`, wdt);
+    }
+    if(s && oneWay) arrowAt(s,`rgba(${col},${alpha})`);
+    if(s && hot && a>0.3 && !(MV.plan && vertical)){ const q=P(add(p0,outward(d,vertical?0.22:0.2))); if(q) labels.push({x:q[0],y:q[1],t:DIRL[d],c:`rgba(${col},1)`}); }
+  }
+
+  function drawPlate(z,a,rs,named){
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+    for(const r of rs){ const p=pos[r]; x0=Math.min(x0,p[0]); x1=Math.max(x1,p[0]); y0=Math.min(y0,p[1]); y1=Math.max(y1,p[1]); }
+    const m=0.62, Y=levelY(z);
+    const c=[[x0-m,Y,y0-m],[x1+m,Y,y0-m],[x1+m,Y,y1+m],[x0-m,Y,y1+m]].map(P);
+    if(c.some(q=>!q)) return;
+    ctx.beginPath(); c.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.closePath();
+    ctx.fillStyle=`rgba(30,70,34,${0.22*a})`; ctx.fill();
+    ctx.strokeStyle=`rgba(${MCOL.ink},${0.30*a})`; ctx.lineWidth=1; ctx.stroke();
+    /* the floor grid, one line between every pair of cells */
+    ctx.beginPath();
+    for(let x=x0+0.5;x<x1;x+=1){ const p=P([x,Y,y0-m]), q=P([x,Y,y1+m]); if(p&&q){ ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); } }
+    for(let y=y0+0.5;y<y1;y+=1){ const p=P([x0-m,Y,y]), q=P([x1+m,Y,y]); if(p&&q){ ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); } }
+    ctx.strokeStyle=`rgba(${MCOL.ink},${0.07*a})`; ctx.stroke();
+    /* the level's name, on the corner nearest the viewer's left */
+    let best=0; for(let i=1;i<4;i++) if(c[i][1]-c[i][0]*0.35 > c[best][1]-c[best][0]*0.35) best=i;
+    if(named && (levels.length>1 || z!==0) && a>0.5) plateNames.push({x:c[best][0]+4, y:c[best][1]+4, t:levelName(z), a});
+  }
+
+  function drawRoom(r,a){
+    const w=roomW(r), x=w[0], y=w[1], z=w[2], here=(r===S.loc), sel=(r===MV.sel), hov=(r===MV.hover);
+    const goal=(r===G.treasureRoom);
+    const v=[[x-MBOX.w,y,z-MBOX.d],[x+MBOX.w,y,z-MBOX.d],[x+MBOX.w,y,z+MBOX.d],[x-MBOX.w,y,z+MBOX.d]];
+    const t=v.map(q=>[q[0],q[1]+MBOX.h,q[2]]);
+    const pv=v.map(P), pt=t.map(P); if(pv.some(q=>!q)||pt.some(q=>!q)) return;
+    const ink= here?MCOL.you : goal?MCOL.amber : MCOL.ink;
+    /* sides: draw the ones facing the camera */
+    for(let i=0;i<4;i++){ const j=(i+1)%4;
+      const cross=(pv[j][0]-pv[i][0])*(pt[i][1]-pv[i][1])-(pv[j][1]-pv[i][1])*(pt[i][0]-pv[i][0]);
+      if(cross>=0) continue;
+      ctx.beginPath(); ctx.moveTo(pv[i][0],pv[i][1]); ctx.lineTo(pv[j][0],pv[j][1]); ctx.lineTo(pt[j][0],pt[j][1]); ctx.lineTo(pt[i][0],pt[i][1]); ctx.closePath();
+      ctx.fillStyle=`rgba(12,30,14,${0.9*a})`; ctx.fill();
+      ctx.strokeStyle=`rgba(${ink},${0.45*a})`; ctx.lineWidth=1; ctx.stroke();
+    }
+    ctx.beginPath(); pt.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.closePath();
+    ctx.fillStyle= here?`rgba(255,255,255,${0.20*a})` : `rgba(60,130,62,${(sel||hov?0.36:0.22)*a})`;
+    ctx.fill();
+    ctx.strokeStyle=`rgba(${ink},${(here||sel||hov?1:0.85)*a})`; ctx.lineWidth=here||sel?2.2:hov?1.8:1.3;
+    if(goal && !here) ctx.setLineDash([4,3]);
+    ctx.stroke(); ctx.setLineDash([]);
+    if(sel && !here){ /* corner ticks so the selection reads even at a glance */
+      ctx.strokeStyle=`rgba(${MCOL.you},${0.9*a})`; ctx.lineWidth=1.5;
+      for(let i=0;i<4;i++){ const q=pt[i], n1=pt[(i+1)%4], n2=pt[(i+3)%4];
+        ctx.beginPath(); ctx.moveTo(q[0]+(n1[0]-q[0])*0.22, q[1]+(n1[1]-q[1])*0.22); ctx.lineTo(q[0],q[1]);
+        ctx.lineTo(q[0]+(n2[0]-q[0])*0.22, q[1]+(n2[1]-q[1])*0.22); ctx.stroke(); } }
+    /* what was lying here last time: amber for treasure, green for the rest */
+    const saw=(S.saw&&S.saw[r])||[];
+    if(saw.length){
+      const tr=saw.filter(k=>String(G.items[k].text).startsWith('*')).length, other=saw.length-tr;
+      const c=P([x+MBOX.w*0.62,y+MBOX.h,z+MBOX.d*0.45]); if(c){
+        let ox=0; const sz=Math.max(2.2,Math.min(4, (pt[1][0]-pt[0][0])*0.05));
+        for(let i=0;i<Math.min(tr,3);i++){ ctx.beginPath(); ctx.moveTo(c[0]-ox,c[1]-sz); ctx.lineTo(c[0]-ox+sz,c[1]); ctx.lineTo(c[0]-ox,c[1]+sz); ctx.lineTo(c[0]-ox-sz,c[1]); ctx.closePath();
+          ctx.fillStyle=`rgba(${MCOL.amber},${a})`; ctx.fill(); ox+=sz*2.4; }
+        for(let i=0;i<Math.min(other,3);i++){ ctx.beginPath(); ctx.arc(c[0]-ox,c[1],sz*0.7,0,Math.PI*2);
+          ctx.fillStyle=`rgba(${MCOL.ink},${0.8*a})`; ctx.fill(); ox+=sz*2.2; }
+      }
+    }
+    if(MV.plan){ /* looking straight down a shaft shows nothing, so mark the room instead */
+      const zr=pos[r][2]; let up=0, dn=0;     /* 0 none, 1 not tried, 2 walked */
+      G.rooms[r].exits.forEach((t,d)=>{ if(!t||t===r) return; const w=S.link[r+'>'+t]?2:1;
+        if(d===4) up=Math.max(up,w); if(d===5) dn=Math.max(dn,w); });
+      for(const L of links){ if(L.f!==r||L.f===L.t) continue; const zt=pos[L.t][2]; if(zt>zr) up=2; if(zt<zr) dn=2; }
+      const c=pt[1]; ctx.font=`bold 11px ${MFONT}`; ctx.textAlign='left'; ctx.textBaseline='middle';
+      if(up){ ctx.fillStyle=`rgba(${MCOL.shaft},${up===2?1:0.55})`; ctx.fillText(up===2?'▲':'▲?', c[0]+3, c[1]+2); }
+      if(dn){ ctx.fillStyle=`rgba(${MCOL.shaft},${dn===2?1:0.55})`; ctx.fillText(dn===2?'▼':'▼?', c[0]+3, c[1]+14); }
+    }
+    MV.hits.push({r, poly:pt, a});
+  }
+
+  function drawStubs(r,a){
+    for(const d of untried(r)){
+      if(MV.plan && d>=4) continue;              /* shown as ▲? ▼? on the room instead */
+      const p0=anchor(r,d), p1=add(p0,outward(d,d>=4?0.34:0.24));
+      const col=d>=4?MCOL.shaft:MCOL.ink;
+      const s=line([p0,p1],`rgba(${col},${0.45*a})`,1.2,[2,3]);
+      if(s && (loud(r) || MV.plan)){ ctx.font=`bold 10px ${MFONT}`; ctx.fillStyle=`rgba(${col},${0.8*a})`;
+        ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('?', s[1][0]+(s[1][0]-s[0][0])*0.35, s[1][1]+(s[1][1]-s[0][1])*0.35); }
+    }
+  }
+
+  /* levels bottom to top: a plate, then its corridors, rooms, and the shafts
+     that rise from it - so each floor sits over the one beneath */
+  for(const z of levels){
+    const a=levelAlpha(z); if(a<=0.01) continue;
+    const isl=new Map(); for(const r of byZ.get(z)){ const c=(MP.comp&&MP.comp[r]>=0)?MP.comp[r]:0; if(!isl.has(c)) isl.set(c,[]); isl.get(c).push(r); }
+    let big=null; for(const rs of isl.values()) if(!big||rs.length>big.length) big=rs;
+    for(const rs of isl.values()) drawPlate(z,a,rs,rs===big);
+    for(const L of links){ if(pos[L.f][2]===z && pos[L.t][2]===z && linkDir(L)>=0 && linkDir(L)<4) drawLink(L,a); }
+    for(const L of links){ if(L.f===L.t && pos[L.f][2]===z) drawLink(L,a); }
+    const rs=byZ.get(z).slice().sort((p,q)=>{ const a1=P(roomW(p)), b1=P(roomW(q)); return (b1?b1[2]:0)-(a1?a1[2]:0); });
+    for(const r of rs) drawStubs(r,a);
+    for(const r of rs) drawRoom(r,a);
+    for(const L of links){
+      const d=linkDir(L); if(L.f===L.t) continue;
+      const lo=Math.min(pos[L.f][2],pos[L.t][2]);
+      if(lo!==z) continue;
+      if(d>=0 && d<4 && pos[L.f][2]===pos[L.t][2]) continue;
+      if(d<0) continue;
+      drawLink(L, Math.min(levelAlpha(pos[L.f][2]), levelAlpha(pos[L.t][2])));
+    }
+  }
+  /* moves the game made, over everything */
+  for(const L of links){ if(L.f!==L.t && linkDir(L)<0) drawLink(L, Math.min(levelAlpha(pos[L.f][2]), levelAlpha(pos[L.t][2]))); }
+
+  /* the trail: where you have just been */
+  const tr=(S.trail||[]).filter(r=>roomSet.has(r));
+  if(tr.length>1 && !MV.plan){
+    for(let i=1;i<tr.length;i++){
+      if(tr[i]===tr[i-1]) continue;
+      const a=roomW(tr[i-1]), b=roomW(tr[i]); const k=i/tr.length;
+      line([[a[0],a[1]+MBOX.h+0.02,a[2]],[b[0],b[1]+MBOX.h+0.02,b[2]]],`rgba(255,255,255,${0.05+0.30*k})`,1.2,[1,4]);
+    }
+  }
+
+  /* you are here: a column of light and a ring that keeps widening */
+  if(pos[S.loc] && roomSet.has(S.loc) && levelAlpha(pos[S.loc][2])>0){
+    let w=roomW(S.loc);
+    if(MV.beacon){ const k=Math.min(1,(now-MV.beacon.t0)/MV.beacon.ms), e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+      const f=MV.beacon.from; w=[f[0]+(w[0]-f[0])*e, f[1]+(w[1]-f[1])*e, f[2]+(w[2]-f[2])*e]; if(k>=1) MV.beacon=null; }
+    const base=P([w[0],w[1]+MBOX.h,w[2]]), top=P([w[0],w[1]+MBOX.h+1.25,w[2]]);
+    if(base&&top){
+      const g=ctx.createLinearGradient(base[0],base[1],top[0],top[1]);
+      g.addColorStop(0,'rgba(255,255,255,0.95)'); g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.strokeStyle=g; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(base[0],base[1]); ctx.lineTo(top[0],top[1]); ctx.stroke();
+      ctx.beginPath(); ctx.arc(base[0],base[1],3.2,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+      const R=0.30+0.26*pulse, ring=[];
+      for(let i=0;i<=24;i++){ const t=i/24*Math.PI*2; const q=P([w[0]+Math.cos(t)*R*1.25, w[1]+0.01, w[2]+Math.sin(t)*R]); if(q) ring.push(q); }
+      if(ring.length>3){ ctx.beginPath(); ring.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));
+        ctx.strokeStyle=`rgba(255,255,255,${0.55*(1-pulse)})`; ctx.lineWidth=1.5; ctx.stroke(); }
+    }
+  }
+
+  elMapCv.dataset.rooms=String(MV.hits.length);
+  /* bloom: a blurred copy of everything bright, added back on top. Done by
+     shrinking and re-enlarging, which every browser can do quickly. */
+  if(!mapGlow) mapGlow=document.createElement('canvas');
+  const gw=Math.max(1,Math.round(W/5)), gh=Math.max(1,Math.round(H/5));
+  if(mapGlow.width!==gw||mapGlow.height!==gh){ mapGlow.width=gw; mapGlow.height=gh; }
+  const gx=mapGlow.getContext('2d'); gx.clearRect(0,0,gw,gh);
+  gx.imageSmoothingEnabled=true; gx.drawImage(elMapCv,0,0,elMapCv.width,elMapCv.height,0,0,gw,gh);
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.6;
+  ctx.imageSmoothingEnabled=true; ctx.drawImage(mapGlow,0,0,gw,gh,0,0,elMapCv.width,elMapCv.height); ctx.restore();
+
+  /* room names last, so nothing draws over them. Most important first; a
+     name that would land on one already placed is left off. */
+  const placed=[];
+  const cand=MV.hits.map(h=>{ const cx=(h.poly[0][0]+h.poly[1][0]+h.poly[2][0]+h.poly[3][0])/4;
+    const top=Math.min(...h.poly.map(q=>q[1]));
+    const wpx=Math.max(...h.poly.map(q=>q[0]))-Math.min(...h.poly.map(q=>q[0]));
+    const pri=(h.r===S.loc?0:h.r===MV.sel?1:h.r===MV.hover?2:3) + (h.a<0.99?10:0);
+    return {h,cx,top,wpx,pri}; }).sort((p,q)=>p.pri-q.pri || q.wpx-p.wpx);
+  for(const c of cand){
+    const h=c.h; if(c.pri>=10 && c.pri!==10 && c.pri!==11 && c.pri!==12) continue;
+    if(c.pri===3 && c.wpx<30) continue;
+    const fs=Math.round(Math.max(10,Math.min(13,c.wpx*0.15)));
+    ctx.font=`${c.pri<3?'bold ':''}${fs}px ${MFONT}`;
+    const maxw=Math.max(c.wpx*1.5, fs*9);
+    const words=mapName(h.r).split(' '); const ls=[]; let cur='';
+    for(const wd of words){ const tryS=cur?cur+' '+wd:wd; if(ctx.measureText(tryS).width<=maxw||!cur) cur=tryS; else { ls.push(cur); cur=wd; } }
+    if(cur) ls.push(cur);
+    if(ls.length>2){ ls.length=2; ls[1]=ls[1].replace(/\s*\S*$/,'')+'…'; }
+    const lw=Math.max(...ls.map(s=>ctx.measureText(s).width)), lh=fs*1.15;
+    const box={x0:c.cx-lw/2-3, x1:c.cx+lw/2+3, y1:c.top-3, y0:c.top-3-lh*ls.length};
+    if(c.pri>=3 && placed.some(b=>!(box.x1<b.x0||box.x0>b.x1||box.y1<b.y0||box.y0>b.y1))) continue;
+    placed.push(box);
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ls.forEach((s,i)=>{ const yy=box.y1-(ls.length-1-i)*lh;
+      ctx.lineWidth=4; ctx.strokeStyle=MCOL.halo; ctx.lineJoin='round'; ctx.strokeText(s,c.cx,yy);
+      ctx.fillStyle= h.r===S.loc?'#ffffff' : h.a<0.99?MCOL.labelDim : MCOL.label; ctx.fillText(s,c.cx,yy); });
+  }
+  ctx.font=`11px ${MFONT}`; ctx.textAlign='left'; ctx.textBaseline='top';
+  for(const pn of plateNames){
+    const w=ctx.measureText(pn.t).width, box={x0:pn.x-2,x1:pn.x+w+2,y0:pn.y-1,y1:pn.y+13};
+    if(placed.some(b=>!(box.x1<b.x0||box.x0>b.x1||box.y1<b.y0||box.y0>b.y1))) continue;
+    placed.push(box); ctx.fillStyle=`rgba(${MCOL.ink},${0.7*pn.a})`; ctx.fillText(pn.t,pn.x,pn.y);
+  }
+  ctx.font=`bold 10px ${MFONT}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const l of labels){
+    const w=ctx.measureText(l.t).width, box={x0:l.x-w/2-1,x1:l.x+w/2+1,y0:l.y-6,y1:l.y+6};
+    if(l.t.length>1 && placed.some(b=>!(box.x1<b.x0||box.x0>b.x1||box.y1<b.y0||box.y0>b.y1))) continue;
+    placed.push(box);
+    ctx.lineWidth=3; ctx.strokeStyle=MCOL.halo; ctx.strokeText(l.t,l.x,l.y); ctx.fillStyle=l.c; ctx.fillText(l.t,l.x,l.y);
+  }
+}
+
+/* ---- the frame loop: runs only while the map is open ---- */
+function mapKick(){ if(!HAS_DOM||!mapOn) return; MV.dirty=true; if(!MV.raf) MV.raf=requestAnimationFrame(mapFrame); }
+function mapFrame(now){
+  MV.raf=0;
+  if(!mapOn) return;
+  let busy=false;
+  if(MV.tween){
+    const tw=MV.tween, k=Math.min(1,(now-tw.t0)/tw.ms), e=k<0.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+    const lerp=(a,b)=>a+(b-a)*e;
+    MV.yaw=lerp(tw.from.yaw,tw.to.yaw); MV.pitch=lerp(tw.from.pitch,tw.to.pitch); MV.dist=lerp(tw.from.dist,tw.to.dist);
+    MV.t=[0,1,2].map(i=>lerp(tw.from.t[i],tw.to.t[i]));
+    if(k>=1) MV.tween=null; busy=true;
+  }
+  const want=(MV.focus!==null)?1:0;
+  if(MV.spread!==want){ MV.spread = REDUCED ? want : MV.spread+(want-MV.spread)*0.18; if(Math.abs(MV.spread-want)<0.01) MV.spread=want; busy=true; }
+  if(MV.beacon) busy=true;
+  /* the ring pulses, so keep drawing - but at a gentle rate when nothing moves */
+  if(busy || MV.dirty || now-MV.last>40){ mapRender(now); MV.last=now; MV.dirty=false; }
+  if(busy || !REDUCED) MV.raf=requestAnimationFrame(mapFrame);
+}
+
+/* ---- the panel around the canvas ---- */
+function mapEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function mapPanel(){
+  if(!HAS_DOM||!MP) return;
+  const rooms=seenRooms();
+  const total=G.rooms.filter((r,i)=>i>0 && String(r.text||'').trim()).length;
+  let todo=0; for(const r of rooms) todo+=untried(r).length;
+  elMapCv.setAttribute('aria-label', `Map: ${rooms.length} of ${total} places found. You are at ${mapName(S.loc)}.`);
+  elMapStat.textContent = `${rooms.length} of ${total} places found` + (todo?`, ${todo} way${todo>1?'s':''} out not yet tried`:'');
+  /* the level rail: one stop per floor you have found, top floor on top */
+  const zs=[...new Set(rooms.map(r=>MP.pos[r][2]))].sort((a,b)=>b-a);
+  const hereZ=MP.pos[S.loc]?MP.pos[S.loc][2]:0;
+  const counts={}; for(const r of rooms){ const z=MP.pos[r][2]; counts[z]=(counts[z]||0)+1; }
+  let h='';
+  if(zs.length>1 || MV.plan){
+    if(!MV.plan) h+=`<button data-z="all" class="${MV.focus===null?'on':''}" aria-pressed="${MV.focus===null}"><span class="lv">All floors</span><span class="sh">All</span></button>`;
+    for(const z of zs) h+=`<button data-z="${z}" class="${MV.focus===z?'on':''}${z===hereZ?' here':''}" aria-pressed="${MV.focus===z}" `
+                         +`title="${mapEsc(levelName(z))}: ${counts[z]} place${counts[z]>1?'s':''} found">`
+                         +`<span class="lv">${mapEsc(levelName(z))}</span><span class="sh">${z>0?'+'+z:z<0?'\u2212'+(-z):'0'}</span><span class="n">${counts[z]}</span></button>`;
+  }
+  if(elMapRail.innerHTML!==h) elMapRail.innerHTML=h;
+  mapCard();
+}
+function mapCard(){
+  const r = (MV.sel!==null && S.seen[MV.sel]) ? MV.sel : S.loc;
+  const here = r===S.loc;
+  const z = MP.pos[r] ? MP.pos[r][2] : 0;
+  let h=`<div class="ch"><button class="tg" id="mcToggle" aria-expanded="${MV.card}">`
+       +`<span class="nm">${mapEsc(mapName(r,true))}</span>`
+       +`<span class="sub">${here?'You are here':'Picked'} &middot; ${mapEsc(levelName(z))}</span></button>`
+       +(here?'':`<button class="x" id="mcBackHere" title="Show where you are">Me</button>`)+`</div>`;
+  if(MV.card){
+    h+='<div class="cb">';
+    if(here){
+      const ex=G.rooms[r].exits, dark=isDark();
+      const ways=[];
+      ex.forEach((t,d)=>{ if(!t) return;
+        const walked=!!S.link[r+'>'+t];
+        const what = t===r ? (walked?' comes back here':' <i>not tried</i>')
+                   : walked ? ' to '+mapEsc(mapName(t)) : ' <i>not tried</i>';
+        ways.push(`<button class="go${walked?'':' new'}" data-cmd="${DIRL[d]}"${over?' disabled':''}><b>${DIRWORD[d]}</b>${what}</button>`); });
+      for(const l of mapLinksFrom(r)) if(l.special) ways.push(`<button class="go sp" data-cmd="${mapEsc(l.cmd)}"${over?' disabled':''}><b>${mapEsc(l.cmd)}</b> to ${mapEsc(mapName(l.to))}</button>`);
+      h+= ways.length ? `<div class="sec">Ways out${dark?' <i>(it is dark: moving is risky)</i>':''}</div><div class="ways">${ways.join('')}</div>`
+                      : `<div class="sec">No obvious way out. Try a command in the game.</div>`;
+      if(ways.length) h+=`<div class="tip">Keys N S E W U D move you from here.</div>`;
+    }else{
+      const route=mapRoute(S.loc,r);
+      if(route===null) h+=`<div class="sec">You have not walked a way there from here yet.</div>`;
+      else{
+        const steps=route.map(l=>l.special?l.cmd:l.cmd).join(', ');
+        h+=`<div class="sec">${route.length} move${route.length>1?'s':''} away</div><div class="route">${mapEsc(steps)}</div>`;
+        h+= MV.walking ? `<button class="walk" id="mcStop">Stop walking</button>`
+                       : `<button class="walk" id="mcWalk"${over?' disabled':''}>Walk there</button>`;
+      }
+      const u=untried(r);
+      if(u.length) h+=`<div class="sec">Not tried yet: ${u.map(d=>DIRWORD[d]).join(', ')}</div>`;
+    }
+    const saw=(S.saw&&S.saw[r]);
+    if(saw && saw.length){
+      h+=`<div class="sec">${here?'Here':'Seen here last time'}</div><ul class="items">`
+        +saw.map(k=>{ const tr=String(G.items[k].text).startsWith('*'); return `<li class="${tr?'tr':''}">${mapEsc(mapItemName(k))}</li>`; }).join('')+'</ul>';
+    }else if(saw) h+=`<div class="sec">${here?'Nothing lying here.':'Nothing was lying here.'}</div>`;
+    if(r===G.treasureRoom && G.treasures>0) h+=`<div class="sec goal">Treasures are stored here.</div>`;
+    h+='</div>';
+  }
+  if(elMapCard.innerHTML!==h) elMapCard.innerHTML=h;
+}
+
+/* Things the map does to the game go through submit(), like a typed line, so
+   the transcript shows them. What the game says back is shown under the map. */
+function mapIssue(cmd){
+  if(over || !document.getElementById('inline')) return null;
+  const before=new Set(elLog.children);
+  const from=S.loc;
+  submit(cmd);
+  /* everything new in the transcript, less the echoed command and the prompt */
+  const kids=Array.from(elLog.children).filter(e=>!before.has(e) && e.id!=='inline').slice(1);
+  const said=kids.map(e=>e.textContent).join('\n').replace(/\n{2,}/g,'\n').trim();
+  elMapTick.textContent = '> '+cmd+'   '+said.replace(/\n/g,'  ');
+  elMapTick.title = said;
+  if(S.loc!==from && MP.pos[from] && MP.pos[S.loc]){
+    MV.beacon={from:roomW(from), t0:performance.now(), ms:REDUCED?1:420};
+    /* follow the player if they walk off the edge of the view */
+    const P=mkProj(camBasis()), s=P(roomW(S.loc));
+    if(!s || s[0]<MV.W*0.12 || s[0]>MV.W*0.88 || s[1]<MV.H*0.12 || s[1]>MV.H*0.88) mapFindMe(500);
+    if(MV.focus!==null && MP.pos[S.loc][2]!==MV.focus) mapSetFocus(MP.pos[S.loc][2]);
+  }
+  return said;
+}
+async function mapWalk(to){
+  const route=mapRoute(S.loc,to); if(!route||!route.length) return;
+  MV.walking={stop:false}; mapCard();
+  let why='';
+  for(const st of route){
+    if(MV.walking.stop){ why='Stopped.'; break; }
+    if(over){ why=''; break; }
+    if(isDark()){ why='Stopped: it is too dark to walk safely. Take it one step at a time.'; break; }
+    const said=mapIssue(st.cmd);
+    if(said===null){ why='Stopped.'; break; }
+    if(S.loc!==st.to){ why='Stopped: that did not lead where it did before.'; break; }
+    const extra=said.split('\n').map(s=>s.trim()).filter(s=>s && s!=='OK');
+    if(extra.length && st!==route[route.length-1]){ why='Stopped so you can read this: '+extra.join(' '); break; }
+    await new Promise(res=>setTimeout(res, REDUCED?60:260));
+  }
+  MV.walking=null;
+  if(why) elMapTick.textContent=why;
+  if(S.loc===to) MV.sel=null;
+  mapPanel(); mapKick();
+}
+function mapSetFocus(z){
+  MV.focus=z;
+  if(z!==null){
+    const rs=seenRooms().filter(r=>MP.pos[r][2]===z);
+    const keepSpread=MV.spread; MV.spread=1; const to=mapFit(rs); MV.spread=keepSpread;
+    if(to){ to.dist=Math.max(to.dist,4); mapTween(to,450); }
+  }else{
+    const keep=MV.spread; MV.spread=0; const to=mapFit(seenRooms()); MV.spread=keep; if(to) mapTween(to,450);
+  }
+  mapPanel(); mapKick();
+}
+function mapSetPlan(on){
+  MV.plan=on;
+  document.getElementById('m3d').setAttribute('aria-pressed',String(!on));
+  document.getElementById('mPlan').setAttribute('aria-pressed',String(on));
+  if(on){
+    if(MV.focus===null) MV.focus=MP.pos[S.loc]?MP.pos[S.loc][2]:0;
+    MV.spread=1;
+    const rs=seenRooms().filter(r=>MP.pos[r][2]===MV.focus);
+    const save={yaw:MV.yaw,pitch:MV.pitch}; MV.yaw=0; MV.pitch=1.5;
+    const to=mapFit(rs); Object.assign(MV,save);
+    if(to){ to.yaw=0; to.pitch=1.5; to.dist=Math.max(to.dist,4); mapTween(to,500); }
+  }else{
+    const save={yaw:MV.yaw,pitch:MV.pitch}; MV.yaw=0.42; MV.pitch=0.56;
+    const to=mapFit(seenRooms()); Object.assign(MV,save);
+    MV.focus=null;
+    if(to){ to.yaw=0.42; to.pitch=0.56; mapTween(to,500); }
+  }
+  mapPanel();
+}
+
+function drawMap(){
+  if(!HAS_DOM||!mapOn) return;
+  if(!MP) MP=mapLayout();
+  if(MV.lastLoc!==S.loc){ MV.lastLoc=S.loc; }
+  mapPanel(); mapKick();
+}
 function toggleMap(on){
   mapOn = (on===undefined) ? !mapOn : on;
+  if(!HAS_DOM) return;
   elMapWrap.classList.toggle('on', mapOn);
   document.getElementById('screen').classList.toggle('hide', mapOn);
-  if(mapOn) drawMap(); else if(kbUp) document.querySelector('#cmd')?.focus();
+  document.getElementById('case').classList.toggle('mapping', mapOn);
+  if(mapOn){
+    if(!MP) MP=mapLayout();
+    mapState();
+    { const nz=new Set(MP.pos.filter(Boolean).map(p=>p[2])).size; MV.lsp=Math.max(1.4, Math.min(1.8, 2.05-0.07*nz)); }
+    MV.sel=null;
+    if(!MV.placed){
+      MV.placed=true; MV.yaw=0.42; MV.pitch=0.56; MV.focus=null; MV.spread=0; MV.plan=false;
+      MV.W=elMapStage.clientWidth; MV.H=elMapStage.clientHeight;
+      mapInsets(); mapPanel();
+      const to=mapFit(mapOpeningRooms()); if(to) mapTween(to,0);
+    }
+    MV.card = !(window.matchMedia && window.matchMedia('(max-width:760px)').matches);
+    elMapTick.textContent='';
+    drawMap();
+    setTimeout(()=>elMapCv.focus({preventScroll:true}),0);
+  }else{
+    if(MV.walking) MV.walking.stop=true;
+    if(kbUp) document.querySelector('#cmd')?.focus();
+  }
+}
+function mapReset(){ MP=null; MV.placed=false; MV.sel=null; MV.hover=null; MV.focus=null; MV.plan=false; MV.spread=0; MV.beacon=null; }
+
+/* ---- input ---- */
+function mapHit(x,y){
+  for(let i=MV.hits.length-1;i>=0;i--){ const h=MV.hits[i]; if(h.a<0.5) continue; const p=h.poly; let inside=false;
+    for(let a=0,b=3;a<4;b=a++){ if(((p[a][1]>y)!==(p[b][1]>y)) && (x<(p[b][0]-p[a][0])*(y-p[a][1])/(p[b][1]-p[a][1])+p[a][0])) inside=!inside; }
+    if(inside) return h.r; }
+  /* forgiving on touch: the nearest room within a finger's width */
+  let best=null, bd=22*22;
+  for(const h of MV.hits){ if(h.a<0.5) continue; const cx=(h.poly[0][0]+h.poly[2][0])/2, cy=(h.poly[0][1]+h.poly[2][1])/2;
+    const d=(cx-x)**2+(cy-y)**2; if(d<bd){ bd=d; best=h.r; } }
+  return best;
+}
+function mapPan(dx,dy){
+  const B=camBasis(), k=MV.dist/B.F;
+  const g=[B.u[0]+B.f[0], 0, B.u[2]+B.f[2]], gl=Math.hypot(g[0],g[2])||1;
+  MV.t=[MV.t[0]-B.r[0]*dx*k + g[0]/gl*dy*k*1.4, MV.t[1], MV.t[2]-B.r[2]*dx*k + g[2]/gl*dy*k*1.4];
+}
+function mapZoom(f, sx, sy){
+  const nd=Math.min(70,Math.max(2.6,MV.dist*f));
+  if(sx!==undefined){ /* keep the point under the cursor where it is */
+    const B=camBasis(); const x=(sx-MV.W/2)/B.F, y=-(sy-MV.H/2)/B.F;
+    const dir=[B.f[0]+B.r[0]*x+B.u[0]*y, B.f[1]+B.r[1]*x+B.u[1]*y, B.f[2]+B.r[2]*x+B.u[2]*y];
+    if(Math.abs(dir[1])>1e-3){ const t=(MV.t[1]-B.C[1])/dir[1];
+      if(t>0){ const hit=[B.C[0]+dir[0]*t, MV.t[1], B.C[2]+dir[2]*t], k=1-nd/MV.dist;
+        MV.t=[MV.t[0]+(hit[0]-MV.t[0])*k, MV.t[1], MV.t[2]+(hit[2]-MV.t[2])*k]; } }
+  }
+  MV.dist=nd; MV.tween=null; mapKick();
+}
+function mapHintGone(){ if(elMapHint && !elMapHint.classList.contains('gone')){ elMapHint.classList.add('gone'); try{ localStorage.setItem('adv-map-hint','1'); }catch(e){} } }
+
+function mapInit(){
+  elMapWrap=document.getElementById('mapwrap'); elMapCv=document.getElementById('mapcv');
+  elMapStage=document.getElementById('mapstage'); elMapRail=document.getElementById('maprail');
+  elMapCard=document.getElementById('mapcard'); elMapStat=document.getElementById('mapstat');
+  elMapTick=document.getElementById('mapticker'); elMapHint=document.getElementById('maphint');
+  setTimeout(()=>{ try{ if(G && !MP) MP=mapLayout(); }catch(e){} }, 2500);
+  let seenHint=false; try{ seenHint=!!localStorage.getItem('adv-map-hint'); }catch(e){}
+  elMapHint.textContent = TOUCH ? 'Drag to turn the map, pinch to zoom, tap a place for details'
+                                : 'Drag to turn the map, scroll to zoom, right-drag to slide, click a place for details';
+  if(seenHint) elMapHint.classList.add('gone');
+
+  const ptrs=new Map(); let gest=null, lastTap={t:0,r:null};
+  elMapCv.addEventListener('pointerdown',e=>{
+    try{ elMapCv.setPointerCapture(e.pointerId); }catch(err){}
+    ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+    if(ptrs.size===1) gest={mode:(e.button===2||e.shiftKey||MV.plan)?'pan':'orbit', x0:e.offsetX, y0:e.offsetY, lx:e.offsetX, ly:e.offsetY, t0:performance.now(), moved:false};
+    else if(ptrs.size===2){ const [a,b]=[...ptrs.values()];
+      gest={mode:'pinch', d0:Math.hypot(a.x-b.x,a.y-b.y)||1, dist0:MV.dist, mx:(a.x+b.x)/2, my:(a.y+b.y)/2, moved:true}; }
+    MV.tween=null;
+  });
+  elMapCv.addEventListener('pointermove',e=>{
+    if(!ptrs.has(e.pointerId)){
+      if(e.pointerType==='mouse'){ const r=mapHit(e.offsetX,e.offsetY); if(r!==MV.hover){ MV.hover=r; elMapCv.style.cursor=r!==null?'pointer':'grab'; mapKick(); } }
+      return;
+    }
+    ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+    if(!gest) return;
+    if(gest.mode==='pinch' && ptrs.size>=2){
+      const [a,b]=[...ptrs.values()], d=Math.hypot(a.x-b.x,a.y-b.y)||1, mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      MV.dist=Math.min(70,Math.max(2.6,gest.dist0*gest.d0/d));
+      mapPan(mx-gest.mx, my-gest.my); gest.mx=mx; gest.my=my; mapHintGone(); mapKick(); return;
+    }
+    const dx=e.offsetX-gest.lx, dy=e.offsetY-gest.ly; gest.lx=e.offsetX; gest.ly=e.offsetY;
+    if(Math.hypot(e.offsetX-gest.x0,e.offsetY-gest.y0)>6) gest.moved=true;
+    if(!gest.moved) return;
+    if(gest.mode==='pan') mapPan(dx,dy);
+    else{ MV.yaw-=dx*0.007; MV.pitch=Math.min(1.5,Math.max(0.16,MV.pitch+dy*0.006)); }
+    mapHintGone(); mapKick();
+  });
+  const end=e=>{
+    if(!ptrs.has(e.pointerId)) return;
+    ptrs.delete(e.pointerId);
+    if(gest && !gest.moved && ptrs.size===0 && e.type==='pointerup'){
+      const r=mapHit(e.offsetX,e.offsetY), now=performance.now();
+      if(r!==null && lastTap.r===r && now-lastTap.t<350){ /* double tap: fly to it */
+        const w=roomW(r); mapTween({yaw:MV.yaw,pitch:MV.pitch,dist:Math.min(MV.dist,7),t:w},450);
+      }
+      lastTap={t:now,r};
+      MV.sel = (r===null || r===S.loc) ? null : r;
+      if(r!==null) MV.card=true;
+      mapPanel(); mapKick();
+    }
+    if(ptrs.size===0) gest=null;
+    else if(ptrs.size===1){ const [p]=[...ptrs.values()]; gest={mode:MV.plan?'pan':'orbit',x0:p.x,y0:p.y,lx:p.x,ly:p.y,moved:true}; }
+  };
+  elMapCv.addEventListener('pointerup',end); elMapCv.addEventListener('pointercancel',end);
+  elMapCv.addEventListener('pointerleave',()=>{ if(MV.hover!==null){ MV.hover=null; mapKick(); } });
+  elMapCv.addEventListener('contextmenu',e=>e.preventDefault());
+  elMapCv.addEventListener('wheel',e=>{ e.preventDefault(); mapZoom(Math.exp(e.deltaY*(e.deltaMode?0.05:0.0016)), e.offsetX, e.offsetY); mapHintGone(); },{passive:false});
+
+  elMapRail.addEventListener('click',e=>{ const b=e.target.closest('button[data-z]'); if(!b) return;
+    const z=b.dataset.z==='all'?null:+b.dataset.z;
+    if(MV.plan){ if(z!==null){ MV.focus=z; mapSetPlan(true); } return; }
+    mapSetFocus(MV.focus===z?null:z); });
+  elMapCard.addEventListener('click',e=>{
+    const t=e.target;
+    if(t.closest('#mcToggle')){ MV.card=!MV.card; mapCard(); return; }
+    if(t.closest('#mcBackHere')){ MV.sel=null; mapFindMe(); mapPanel(); return; }
+    if(t.closest('#mcWalk')){ const r=MV.sel; if(r!==null) mapWalk(r); return; }
+    if(t.closest('#mcStop')){ if(MV.walking) MV.walking.stop=true; return; }
+    const g=t.closest('button[data-cmd]'); if(g){ mapIssue(g.dataset.cmd); mapPanel(); mapKick(); }
+  });
+  document.getElementById('mBack').onclick=()=>toggleMap(false);
+  document.getElementById('m3d').onclick=()=>{ if(MV.plan) mapSetPlan(false); };
+  document.getElementById('mPlan').onclick=()=>{ if(!MV.plan) mapSetPlan(true); };
+  document.getElementById('mFind').onclick=()=>{ MV.sel=null; if(MV.focus!==null && MP.pos[S.loc] && MV.focus!==MP.pos[S.loc][2]){ if(MV.plan){ MV.focus=MP.pos[S.loc][2]; mapSetPlan(true); } else mapSetFocus(MP.pos[S.loc][2]); } mapFindMe(); mapPanel(); };
+  document.getElementById('mIn').onclick=()=>mapZoom(1/1.3);
+  document.getElementById('mOut').onclick=()=>mapZoom(1.3);
+  document.addEventListener('keydown',e=>{
+    if(!mapOn) return;
+    const tg=e.target; if(tg && (tg.tagName==='INPUT'||tg.tagName==='TEXTAREA')) return;
+    if(e.ctrlKey||e.metaKey||e.altKey) return;
+    const k=e.key;
+    if(k==='Escape'){ toggleMap(false); e.preventDefault(); return; }
+    if(k==='ArrowLeft'){ MV.yaw+=0.12; } else if(k==='ArrowRight'){ MV.yaw-=0.12; }
+    else if(k==='ArrowUp'){ MV.pitch=Math.min(1.5,MV.pitch+0.08); } else if(k==='ArrowDown'){ MV.pitch=Math.max(0.16,MV.pitch-0.08); }
+    else if(k==='+'||k==='='){ mapZoom(1/1.2); } else if(k==='-'||k==='_'){ mapZoom(1.2); }
+    else if(k==='Home'){ MV.sel=null; mapFindMe(); mapPanel(); }
+    else if(k==='PageUp'||k==='PageDown'){
+      const zs=[...new Set(seenRooms().map(r=>MP.pos[r][2]))].sort((a,b)=>a-b);
+      const cur=MV.focus===null?(MP.pos[S.loc]?MP.pos[S.loc][2]:0):MV.focus;
+      let i=zs.indexOf(cur); i=Math.max(0,Math.min(zs.length-1,i+(k==='PageUp'?1:-1)));
+      if(MV.plan){ MV.focus=zs[i]; mapSetPlan(true); } else mapSetFocus(zs[i]);
+    }
+    else if(k.length===1 && 'nsewudNSEWUD'.includes(k)){ mapIssue(k.toUpperCase()); mapPanel(); }
+    else return;
+    e.preventDefault(); mapHintGone(); mapKick();
+  });
 }
 
 /* ---------- game state ---------- */
@@ -612,9 +1414,9 @@ function newGame(db){
     counters: new Array(16).fill(0),
     roomSaved: new Array(16).fill(0),
     lightTime: G.lightTime,
-    seen: {}, link: {}
+    seen: {}, link: {}, via: {}, saw: {}, trail: []
   };
-  S.seen[S.loc]=1; MP=null; toggleMap(false);
+  S.seen[S.loc]=1; mapReset(); toggleMap(false);
   /* Let the game initialise itself before the first prompt. Several titles put
      their whole setup - counters, starting room, welcome text - in a CONT chain
      hanging off an automatic line. Run it now, or the player's first command
@@ -629,7 +1431,7 @@ function newGame(db){
     echo('* ADVENTURE * (Version: 8.5) Adventure number:'+G.advNum+'  Version:'+v.slice(0,-2)+'.'+v.slice(-2)); }
   echo('Copyright Adams 1979.');
   echo('');
-  if(bootAuto){ bootAuto=false; performActions(0,0); flush(); S.seen[S.loc]=1; }
+  if(bootAuto){ bootAuto=false; performActions(0,0); flush(); S.seen[S.loc]=1; recordSight(); }
   look();
   prompt_();
 }
@@ -1334,8 +2136,9 @@ function handle(line){
   if(!over) performActions(0,0);
 
   if(S.loc!==startLoc) { if(S.help) S.help=null; }
-  if(S.loc!==startLoc && !compassMove) recordSpecial(startLoc, S.loc);
+  if(S.loc!==startLoc && !compassMove) recordSpecial(startLoc, S.loc, line);
   S.seen[S.loc]=1;
+  recordSight();
   autosave();
   if(mapOn) drawMap();
   flush();
@@ -1363,7 +2166,7 @@ function applySave(txt){
     if(j.game!==undefined && j.game!==gameKey()){ echo('That save belongs to '+j.game+'.'); prompt_(); return; }
     if(j.game===undefined && j.adv!==undefined && G && j.adv!==G.advNum){
       echo('That save is for a different game.'); prompt_(); return; }
-    S=j.state; over=false; MP=null; toggleMap(false);
+    S=j.state; mapState(); over=false; mapReset(); toggleMap(false);
     elLog.innerHTML=''; echo('Game restored.'); look(); prompt_();
   }catch(err){ echo('BAD SAVE FILE'); prompt_(); }
 }
@@ -1429,6 +2232,7 @@ if(HAS_DOM){
     const b = e.target.closest('button[data-c]');
     if(!b) return;
     e.preventDefault();
+    if(mapOn && /^(NORTH|SOUTH|EAST|WEST|UP|DOWN)$/.test(b.dataset.c)){ mapIssue(b.dataset.c[0]); mapPanel(); return; }
     if(mapOn) toggleMap(false);
     submit(b.dataset.c);
   });
@@ -1462,11 +2266,7 @@ if(HAS_DOM){
     if(kbUp) document.querySelector('#cmd')?.focus();
   });
 
-  /* map zoom */
-  document.getElementById('zIn').onclick    = ()=>{ mapZoom=Math.min(4, mapZoom*1.35); drawMap(); };
-  document.getElementById('zOut').onclick   = ()=>{ mapZoom=Math.max(0.3, mapZoom/1.35); drawMap(); };
-  document.getElementById('zFit').onclick   = ()=>{ mapZoom=1; mapFit=true; drawMap(); };
-  document.getElementById('zClose').onclick = ()=>toggleMap(false);
+  mapInit();
 }
 
 /* ---------- boot ---------- */
@@ -1479,7 +2279,7 @@ if(HAS_DOM){
    Its only job is to answer "am I actually running the build I just made?" —
    a file:// page reopened in the same browser will happily serve a cached
    copy, which looks exactly like a fix that did not work. */
-const BUILD = "2026-10-11.fcff10";
+const BUILD = "2026-10-12.7ecfdd";
 if(HAS_DOM){
   const b = document.getElementById('build');
   if(b) b.textContent = 'build ' + BUILD;
