@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRS-80 Adventures</title>
+<title>TRS-80 Retro Games</title>
 <style>
  body{margin:0;padding:34px 20px 70px;background:#0d0f0c;color:#c8f5c0;
       font-family:"Courier New",ui-monospace,monospace}
@@ -15,6 +15,13 @@
  .t{color:#e8c35a;font-size:14px;font-weight:bold;letter-spacing:.04em}
  .s{color:#8fae87;font-size:11px;margin:3px 0 7px}
  .b{color:#93a88d;font-size:12px;line-height:1.45}
+ h2.sec{font-size:12px;letter-spacing:.24em;color:#6d8a66;font-weight:normal;
+        margin:34px 0 13px;border-bottom:1px solid #2a3a27;padding-bottom:7px}
+ h2.sec:first-of-type{margin-top:26px}
+ a.g.feat{border-color:#e8c35a;background:#181d0f}
+ a.g.feat .t{font-size:18px;letter-spacing:.1em}
+ a.g.feat .s{color:#e8c35a}
+ a.g.feat .b{font-size:12.5px;max-width:74ch}
  footer{color:#54684f;font-size:11.5px;margin-top:34px;line-height:1.7;
         border-top:1px solid #2a3a27;padding-top:14px}
  @media (max-width:600px){
@@ -26,7 +33,24 @@
    a.g:active{border-color:#e8c35a;background:#19200f}
  }
 </style></head><body><div class="w">
-<h1>TRS-80 ADVENTURES</h1>
+<h1>TRS-80 RETRO GAMES</h1>
+<p class="sub">Lifted off Terry's own floppies and put back on their feet, in your browser.</p>
+
+<h2 class="sec">ARCADE</h2>
+<a class="g feat" href="seadragon.html">
+  <div class="t">SEA DRAGON</div>
+  <div class="s">Wayne Westmoreland &amp; Terry Gilman, 1982</div>
+  <div class="b">Fly a submarine down 1,858 columns of undersea cavern on one lungful of air,
+  past tethered mines, mines that rise off the seabed when you are near, guns in the ceiling
+  and ships dropping depth charges. There are only five places in the whole run where you can
+  surface for air.<br><br>
+  This one is not a port. The 1982 machine code is inside the page and a Z80 runs it, so the
+  cavern, the enemies, the physics, the scoring and the sound are the original, at the speed a
+  real Model I ran them. Arrow keys move, space fires a torpedo, Enter fires a missile and
+  starts the game.</div>
+</a>
+
+<h2 class="sec">ADVENTURES</h2>
 <p class="sub">Sixteen adventures lifted out of <code>adams1</code> and <code>adams2</code>,
 each running on a JavaScript reimplementation of Scott Adams' 1979 interpreter.<br>
 Every one is a single self-contained file. Two-word commands. Type <b>MAP</b> to see
@@ -119,7 +143,9 @@ where you have been; the game autosaves every turn.</p>
     </a>
 </div>
 <footer>
-Thirteen of these are the original Adams series, read straight off your disk images -
+Sea Dragon was written for the TRS-80 in 1982 by Wayne Westmoreland and Terry Gilman,
+and was recovered from the disk image by disassembling it and then running it.<br>
+Thirteen of the adventures are the original Adams series, read straight off your disk images -
 the game data is byte-for-byte what the TRS-80 loaded.<br>
 The last three are third-party games written with the same engine: a James Bond
 adventure, and two by Bruce Hansen built with THE ADVENTURE SYSTEM.<br>
