@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Rear Guard &mdash; TRS-80</title>
+<style>
+:root{--phos:#e8e6d9;--dim:#6b6a60;--bg:#0a0a08;--gold:#e8c35a}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#151512;color:var(--phos);
+  font-family:"Courier New",Courier,monospace;-webkit-text-size-adjust:100%}
+#wrap{max-width:1000px;margin:0 auto;padding:14px 12px 30px}
+h1{font-size:15px;letter-spacing:.3em;margin:0 0 2px;text-transform:uppercase;color:var(--gold)}
+.sub{font-size:11.5px;color:var(--dim);margin:0 0 12px;letter-spacing:.04em}
+#screen{background:var(--bg);border:3px solid #2c2c26;border-radius:10px;
+  box-shadow:0 0 0 6px #1b1b17,0 14px 40px rgba(0,0,0,.6);padding:10px;position:relative}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;background:var(--bg)}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:12px}
+button{font-family:inherit;font-size:12px;letter-spacing:.07em;background:#2c2c26;color:var(--phos);
+  border:1px solid #45453c;border-radius:5px;padding:7px 13px;cursor:pointer}
+button:hover{background:#3a3a32}
+select{font-family:inherit;font-size:12px;background:#2c2c26;color:var(--phos);
+  border:1px solid #45453c;border-radius:5px;padding:6px 8px}
+.note{margin-top:14px;font-size:11.5px;line-height:1.75;color:#9d9b90}
+.note b{color:var(--phos)} .note code{background:#22221d;padding:1px 5px;border-radius:3px;color:#cfcdc0}
+.cols{display:flex;gap:28px;flex-wrap:wrap;margin-top:14px}
+.cols>div{flex:1 1 300px;min-width:0}
+h2{font-size:11px;letter-spacing:.2em;color:var(--dim);font-weight:normal;margin:0 0 8px;
+   border-bottom:1px solid #2a2a24;padding-bottom:6px;text-transform:uppercase}
+table.keys{border-collapse:collapse;font-size:12px;width:100%}
+table.keys td{padding:4px 8px 4px 0;vertical-align:top}
+table.keys td.k{color:var(--gold);white-space:nowrap;width:1%}
+table.keys button{padding:2px 8px;font-size:11px}
+#pad{display:none;margin-top:14px;gap:10px;justify-content:space-between;touch-action:none}
+#pad .grp{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,56px);gap:6px}
+#pad button{height:56px;padding:0;font-size:15px}
+@media (pointer:coarse){#pad{display:flex}}
+</style></head><body><div id="wrap">
+<h1>Rear Guard</h1>
+<p class="sub">Wayne Westmoreland &amp; Terry Gilman, 1982 &middot; the original TRS-80 binary, emulated</p>
+<div id="screen"><canvas id="c" width="768" height="576"></canvas></div>
+<div id="bar">
+  <button id="run">Start</button>
+  <button id="reset">Reset</button>
+  <label>Machine <select id="mach">
+    <option value="1774000">Model I &mdash; 1.774 MHz</option>
+    <option value="2027520">Model III &mdash; 2.03 MHz</option>
+  </select></label>
+  <label><input type="checkbox" id="snd" checked> Sound</label>
+  <button id="rebind">Change keys</button>
+  <span id="fps" style="color:var(--dim)"></span>
+</div>
+<div id="pad">
+  <div class="grp">
+    <button data-k="LEFT">&larr;</button><button data-k="UP">&uarr;</button><button data-k="RIGHT">&rarr;</button>
+    <button data-k="ENTER">ENT</button><button data-k="DOWN">&darr;</button><button data-k="SPACE">FIRE</button>
+  </div>
+</div>
+<div class="cols">
+  <div>
+    <h2>Controls</h2>
+    <table class="keys" id="ctrls"></table>
+    <p class="note" style="margin-top:10px">ENTER to begin, then 1 or 2 players.</p>
+  </div>
+  <div>
+    <h2>About</h2>
+    <p class="note" style="margin-top:0">Up and down only, with shields and a smart bomb. No left or right.</p>
+    <p class="note">Our first game done for business rather than fun, commissioned by Adventure International as a TRS-80 version of Neil Larimer's Atari 800 game.</p>
+  </div>
+</div>
+<p class="note">
+This is not a reimplementation. The original machine code is in the page and a Z80 runs it, so the
+game, its physics, its scoring and its sound are all the original, at the speed a real Model I ran
+them. The block graphics are exact; text is drawn from a 5x7 character generator, and choosing
+<b>Model I</b> also folds lowercase to capitals the way a machine without the lowercase mod did.
+High scores are kept in this browser.
+</p>
+</div>
+<script>
+// Z80 CPU core, written for the Sea Dragon reconstruction.
+// Covers the documented instruction set plus the undocumented IXH/IXL/IYH/IYL
+// halves, and models the R register properly: Sea Dragon uses LD A,R as its
+// random number source, so R has to increment exactly as the hardware does.
+
+const F_C=0x01,F_N=0x02,F_PV=0x04,F_3=0x08,F_H=0x10,F_5=0x20,F_Z=0x40,F_S=0x80;
+
+const PAR=new Uint8Array(256);
+for(let i=0;i<256;i++){let p=0,v=i;while(v){p^=v&1;v>>=1;}PAR[i]=p?0:F_PV;}
+const SZ53=new Uint8Array(256),SZ53P=new Uint8Array(256);
+for(let i=0;i<256;i++){const b=(i&0x80)|(i===0?F_Z:0)|(i&0x28);SZ53[i]=b;SZ53P[i]=b|PAR[i];}
+
+class Z80{
+  constructor(bus){
+    this.bus=bus;
+    this.A=0;this.F=0;this.B=0;this.C=0;this.D=0;this.E=0;this.H=0;this.L=0;
+    this.A2=0;this.F2=0;this.B2=0;this.C2=0;this.D2=0;this.E2=0;this.H2=0;this.L2=0;
+    this.IXH=0;this.IXL=0;this.IYH=0;this.IYL=0;
+    this.SP=0xFFFF;this.PC=0;this.I=0;this.R=0;this.R7=0;
+    this.IFF1=0;this.IFF2=0;this.IM=0;this.halted=false;this.T=0;this.idx=0;
+    this.MEMPTR=0;
+  }
+  // ---- memory / fetch -------------------------------------------------
+  rb(a){return this.bus.read(a&0xFFFF);}
+  wb(a,v){this.bus.write(a&0xFFFF,v&0xFF);}
+  rw(a){return this.rb(a)|(this.rb((a+1)&0xFFFF)<<8);}
+  ww(a,v){this.wb(a,v&0xFF);this.wb((a+1)&0xFFFF,(v>>8)&0xFF);}
+  fetch(){const v=this.rb(this.PC);this.PC=(this.PC+1)&0xFFFF;return v;}
+  fetchw(){const lo=this.fetch();return lo|(this.fetch()<<8);}
+  m1(){this.R=(this.R+1)&0x7F;return this.fetch();}
+  disp(){const d=this.fetch();return d<128?d:d-256;}
+  push(v){this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v>>8);this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v&0xFF);}
+  pop(){const v=this.rw(this.SP);this.SP=(this.SP+2)&0xFFFF;return v;}
+
+  // ---- register file --------------------------------------------------
+  get HL(){return (this.H<<8)|this.L;}  set HL(v){this.H=(v>>8)&0xFF;this.L=v&0xFF;}
+  get BC(){return (this.B<<8)|this.C;}  set BC(v){this.B=(v>>8)&0xFF;this.C=v&0xFF;}
+  get DE(){return (this.D<<8)|this.E;}  set DE(v){this.D=(v>>8)&0xFF;this.E=v&0xFF;}
+  get IX(){return (this.IXH<<8)|this.IXL;} set IX(v){this.IXH=(v>>8)&0xFF;this.IXL=v&0xFF;}
+  get IY(){return (this.IYH<<8)|this.IYL;} set IY(v){this.IYH=(v>>8)&0xFF;this.IYL=v&0xFF;}
+  get AF(){return (this.A<<8)|this.F;}  set AF(v){this.A=(v>>8)&0xFF;this.F=v&0xFF;}
+
+  idxHL(){return this.idx===1?this.IX:this.idx===2?this.IY:this.HL;}
+  setIdxHL(v){if(this.idx===1)this.IX=v;else if(this.idx===2)this.IY=v;else this.HL=v;}
+  addr(d){return (this.idxHL()+(this.idx?d:0))&0xFFFF;}
+
+  rd(i,d){switch(i){
+    case 0:return this.B;case 1:return this.C;case 2:return this.D;case 3:return this.E;
+    case 4:return this.idx===1?this.IXH:this.idx===2?this.IYH:this.H;
+    case 5:return this.idx===1?this.IXL:this.idx===2?this.IYL:this.L;
+    case 6:return this.rb(this.addr(d));
+    default:return this.A;}}
+  wr(i,v,d){v&=0xFF;switch(i){
+    case 0:this.B=v;break;case 1:this.C=v;break;case 2:this.D=v;break;case 3:this.E=v;break;
+    case 4:if(this.idx===1)this.IXH=v;else if(this.idx===2)this.IYH=v;else this.H=v;break;
+    case 5:if(this.idx===1)this.IXL=v;else if(this.idx===2)this.IYL=v;else this.L=v;break;
+    case 6:this.wb(this.addr(d),v);break;
+    default:this.A=v;}}
+  // plain H/L, used for the register side of an (IX+d) memory instruction
+  rdp(i){const s=this.idx;this.idx=0;const v=this.rd(i);this.idx=s;return v;}
+  wrp(i,v){const s=this.idx;this.idx=0;this.wr(i,v);this.idx=s;}
+
+  rp(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.SP;}}
+  setrp(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.SP=v&0xFFFF;}}
+  rp2(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.AF;}}
+  setrp2(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.AF=v;}}
+
+  cc(y){switch(y){
+    case 0:return !(this.F&F_Z);case 1:return !!(this.F&F_Z);
+    case 2:return !(this.F&F_C);case 3:return !!(this.F&F_C);
+    case 4:return !(this.F&F_PV);case 5:return !!(this.F&F_PV);
+    case 6:return !(this.F&F_S);default:return !!(this.F&F_S);}}
+
+  // ---- ALU ------------------------------------------------------------
+  add8(v){const a=this.A,r=a+v;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F))>0x0F?F_H:0);
+    this.A=rr;}
+  adc8(v){const a=this.A,c=this.F&F_C,r=a+v+c;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F)+c)>0x0F?F_H:0);
+    this.A=rr;}
+  sub8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);
+    this.A=rr;}
+  sbc8(v){const a=this.A,c=this.F&F_C,r=a-v-c;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F)-c)<0?F_H:0);
+    this.A=rr;}
+  and8(v){this.A=(this.A&v)&0xFF;this.F=SZ53P[this.A]|F_H;}
+  xor8(v){this.A=(this.A^v)&0xFF;this.F=SZ53P[this.A];}
+  or8(v){this.A=(this.A|v)&0xFF;this.F=SZ53P[this.A];}
+  cp8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=(rr&0x80)|(rr===0?F_Z:0)|(v&0x28)|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);}
+  alu(y,v){switch(y){case 0:this.add8(v);break;case 1:this.adc8(v);break;case 2:this.sub8(v);break;
+    case 3:this.sbc8(v);break;case 4:this.and8(v);break;case 5:this.xor8(v);break;
+    case 6:this.or8(v);break;default:this.cp8(v);}}
+  inc8(v){const r=(v+1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|((r&0x0F)===0?F_H:0)|(r===0x80?F_PV:0);return r;}
+  dec8(v){const r=(v-1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|F_N|((v&0x0F)===0?F_H:0)|(r===0x7F?F_PV:0);return r;}
+  add16(a,b){const r=a+b;
+    this.F=(this.F&(F_S|F_Z|F_PV))|((r>>8)&0x28)|(r>0xFFFF?F_C:0)|(((a&0x0FFF)+(b&0x0FFF))>0x0FFF?F_H:0);
+    return r&0xFFFF;}
+  adc16(b){const a=this.HL,c=this.F&F_C,r=a+b+c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|(r>0xFFFF?F_C:0)
+      |(((a^b^0x8000)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)+(b&0x0FFF)+c)>0x0FFF?F_H:0);
+    this.HL=rr;}
+  sbc16(b){const a=this.HL,c=this.F&F_C,r=a-b-c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|F_N|(r<0?F_C:0)
+      |(((a^b)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)-(b&0x0FFF)-c)<0?F_H:0);
+    this.HL=rr;}
+  daa(){const n=this.F&F_N;let c=this.F&F_C,add=0,a=this.A,h;
+    if((this.F&F_H)||(a&0x0F)>9)add=6;
+    if(c||a>0x99){add|=0x60;c=F_C;}
+    if(n){h=((a&0x0F)<(add&0x0F))?F_H:0;a=(a-add)&0xFF;}
+    else{h=(((a&0x0F)+(add&0x0F))>0x0F)?F_H:0;a=(a+add)&0xFF;}
+    this.F=SZ53P[a]|c|n|h;this.A=a;}
+  // rotates returning value + flags (CB form)
+  rlc(v){const c=(v>>7)&1;const r=((v<<1)|c)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rrc(v){const c=v&1;const r=((v>>1)|(c<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rl(v){const c=(v>>7)&1;const r=((v<<1)|(this.F&F_C))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rr(v){const c=v&1;const r=((v>>1)|((this.F&F_C)<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sla(v){const c=(v>>7)&1;const r=(v<<1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  sra(v){const c=v&1;const r=((v>>1)|(v&0x80))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sll(v){const c=(v>>7)&1;const r=((v<<1)|1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  srl(v){const c=v&1;const r=(v>>1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rot(y,v){switch(y){case 0:return this.rlc(v);case 1:return this.rrc(v);case 2:return this.rl(v);
+    case 3:return this.rr(v);case 4:return this.sla(v);case 5:return this.sra(v);
+    case 6:return this.sll(v);default:return this.srl(v);}}
+
+  // ---- step -----------------------------------------------------------
+  step(){
+    const t0=this.T;
+    this.idx=0;
+    if(this.halted){this.R=(this.R+1)&0x7F;this.T+=4;return 4;}
+    let op=this.m1();
+    while(op===0xDD||op===0xFD){this.idx=(op===0xDD)?1:2;this.T+=4;op=this.m1();}
+    if(op===0xCB){ if(this.idx) this.ddcb(); else this.cb(); }
+    else if(op===0xED){ this.idx=0; this.ed(); }
+    else this.main(op);
+    return this.T-t0;
+  }
+
+  main(op){
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x===1){
+      if(y===6&&z===6){this.halted=true;this.T+=4;return;}
+      if(y===6){const d=this.idx?this.disp():0;this.wr(6,this.rdp(z),d);this.T+=this.idx?19:7;return;}
+      if(z===6){const d=this.idx?this.disp():0;this.wrp(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.wr(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===2){
+      if(z===6){const d=this.idx?this.disp():0;this.alu(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.alu(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===0){
+      switch(z){
+        case 0:
+          if(y===0){this.T+=4;}
+          else if(y===1){const t=this.AF;this.AF=(this.A2<<8)|this.F2;this.A2=(t>>8)&0xFF;this.F2=t&0xFF;this.T+=4;}
+          else if(y===2){const d=this.disp();this.B=(this.B-1)&0xFF;
+            if(this.B){this.PC=(this.PC+d)&0xFFFF;this.T+=13;}else this.T+=8;}
+          else if(y===3){const d=this.disp();this.PC=(this.PC+d)&0xFFFF;this.T+=12;}
+          else{const d=this.disp();if(this.cc(y-4)){this.PC=(this.PC+d)&0xFFFF;this.T+=12;}else this.T+=7;}
+          return;
+        case 1:
+          if(q===0){this.setrp(p,this.fetchw());this.T+=this.idx?14:10;}
+          else{this.setIdxHL(this.add16(this.idxHL(),this.rp(p)));this.T+=this.idx?15:11;}
+          return;
+        case 2:
+          if(q===0){
+            if(p===0){this.wb(this.BC,this.A);this.T+=7;}
+            else if(p===1){this.wb(this.DE,this.A);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.ww(a,this.idxHL());this.T+=16;}
+            else{const a=this.fetchw();this.wb(a,this.A);this.T+=13;}
+          }else{
+            if(p===0){this.A=this.rb(this.BC);this.T+=7;}
+            else if(p===1){this.A=this.rb(this.DE);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.setIdxHL(this.rw(a));this.T+=16;}
+            else{const a=this.fetchw();this.A=this.rb(a);this.T+=13;}
+          }
+          return;
+        case 3:
+          this.setrp(p,(this.rp(p)+(q?-1:1))&0xFFFF);this.T+=6;return;
+        case 4:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.inc8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.inc8(this.rd(y)));this.T+=4;}
+          return;}
+        case 5:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.dec8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.dec8(this.rd(y)));this.T+=4;}
+          return;}
+        case 6:{
+          if(y===6){const d=this.idx?this.disp():0;const n=this.fetch();this.wb(this.addr(d),n);this.T+=this.idx?19:10;}
+          else{this.wr(y,this.fetch());this.T+=7;}
+          return;}
+        default:
+          switch(y){
+            case 0:{const c=(this.A>>7)&1;this.A=((this.A<<1)|c)&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 1:{const c=this.A&1;this.A=((this.A>>1)|(c<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 2:{const c=(this.A>>7)&1;this.A=((this.A<<1)|(this.F&F_C))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 3:{const c=this.A&1;this.A=((this.A>>1)|((this.F&F_C)<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 4:this.daa();break;
+            case 5:this.A=(~this.A)&0xFF;this.F=(this.F&(F_S|F_Z|F_PV|F_C))|F_H|F_N|(this.A&0x28);break;
+            case 6:this.F=(this.F&(F_S|F_Z|F_PV))|F_C|(this.A&0x28);break;
+            default:{const c=this.F&F_C;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(c?F_H:0)|(c?0:F_C)|(this.A&0x28);break;}
+          }
+          this.T+=4;return;
+      }
+    }
+    // x === 3
+    switch(z){
+      case 0: if(this.cc(y)){this.PC=this.pop();this.T+=11;}else this.T+=5; return;
+      case 1:
+        if(q===0){this.setrp2(p,this.pop());this.T+=10;}
+        else{
+          if(p===0){this.PC=this.pop();this.T+=10;}
+          else if(p===1){let t=this.BC;this.BC=(this.B2<<8)|this.C2;this.B2=(t>>8)&0xFF;this.C2=t&0xFF;
+            t=this.DE;this.DE=(this.D2<<8)|this.E2;this.D2=(t>>8)&0xFF;this.E2=t&0xFF;
+            t=this.HL;this.HL=(this.H2<<8)|this.L2;this.H2=(t>>8)&0xFF;this.L2=t&0xFF;this.T+=4;}
+          else if(p===2){this.PC=this.idxHL();this.T+=4;}
+          else{this.SP=this.idxHL();this.T+=6;}
+        }
+        return;
+      case 2:{const a=this.fetchw();if(this.cc(y))this.PC=a;this.T+=10;return;}
+      case 3:
+        if(y===0){this.PC=this.fetchw();this.T+=10;}
+        else if(y===1){/* CB handled in step */}
+        else if(y===2){const port=this.fetch();this.bus.out(port,this.A,this.A);this.T+=11;}
+        else if(y===3){const port=this.fetch();this.A=this.bus.in(port,this.A);this.F=SZ53P[this.A]|(this.F&F_C);this.T+=11;}
+        else if(y===4){const t=this.rw(this.SP);this.ww(this.SP,this.idxHL());this.setIdxHL(t);this.T+=19;}
+        else if(y===5){const t=this.DE;this.DE=this.HL;this.HL=t;this.T+=4;}
+        else if(y===6){this.IFF1=0;this.IFF2=0;this.T+=4;}
+        else{this.IFF1=1;this.IFF2=1;this.T+=4;}
+        return;
+      case 4:{const a=this.fetchw();if(this.cc(y)){this.push(this.PC);this.PC=a;this.T+=17;}else this.T+=10;return;}
+      case 5:
+        if(q===0){this.push(this.rp2(p));this.T+=11;}
+        else if(p===0){const a=this.fetchw();this.push(this.PC);this.PC=a;this.T+=17;}
+        return;
+      case 6:{this.alu(y,this.fetch());this.T+=7;return;}
+      default:{this.push(this.PC);this.PC=y*8;this.T+=11;return;}
+    }
+  }
+
+  cb(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7;
+    if(x===0){const v=this.rot(y,this.rd(z));this.wr(z,v);this.T+=z===6?15:8;return;}
+    if(x===1){const v=this.rd(z);
+      this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80);
+      this.F|= z===6 ? 0 : (v&0x28);
+      this.T+=z===6?12:8;return;}
+    if(x===2){this.wr(z,this.rd(z)&~(1<<y));this.T+=z===6?15:8;return;}
+    this.wr(z,this.rd(z)|(1<<y));this.T+=z===6?15:8;
+  }
+
+  ddcb(){
+    const d=this.disp();const op=this.fetch();this.R=(this.R+1)&0x7F;
+    const x=op>>6,y=(op>>3)&7,z=op&7;const a=this.addr(d);const v=this.rb(a);
+    if(x===1){this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80)|((a>>8)&0x28);this.T+=20;return;}
+    let r;
+    if(x===0)r=this.rot(y,v);
+    else if(x===2)r=v&~(1<<y);
+    else r=v|(1<<y);
+    this.wb(a,r);
+    if(z!==6)this.wrp(z,r);   // undocumented: result also copied to a register
+    this.T+=23;
+  }
+
+  ed(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x!==1&&x!==2){this.T+=8;return;}
+    if(x===1){
+      switch(z){
+        case 0:{const v=this.bus.in(this.C,this.B);if(y!==6)this.wr(y,v);
+          this.F=SZ53P[v]|(this.F&F_C);this.T+=12;return;}
+        case 1:{this.bus.out(this.C,this.B,y===6?0:this.rd(y));this.T+=12;return;}
+        case 2:{if(q===0)this.sbc16(this.rp(p));else this.adc16(this.rp(p));this.T+=15;return;}
+        case 3:{const a=this.fetchw();if(q===0)this.ww(a,this.rp(p));else this.setrp(p,this.rw(a));this.T+=20;return;}
+        case 4:{const a=this.A;this.A=0;this.sub8(a);this.T+=8;return;}
+        case 5:{this.PC=this.pop();this.IFF1=this.IFF2;this.T+=14;return;}
+        case 6:{this.IM=(y===0||y===1||y===4||y===5)?0:(y===2||y===6)?1:2;this.T+=8;return;}
+        default:
+          if(y===0){this.I=this.A;this.T+=9;}
+          else if(y===1){this.R=this.A&0x7F;this.R7=this.A&0x80;this.T+=9;}
+          else if(y===2){this.A=this.I;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===3){this.A=(this.R&0x7F)|this.R7;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===4){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m<<4)|(a&0x0F))&0xFF);this.A=(a&0xF0)|(m>>4);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else if(y===5){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m>>4)|((a&0x0F)<<4))&0xFF);this.A=(a&0xF0)|(m&0x0F);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else this.T+=8;
+          return;
+      }
+    }
+    // x === 2 : block instructions
+    if(z>3||y<4){this.T+=8;return;}
+    const inc=(y&1)?-1:1;
+    const rep=(y&2)!==0;
+    switch(z){
+      case 0:{ // LDI/LDD/LDIR/LDDR
+        const v=this.rb(this.HL);this.wb(this.DE,v);
+        this.DE=(this.DE+inc)&0xFFFF;this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(v+this.A)&0xFF;
+        this.F=(this.F&(F_S|F_Z|F_C))|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 1:{ // CPI/CPD/CPIR/CPDR
+        const v=this.rb(this.HL);const r=(this.A-v)&0xFF;
+        let h=((this.A&0x0F)-(v&0x0F))<0?F_H:0;
+        this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(r-(h?1:0))&0xFF;
+        this.F=(this.F&F_C)|F_N|h|(r&0x80)|(r===0?F_Z:0)|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC&&r!==0){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 2:{ // INI/IND/INIR/INDR
+        const v=this.bus.in(this.C,this.B);this.wb(this.HL,v);
+        this.B=(this.B-1)&0xFF;this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      default:{ // OUTI/OUTD/OTIR/OTDR
+        const v=this.rb(this.HL);this.B=(this.B-1)&0xFF;
+        this.bus.out(this.C,this.B,v);this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+    }
+  }
+}
+
+
+const ROM=Uint8Array.from(atob("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lICLtJCCi4yssLAEgIIIg4sOjIcIg4EEgLCwnIyHgaC4h4Coi7QBgpiSkICDjbSwsICCg4OLB4y0BrAIgAawuAeMh4ODgYCwsLiOg4CguIeQgIONrLCwgIKDg4sDjKwHsASAggiDgQSAB7CcA4yHg4OBgLCwnI6DgKCPjQSMjo+PDYyOEo+NDYyPj40EjI6PAICwnI6Dg4CAsLC4A4yOBIOBBICgDrCQBIABghiTggSDjQOMtLCwgICDg42ssICegYCwnI6Dg4GAA7CcA4yOB4MOgAeDjQOMrAOwgIKDg42ssICCrYC4h4GAsJyOg4OBA4AGsJwEjI4Mg40EjKwGsAOAgoODjaywgIKLtIC4hYCgnoGgsJyMjgODgSKAggODjYyssJCCrZCAirSFgKABgpiTl4C4hzKAi7SAq5CAioCAnoCAlTSAqoCArQSAtYCAlTSAqoCAuoCAkICKlICtkDKAoJ6AqIWAoK2QgIu0gIuMtLCwKoCwsLiMh4C4h4CgnoCtkICCjbSwgICCA4ONBYy0BbAMgAWwuAWMjgODgYCAsLiOgYCgnoC0gIONtLCAgoMBghiUg42MjLQEsAeAggyDgQeABLC4jIyOg4OBgLC4joOAuIKNtLCAgoODjYysBLCAgIIGg4sOjIcGg4GAgASwnIyOg4OBgLC4joEDjI6PjwiMjgSPjRiMjgSPjQiMj4+NA4wAuI6DgYCwsJyMjgODgYCAoAawuBCMtAawkICAggODjYwBgpiUrLCwgIKDjbSBoLiOg4GgsLCcjIyHBIMEgKAUsJAEgASDi4yMrLCwkIKDjbSQgqiHgKC4joOAgKCwuIyMjgeDFIAHg42MjLSwkICAg420kICLlIeAuIeAoJyOg4MsgIODjayQgIu0gIuAqIWAqIc0gIuUgIqUgICXgICeNoCtgIABghiVq4CAlYCAtTaAuoCAqoCAq5CAqpA0gKCVgKCXgJCArZCAi7SwMICwuIeAoJ6AoKuQgIussICCg4uMrAOwIoADsJyMh4OBgLCch4Cgl4CLrLCAgouMjLSwsJCAggaDixSMhwaDgYCgsLC4jIyHgYCwnIeArbCAgoONjLSwsICABIMBgpiViwaMrBCwnAaMhwSDgICwsLiMjoOBgLCejI6PjQWMjgOPjSSMjgOPjQWMjo+NjACgsLCwkICwsLCwgICwsICAsLCw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"),c=>c.charCodeAt(0));
+const FONT=Uint8Array.from("00000000000000040404040400040a0a0a000000000a0a1f0a1f0a0a040f140e051e04181902040813030c12140815120d0c04080000000002040808080402080402020204080004150e1504000004041f040400000000000c04080000001f00000000000000000c0c000102040810000e11131519110e040c040404040e0e11010204081f1f02040201110e02060a121f02021f101e0101110e0608101e11110e1f1102040808080e11110e11110e0e11110f01020c000c0c000c0c00000c0c000c04080204081008040200001f001f0000080402010204080e1101020400040e11010d15150e040a11111f11111e11111e11111e0e11101010110e1c12111111121c1f10101e10101f1f10101e1010100e11101711110f1111111f1111110e04040404040e0702020202120c111214181412111010101010101f111b1515111111111119151311110e11111111110e1e11111e1010100e11111115120d1e11111e1412110f10100e01011e1f0404040404041111111111110e11111111110a041111111515150a11110a040a111111110a040404041f01020408101f0e08080808080e001008040201000e02020202020e040a11000000000000000000001f0000000000000000000e010f110f10101e1111111e00000f1010110e01010f1111110f00000e111f100e0609081c080808000f11110f010e10101e1111111104000c0404040e0200060202120c101012141814120c04040404040e00001a1515151500001e1111111100000e1111110e001e11111e1010000f11110f01010000161910101000000f100e011e08081c080809060000111111130d00001111110a040000111115150a0000110a040a11001111110f010e00001f0204081f02040408040402040404000404040804040204040800000d12000000".match(/../g).map(h=>parseInt(h,16)));
+const GAME="rear-guard";
+
+function loadCMD(d){
+  const mem=new Map(); let entry=null,i=0;
+  while(i<d.length){
+    const t=d[i],n=d[i+1];
+    if(t===1){const body=(n>=3)?(n-2):(n+254);const addr=d[i+2]|(d[i+3]<<8);
+      for(let k=0;k<body;k++)mem.set((addr+k)&0xFFFF,d[i+4+k]); i+=4+body;}
+    else if(t===2){entry=d[i+2]|(d[i+3]<<8);break;}
+    else if(t===0||t>0x1f)break;
+    else i+=2+n;
+  }
+  return {mem,entry};
+}
+// the TRS-80 key matrix: row -> the eight keys on it
+const KEYROW={0:['@','A','B','C','D','E','F','G'],1:['H','I','J','K','L','M','N','O'],
+ 2:['P','Q','R','S','T','U','V','W'],3:['X','Y','Z','[','\\',']','^','_'],
+ 4:['0','1','2','3','4','5','6','7'],5:['8','9',':',';',',','-','.','/'],
+ 6:['ENTER','CLEAR','BREAK','UP','DOWN','LEFT','RIGHT','SPACE'],7:['SHIFT','','','','','','','']};
+const KEYPOS={};
+for(const r in KEYROW)KEYROW[r].forEach((k,b)=>{if(k)KEYPOS[k]=[+r,b];});
+
+// ---- the machine -------------------------------------------------------
+// Nothing from the TRS-80 ROM is included. The games call four ROM entries and
+// five TRSDOS vectors; all nine are answered here, in our own code.
+const DOS={0x4420:'INIT',0x4424:'OPEN',0x4428:'CLOSE',0x4436:'READ',0x4439:'WRITE'};
+class Machine{
+  constructor(){
+    this.ram=new Uint8Array(65536); this.keys=new Set(); this.spk=[]; this.level=0;
+    this.open=new Map(); this.rndState=0x2545F491; this.rndVal=0;
+    this.files=this.loadScores();
+    const self=this;
+    this.cpu=new Z80({
+      read(a){ if(a>=0x3800&&a<0x3900){let v=0;for(let r=0;r<8;r++)if(a&(1<<r))v|=self.row(r);return v;}
+               return self.ram[a]; },
+      write(a,v){ if(a>=0x3000) self.ram[a]=v; },
+      in(){ return 0xFF; },
+      out(p,hi,v){ if((p&0xFF)===0xFF){const L=(v&3)===1?1:((v&3)===2?-1:0);
+        if(L!==self.level){self.level=L;self.spk.push([self.cpu.T,L]);}} }
+    });
+    const raw=this.cpu.step.bind(this.cpu);
+    this.cpu.step=()=>{ const t=this.trap(this.cpu.PC); return t?t:raw(); };
+    const {mem,entry}=loadCMD(ROM);
+    for(const [a,v] of mem) this.ram[a]=v;
+    this.cpu.PC=entry; this.cpu.SP=0x4495;
+  }
+  row(r){let v=0;for(const k of this.keys){const p=KEYPOS[k];if(p&&p[0]===r)v|=1<<p[1];}return v;}
+
+  // high scores live in this browser, standing in for the game's /HIS file
+  loadScores(){
+    const m=new Map();
+    try{ const raw=localStorage.getItem('trs80-his-'+GAME);
+      if(raw){ const o=JSON.parse(raw);
+        for(const k in o) m.set(k,o[k].map(r=>Uint8Array.from(r))); } }catch(e){}
+    return m;
+  }
+  saveScores(){
+    try{ const o={};
+      for(const [k,v] of this.files) o[k]=v.map(r=>Array.from(r));
+      localStorage.setItem('trs80-his-'+GAME,JSON.stringify(o)); }catch(e){}
+  }
+  dcbName(d){ let s='';
+    for(let i=0;i<32;i++){const c=this.ram[(d+i)&0xFFFF];
+      if(c===0x0D||c===0x03||c===0||c<32||c>126)break; s+=String.fromCharCode(c);}
+    return s.trim().toUpperCase(); }
+  rnd(n){ this.rndState=(this.rndState*1103515245+12345+((this.cpu.R&0x7F)|this.cpu.R7))>>>0;
+          return n>0?1+((this.rndState>>>16)%n):0; }
+  trap(pc){
+    const c=this.cpu;
+    const ret=(t)=>{ c.PC=c.pop(); c.T+=t; return t; };
+    // --- the four ROM entries the games use ---
+    if(pc===0x0060){                                                    // delay: DEC BC / LD A,B / OR C / JR NZ / RET
+      const n=c.BC||0x10000;                                            // BC=0 means a full 65536 pass
+      c.BC=0; c.A=0; c.F|=0x40;
+      return ret(26*n+10);                                              // charge what the real loop costs
+    }
+    if(pc===0x002B||pc===0x0049){                                       // get a character
+      const k=this.romKey(); c.A=k; c.F = k?(c.F&~0x40):(c.F|0x40); return ret(40); }
+    if(pc===0x01D3){ this.ram[0x40AB]=(c.R&0x7F)|c.R7; return ret(20); } // seed
+    if(pc===0x14C9){ this.rndVal=this.rnd(this.ram[0x4121]|(this.ram[0x4122]<<8)); return ret(60); }
+    if(pc===0x0A7F){ c.HL=this.rndVal|0; c.A=c.HL&0xFF; return ret(40); }
+    // --- the five TRSDOS vectors ---
+    const op=DOS[pc]; if(!op) return 0;
+    const dcb=c.DE, hl=c.HL;
+    const done=(err)=>{ if(err){c.A=err;c.F=(c.F&~0x40)|0x02;} else {c.A=0;c.F|=0x40;} return ret(30); };
+    if(op==='OPEN'||op==='INIT'){
+      const name=this.dcbName(dcb); if(!name) return done(0x18);
+      let f=this.files.get(name);
+      if(op==='OPEN'&&!f) return done(0x18);
+      if(!f){ f=[]; this.files.set(name,f); }
+      this.open.set(dcb,{name,buf:hl,pos:0}); return done(0);
+    }
+    const h=this.open.get(dcb); if(!h) return done(0x18);
+    const f=this.files.get(h.name);
+    if(op==='READ'){ if(h.pos>=f.length) return done(0x1C);
+      const r=f[h.pos++]; for(let i=0;i<256;i++) this.ram[(h.buf+i)&0xFFFF]=r[i]; return done(0); }
+    if(op==='WRITE'){ const r=new Uint8Array(256);
+      for(let i=0;i<256;i++) r[i]=this.ram[(h.buf+i)&0xFFFF];
+      f[h.pos++]=r; this.saveScores(); return done(0); }
+    if(op==='CLOSE'){ this.open.delete(dcb); this.saveScores(); return done(0); }
+    return done(0);
+  }
+  romKey(){
+    const A={ENTER:0x0D,CLEAR:0x1F,BREAK:0x01,SPACE:0x20,LEFT:0x08,RIGHT:0x09,DOWN:0x0A,UP:0x0B};
+    for(const k of this.keys){ if(A[k]!==undefined) return A[k];
+      if(k.length===1) return k.charCodeAt(0); }
+    return 0;
+  }
+  run(t){const end=this.cpu.T+t;let g=0;
+    while(this.cpu.T<end&&g++<4000000){this.cpu.step();if(this.cpu.halted)break;}}
+}
+
+const CONTROLS=[["Up and Down","Move"],["Space","Fire"],["Enter","Shields"],["Home or Left Ctrl","Smart bomb"]];
+const BINDABLE=["UP","DOWN","SPACE","ENTER","CLEAR"];
+// ---- screen ------------------------------------------------------------
+const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
+const CELLW=cv.width/64, CELLH=cv.height/16, PHOS='#e8e6d9', BG='#0a0a08';
+ctx.imageSmoothingEnabled=false;
+function draw(m){
+  ctx.fillStyle=BG; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle=PHOS;
+  const v=m.ram;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    const c=v[0x3C00+row*64+col];
+    if(c>=0x80&&c<=0xBF){
+      for(let b=0;b<6;b++) if(c&(1<<b))
+        ctx.fillRect(Math.round(col*CELLW+(b&1)*(CELLW/2)), Math.round(row*CELLH+(b>>1)*(CELLH/3)),
+                     Math.ceil(CELLW/2), Math.ceil(CELLH/3));
+    }
+  }
+  const fold=+document.getElementById('mach').value<2000000;
+  const gw=CELLW/6, gh=CELLH/12;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    let c=v[0x3C00+row*64+col];
+    if(c<0x20||c>0x7E) continue;
+    if(fold&&c>=0x61&&c<=0x7A) c-=0x20;
+    const base=(c-0x20)*7;
+    for(let r=0;r<7;r++){ const bits=FONT[base+r]; if(!bits) continue;
+      for(let b=0;b<5;b++) if(bits&(1<<(4-b)))
+        ctx.fillRect(Math.round(col*CELLW+b*gw), Math.round(row*CELLH+(r+2)*gh),
+                     Math.ceil(gw), Math.ceil(gh)); }
+  }
+}
+// ---- sound -------------------------------------------------------------
+let ac=null,nextAt=0;
+function flush(m,hz){
+  if(!document.getElementById('snd').checked||!m.spk.length){m.spk.length=0;return;}
+  if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();nextAt=ac.currentTime;}
+  const SR=ac.sampleRate, ev=m.spk; m.spk=[];
+  const t0=ev[0][0], t1=m.cpu.T, n=Math.max(1,Math.floor((t1-t0)/hz*SR));
+  if(n>SR) return;
+  const buf=ac.createBuffer(1,n,SR), d=buf.getChannelData(0);
+  let ei=0,lvl=ev[0][1];
+  for(let i=0;i<n;i++){ const T=t0+(i/SR)*hz;
+    while(ei<ev.length&&ev[ei][0]<=T){lvl=ev[ei][1];ei++;}
+    d[i]=lvl*0.12; }
+  const s=ac.createBufferSource(); s.buffer=buf; s.connect(ac.destination);
+  const now=ac.currentTime; if(nextAt<now) nextAt=now+0.01;
+  s.start(nextAt); nextAt+=n/SR;
+}
+// ---- keys, remappable --------------------------------------------------
+const DEFAULTS={UP:'ArrowUp',DOWN:'ArrowDown',LEFT:'ArrowLeft',RIGHT:'ArrowRight',
+  SPACE:' ',ENTER:'Enter',CLEAR:'Home',BREAK:'Escape',SHIFT:'Shift'};
+for(const k in KEYPOS) if(k.length===1) DEFAULTS[k]=DEFAULTS[k]||k;
+let BIND=Object.assign({},DEFAULTS);
+try{ const s=localStorage.getItem('trs80-keys-'+GAME); if(s) Object.assign(BIND,JSON.parse(s)); }catch(e){}
+function saveBind(){ try{ localStorage.setItem('trs80-keys-'+GAME,JSON.stringify(BIND)); }catch(e){} }
+function toTRS(ev){
+  const want=ev.key;
+  for(const trs in BIND){
+    const b=BIND[trs];
+    if(b===want) return trs;
+    if(b.length===1&&want.length===1&&b.toUpperCase()===want.toUpperCase()) return trs;
+  }
+  // Left Ctrl is a second, permanent way to reach CLEAR
+  if(want==='Control') return 'CLEAR';
+  return null;
+}
+let grabbing=null;
+function renderControls(){
+  const t=document.getElementById('ctrls');
+  t.innerHTML='';
+  for(const [label,what] of CONTROLS){
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="k">'+label+'</td><td>'+what+'</td>';
+    t.appendChild(tr);
+  }
+  if(!grabbing) return;
+  for(const trs of BINDABLE){
+    const tr=document.createElement('tr');
+    const td1=document.createElement('td'); td1.className='k'; td1.textContent=trs;
+    const td2=document.createElement('td');
+    const b=document.createElement('button');
+    b.textContent = grabbing===trs ? 'press a key…' : BIND[trs];
+    b.onclick=()=>{ grabbing=trs; renderControls(); };
+    td2.appendChild(b); tr.appendChild(td1); tr.appendChild(td2); t.appendChild(tr);
+  }
+  const tr=document.createElement('tr'), td=document.createElement('td');
+  td.colSpan=2;
+  const r=document.createElement('button'); r.textContent='Reset to defaults';
+  r.onclick=()=>{ BIND=Object.assign({},DEFAULTS); saveBind(); renderControls(); };
+  const dn=document.createElement('button'); dn.textContent='Done'; dn.style.marginLeft='8px';
+  dn.onclick=()=>{ grabbing=null; document.getElementById('rebind').textContent='Change keys'; renderControls(); };
+  td.appendChild(r); td.appendChild(dn); tr.appendChild(td);
+  document.getElementById('ctrls').appendChild(tr);
+}
+document.getElementById('rebind').onclick=()=>{
+  grabbing = grabbing===null ? BINDABLE[0] : null;
+  document.getElementById('rebind').textContent = grabbing?'Hide key setup':'Change keys';
+  renderControls();
+};
+addEventListener('keydown',e=>{
+  if(grabbing){ BIND[grabbing]=e.key; saveBind(); grabbing=null; renderControls(); e.preventDefault(); return; }
+  const k=toTRS(e); if(k){ m.keys.add(k); e.preventDefault(); }
+});
+addEventListener('keyup',e=>{ const k=toTRS(e); if(k){ m.keys.delete(k); e.preventDefault(); } });
+document.querySelectorAll('#pad button').forEach(b=>{
+  const k=b.dataset.k;
+  const dn=e=>{e.preventDefault();m.keys.add(k);}, up=e=>{e.preventDefault();m.keys.delete(k);};
+  b.addEventListener('touchstart',dn,{passive:false}); b.addEventListener('touchend',up);
+  b.addEventListener('mousedown',dn); b.addEventListener('mouseup',up); b.addEventListener('mouseleave',up);
+});
+// ---- loop --------------------------------------------------------------
+let m=new Machine(), running=false, last=0, frames=0, fpsT=0;
+function loop(ts){
+  if(!running) return;
+  if(!last) last=ts;
+  let dt=(ts-last)/1000; last=ts; if(dt>0.1) dt=0.1;
+  const hz=+document.getElementById('mach').value;
+  m.run(Math.floor(dt*hz)); draw(m); flush(m,hz);
+  frames++; if(ts-fpsT>1000){document.getElementById('fps').textContent=frames+' fps';frames=0;fpsT=ts;}
+  requestAnimationFrame(loop);
+}
+const runBtn=document.getElementById('run');
+runBtn.onclick=()=>{ running=!running; runBtn.textContent=running?'Pause':'Start';
+  if(running){ last=0; if(ac&&ac.state==='suspended') ac.resume(); requestAnimationFrame(loop); } };
+document.getElementById('reset').onclick=()=>{ m=new Machine(); draw(m); };
+renderControls(); draw(m);
+
+</script><script>
+(function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
+</script>
+</body></html>

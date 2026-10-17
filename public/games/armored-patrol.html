@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Armored Patrol &mdash; TRS-80</title>
+<style>
+:root{--phos:#e8e6d9;--dim:#6b6a60;--bg:#0a0a08;--gold:#e8c35a}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#151512;color:var(--phos);
+  font-family:"Courier New",Courier,monospace;-webkit-text-size-adjust:100%}
+#wrap{max-width:1000px;margin:0 auto;padding:14px 12px 30px}
+h1{font-size:15px;letter-spacing:.3em;margin:0 0 2px;text-transform:uppercase;color:var(--gold)}
+.sub{font-size:11.5px;color:var(--dim);margin:0 0 12px;letter-spacing:.04em}
+#screen{background:var(--bg);border:3px solid #2c2c26;border-radius:10px;
+  box-shadow:0 0 0 6px #1b1b17,0 14px 40px rgba(0,0,0,.6);padding:10px;position:relative}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;background:var(--bg)}
+#bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:12px}
+button{font-family:inherit;font-size:12px;letter-spacing:.07em;background:#2c2c26;color:var(--phos);
+  border:1px solid #45453c;border-radius:5px;padding:7px 13px;cursor:pointer}
+button:hover{background:#3a3a32}
+select{font-family:inherit;font-size:12px;background:#2c2c26;color:var(--phos);
+  border:1px solid #45453c;border-radius:5px;padding:6px 8px}
+.note{margin-top:14px;font-size:11.5px;line-height:1.75;color:#9d9b90}
+.note b{color:var(--phos)} .note code{background:#22221d;padding:1px 5px;border-radius:3px;color:#cfcdc0}
+.cols{display:flex;gap:28px;flex-wrap:wrap;margin-top:14px}
+.cols>div{flex:1 1 300px;min-width:0}
+h2{font-size:11px;letter-spacing:.2em;color:var(--dim);font-weight:normal;margin:0 0 8px;
+   border-bottom:1px solid #2a2a24;padding-bottom:6px;text-transform:uppercase}
+table.keys{border-collapse:collapse;font-size:12px;width:100%}
+table.keys td{padding:4px 8px 4px 0;vertical-align:top}
+table.keys td.k{color:var(--gold);white-space:nowrap;width:1%}
+table.keys button{padding:2px 8px;font-size:11px}
+#pad{display:none;margin-top:14px;gap:10px;justify-content:space-between;touch-action:none}
+#pad .grp{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,56px);gap:6px}
+#pad button{height:56px;padding:0;font-size:15px}
+@media (pointer:coarse){#pad{display:flex}}
+</style></head><body><div id="wrap">
+<h1>Armored Patrol</h1>
+<p class="sub">Wayne Westmoreland &amp; Terry Gilman, 1981 &middot; the original TRS-80 binary, emulated</p>
+<div id="screen"><canvas id="c" width="768" height="576"></canvas></div>
+<div id="bar">
+  <button id="run">Start</button>
+  <button id="reset">Reset</button>
+  <label>Machine <select id="mach">
+    <option value="1774000">Model I &mdash; 1.774 MHz</option>
+    <option value="2027520">Model III &mdash; 2.03 MHz</option>
+  </select></label>
+  <label><input type="checkbox" id="snd" checked> Sound</label>
+  <button id="rebind">Change keys</button>
+  <span id="fps" style="color:var(--dim)"></span>
+</div>
+<div id="pad">
+  <div class="grp">
+    <button data-k="LEFT">&larr;</button><button data-k="UP">&uarr;</button><button data-k="RIGHT">&rarr;</button>
+    <button data-k="ENTER">ENT</button><button data-k="DOWN">&darr;</button><button data-k="SPACE">FIRE</button>
+  </div>
+</div>
+<div class="cols">
+  <div>
+    <h2>Controls</h2>
+    <table class="keys" id="ctrls"></table>
+    <p class="note" style="margin-top:10px">ENTER to begin, then 1 or 2 players. Press I at the title for the game's own instructions.</p>
+  </div>
+  <div>
+    <h2>About</h2>
+    <p class="note" style="margin-top:0">Battlezone on a TRS-80. You are inside a T-36 tank with a high energy plasma weapon, hunting enemy craft across an alien landscape.</p>
+    <p class="note">Our first game, originally Tank Zone 2000. Adventure International's marketing changed the pyramids to houses, the saucer to a robot, and the name.</p>
+  </div>
+</div>
+<p class="note">
+This is not a reimplementation. The original machine code is in the page and a Z80 runs it, so the
+game, its physics, its scoring and its sound are all the original, at the speed a real Model I ran
+them. The block graphics are exact; text is drawn from a 5x7 character generator, and choosing
+<b>Model I</b> also folds lowercase to capitals the way a machine without the lowercase mod did.
+High scores are kept in this browser.
+</p>
+</div>
+<script>
+// Z80 CPU core, written for the Sea Dragon reconstruction.
+// Covers the documented instruction set plus the undocumented IXH/IXL/IYH/IYL
+// halves, and models the R register properly: Sea Dragon uses LD A,R as its
+// random number source, so R has to increment exactly as the hardware does.
+
+const F_C=0x01,F_N=0x02,F_PV=0x04,F_3=0x08,F_H=0x10,F_5=0x20,F_Z=0x40,F_S=0x80;
+
+const PAR=new Uint8Array(256);
+for(let i=0;i<256;i++){let p=0,v=i;while(v){p^=v&1;v>>=1;}PAR[i]=p?0:F_PV;}
+const SZ53=new Uint8Array(256),SZ53P=new Uint8Array(256);
+for(let i=0;i<256;i++){const b=(i&0x80)|(i===0?F_Z:0)|(i&0x28);SZ53[i]=b;SZ53P[i]=b|PAR[i];}
+
+class Z80{
+  constructor(bus){
+    this.bus=bus;
+    this.A=0;this.F=0;this.B=0;this.C=0;this.D=0;this.E=0;this.H=0;this.L=0;
+    this.A2=0;this.F2=0;this.B2=0;this.C2=0;this.D2=0;this.E2=0;this.H2=0;this.L2=0;
+    this.IXH=0;this.IXL=0;this.IYH=0;this.IYL=0;
+    this.SP=0xFFFF;this.PC=0;this.I=0;this.R=0;this.R7=0;
+    this.IFF1=0;this.IFF2=0;this.IM=0;this.halted=false;this.T=0;this.idx=0;
+    this.MEMPTR=0;
+  }
+  // ---- memory / fetch -------------------------------------------------
+  rb(a){return this.bus.read(a&0xFFFF);}
+  wb(a,v){this.bus.write(a&0xFFFF,v&0xFF);}
+  rw(a){return this.rb(a)|(this.rb((a+1)&0xFFFF)<<8);}
+  ww(a,v){this.wb(a,v&0xFF);this.wb((a+1)&0xFFFF,(v>>8)&0xFF);}
+  fetch(){const v=this.rb(this.PC);this.PC=(this.PC+1)&0xFFFF;return v;}
+  fetchw(){const lo=this.fetch();return lo|(this.fetch()<<8);}
+  m1(){this.R=(this.R+1)&0x7F;return this.fetch();}
+  disp(){const d=this.fetch();return d<128?d:d-256;}
+  push(v){this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v>>8);this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v&0xFF);}
+  pop(){const v=this.rw(this.SP);this.SP=(this.SP+2)&0xFFFF;return v;}
+
+  // ---- register file --------------------------------------------------
+  get HL(){return (this.H<<8)|this.L;}  set HL(v){this.H=(v>>8)&0xFF;this.L=v&0xFF;}
+  get BC(){return (this.B<<8)|this.C;}  set BC(v){this.B=(v>>8)&0xFF;this.C=v&0xFF;}
+  get DE(){return (this.D<<8)|this.E;}  set DE(v){this.D=(v>>8)&0xFF;this.E=v&0xFF;}
+  get IX(){return (this.IXH<<8)|this.IXL;} set IX(v){this.IXH=(v>>8)&0xFF;this.IXL=v&0xFF;}
+  get IY(){return (this.IYH<<8)|this.IYL;} set IY(v){this.IYH=(v>>8)&0xFF;this.IYL=v&0xFF;}
+  get AF(){return (this.A<<8)|this.F;}  set AF(v){this.A=(v>>8)&0xFF;this.F=v&0xFF;}
+
+  idxHL(){return this.idx===1?this.IX:this.idx===2?this.IY:this.HL;}
+  setIdxHL(v){if(this.idx===1)this.IX=v;else if(this.idx===2)this.IY=v;else this.HL=v;}
+  addr(d){return (this.idxHL()+(this.idx?d:0))&0xFFFF;}
+
+  rd(i,d){switch(i){
+    case 0:return this.B;case 1:return this.C;case 2:return this.D;case 3:return this.E;
+    case 4:return this.idx===1?this.IXH:this.idx===2?this.IYH:this.H;
+    case 5:return this.idx===1?this.IXL:this.idx===2?this.IYL:this.L;
+    case 6:return this.rb(this.addr(d));
+    default:return this.A;}}
+  wr(i,v,d){v&=0xFF;switch(i){
+    case 0:this.B=v;break;case 1:this.C=v;break;case 2:this.D=v;break;case 3:this.E=v;break;
+    case 4:if(this.idx===1)this.IXH=v;else if(this.idx===2)this.IYH=v;else this.H=v;break;
+    case 5:if(this.idx===1)this.IXL=v;else if(this.idx===2)this.IYL=v;else this.L=v;break;
+    case 6:this.wb(this.addr(d),v);break;
+    default:this.A=v;}}
+  // plain H/L, used for the register side of an (IX+d) memory instruction
+  rdp(i){const s=this.idx;this.idx=0;const v=this.rd(i);this.idx=s;return v;}
+  wrp(i,v){const s=this.idx;this.idx=0;this.wr(i,v);this.idx=s;}
+
+  rp(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.SP;}}
+  setrp(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.SP=v&0xFFFF;}}
+  rp2(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.AF;}}
+  setrp2(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.AF=v;}}
+
+  cc(y){switch(y){
+    case 0:return !(this.F&F_Z);case 1:return !!(this.F&F_Z);
+    case 2:return !(this.F&F_C);case 3:return !!(this.F&F_C);
+    case 4:return !(this.F&F_PV);case 5:return !!(this.F&F_PV);
+    case 6:return !(this.F&F_S);default:return !!(this.F&F_S);}}
+
+  // ---- ALU ------------------------------------------------------------
+  add8(v){const a=this.A,r=a+v;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F))>0x0F?F_H:0);
+    this.A=rr;}
+  adc8(v){const a=this.A,c=this.F&F_C,r=a+v+c;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F)+c)>0x0F?F_H:0);
+    this.A=rr;}
+  sub8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);
+    this.A=rr;}
+  sbc8(v){const a=this.A,c=this.F&F_C,r=a-v-c;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F)-c)<0?F_H:0);
+    this.A=rr;}
+  and8(v){this.A=(this.A&v)&0xFF;this.F=SZ53P[this.A]|F_H;}
+  xor8(v){this.A=(this.A^v)&0xFF;this.F=SZ53P[this.A];}
+  or8(v){this.A=(this.A|v)&0xFF;this.F=SZ53P[this.A];}
+  cp8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=(rr&0x80)|(rr===0?F_Z:0)|(v&0x28)|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);}
+  alu(y,v){switch(y){case 0:this.add8(v);break;case 1:this.adc8(v);break;case 2:this.sub8(v);break;
+    case 3:this.sbc8(v);break;case 4:this.and8(v);break;case 5:this.xor8(v);break;
+    case 6:this.or8(v);break;default:this.cp8(v);}}
+  inc8(v){const r=(v+1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|((r&0x0F)===0?F_H:0)|(r===0x80?F_PV:0);return r;}
+  dec8(v){const r=(v-1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|F_N|((v&0x0F)===0?F_H:0)|(r===0x7F?F_PV:0);return r;}
+  add16(a,b){const r=a+b;
+    this.F=(this.F&(F_S|F_Z|F_PV))|((r>>8)&0x28)|(r>0xFFFF?F_C:0)|(((a&0x0FFF)+(b&0x0FFF))>0x0FFF?F_H:0);
+    return r&0xFFFF;}
+  adc16(b){const a=this.HL,c=this.F&F_C,r=a+b+c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|(r>0xFFFF?F_C:0)
+      |(((a^b^0x8000)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)+(b&0x0FFF)+c)>0x0FFF?F_H:0);
+    this.HL=rr;}
+  sbc16(b){const a=this.HL,c=this.F&F_C,r=a-b-c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|F_N|(r<0?F_C:0)
+      |(((a^b)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)-(b&0x0FFF)-c)<0?F_H:0);
+    this.HL=rr;}
+  daa(){const n=this.F&F_N;let c=this.F&F_C,add=0,a=this.A,h;
+    if((this.F&F_H)||(a&0x0F)>9)add=6;
+    if(c||a>0x99){add|=0x60;c=F_C;}
+    if(n){h=((a&0x0F)<(add&0x0F))?F_H:0;a=(a-add)&0xFF;}
+    else{h=(((a&0x0F)+(add&0x0F))>0x0F)?F_H:0;a=(a+add)&0xFF;}
+    this.F=SZ53P[a]|c|n|h;this.A=a;}
+  // rotates returning value + flags (CB form)
+  rlc(v){const c=(v>>7)&1;const r=((v<<1)|c)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rrc(v){const c=v&1;const r=((v>>1)|(c<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rl(v){const c=(v>>7)&1;const r=((v<<1)|(this.F&F_C))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rr(v){const c=v&1;const r=((v>>1)|((this.F&F_C)<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sla(v){const c=(v>>7)&1;const r=(v<<1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  sra(v){const c=v&1;const r=((v>>1)|(v&0x80))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sll(v){const c=(v>>7)&1;const r=((v<<1)|1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  srl(v){const c=v&1;const r=(v>>1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rot(y,v){switch(y){case 0:return this.rlc(v);case 1:return this.rrc(v);case 2:return this.rl(v);
+    case 3:return this.rr(v);case 4:return this.sla(v);case 5:return this.sra(v);
+    case 6:return this.sll(v);default:return this.srl(v);}}
+
+  // ---- step -----------------------------------------------------------
+  step(){
+    const t0=this.T;
+    this.idx=0;
+    if(this.halted){this.R=(this.R+1)&0x7F;this.T+=4;return 4;}
+    let op=this.m1();
+    while(op===0xDD||op===0xFD){this.idx=(op===0xDD)?1:2;this.T+=4;op=this.m1();}
+    if(op===0xCB){ if(this.idx) this.ddcb(); else this.cb(); }
+    else if(op===0xED){ this.idx=0; this.ed(); }
+    else this.main(op);
+    return this.T-t0;
+  }
+
+  main(op){
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x===1){
+      if(y===6&&z===6){this.halted=true;this.T+=4;return;}
+      if(y===6){const d=this.idx?this.disp():0;this.wr(6,this.rdp(z),d);this.T+=this.idx?19:7;return;}
+      if(z===6){const d=this.idx?this.disp():0;this.wrp(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.wr(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===2){
+      if(z===6){const d=this.idx?this.disp():0;this.alu(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.alu(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===0){
+      switch(z){
+        case 0:
+          if(y===0){this.T+=4;}
+          else if(y===1){const t=this.AF;this.AF=(this.A2<<8)|this.F2;this.A2=(t>>8)&0xFF;this.F2=t&0xFF;this.T+=4;}
+          else if(y===2){const d=this.disp();this.B=(this.B-1)&0xFF;
+            if(this.B){this.PC=(this.PC+d)&0xFFFF;this.T+=13;}else this.T+=8;}
+          else if(y===3){const d=this.disp();this.PC=(this.PC+d)&0xFFFF;this.T+=12;}
+          else{const d=this.disp();if(this.cc(y-4)){this.PC=(this.PC+d)&0xFFFF;this.T+=12;}else this.T+=7;}
+          return;
+        case 1:
+          if(q===0){this.setrp(p,this.fetchw());this.T+=this.idx?14:10;}
+          else{this.setIdxHL(this.add16(this.idxHL(),this.rp(p)));this.T+=this.idx?15:11;}
+          return;
+        case 2:
+          if(q===0){
+            if(p===0){this.wb(this.BC,this.A);this.T+=7;}
+            else if(p===1){this.wb(this.DE,this.A);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.ww(a,this.idxHL());this.T+=16;}
+            else{const a=this.fetchw();this.wb(a,this.A);this.T+=13;}
+          }else{
+            if(p===0){this.A=this.rb(this.BC);this.T+=7;}
+            else if(p===1){this.A=this.rb(this.DE);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.setIdxHL(this.rw(a));this.T+=16;}
+            else{const a=this.fetchw();this.A=this.rb(a);this.T+=13;}
+          }
+          return;
+        case 3:
+          this.setrp(p,(this.rp(p)+(q?-1:1))&0xFFFF);this.T+=6;return;
+        case 4:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.inc8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.inc8(this.rd(y)));this.T+=4;}
+          return;}
+        case 5:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.dec8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.dec8(this.rd(y)));this.T+=4;}
+          return;}
+        case 6:{
+          if(y===6){const d=this.idx?this.disp():0;const n=this.fetch();this.wb(this.addr(d),n);this.T+=this.idx?19:10;}
+          else{this.wr(y,this.fetch());this.T+=7;}
+          return;}
+        default:
+          switch(y){
+            case 0:{const c=(this.A>>7)&1;this.A=((this.A<<1)|c)&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 1:{const c=this.A&1;this.A=((this.A>>1)|(c<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 2:{const c=(this.A>>7)&1;this.A=((this.A<<1)|(this.F&F_C))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 3:{const c=this.A&1;this.A=((this.A>>1)|((this.F&F_C)<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 4:this.daa();break;
+            case 5:this.A=(~this.A)&0xFF;this.F=(this.F&(F_S|F_Z|F_PV|F_C))|F_H|F_N|(this.A&0x28);break;
+            case 6:this.F=(this.F&(F_S|F_Z|F_PV))|F_C|(this.A&0x28);break;
+            default:{const c=this.F&F_C;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(c?F_H:0)|(c?0:F_C)|(this.A&0x28);break;}
+          }
+          this.T+=4;return;
+      }
+    }
+    // x === 3
+    switch(z){
+      case 0: if(this.cc(y)){this.PC=this.pop();this.T+=11;}else this.T+=5; return;
+      case 1:
+        if(q===0){this.setrp2(p,this.pop());this.T+=10;}
+        else{
+          if(p===0){this.PC=this.pop();this.T+=10;}
+          else if(p===1){let t=this.BC;this.BC=(this.B2<<8)|this.C2;this.B2=(t>>8)&0xFF;this.C2=t&0xFF;
+            t=this.DE;this.DE=(this.D2<<8)|this.E2;this.D2=(t>>8)&0xFF;this.E2=t&0xFF;
+            t=this.HL;this.HL=(this.H2<<8)|this.L2;this.H2=(t>>8)&0xFF;this.L2=t&0xFF;this.T+=4;}
+          else if(p===2){this.PC=this.idxHL();this.T+=4;}
+          else{this.SP=this.idxHL();this.T+=6;}
+        }
+        return;
+      case 2:{const a=this.fetchw();if(this.cc(y))this.PC=a;this.T+=10;return;}
+      case 3:
+        if(y===0){this.PC=this.fetchw();this.T+=10;}
+        else if(y===1){/* CB handled in step */}
+        else if(y===2){const port=this.fetch();this.bus.out(port,this.A,this.A);this.T+=11;}
+        else if(y===3){const port=this.fetch();this.A=this.bus.in(port,this.A);this.F=SZ53P[this.A]|(this.F&F_C);this.T+=11;}
+        else if(y===4){const t=this.rw(this.SP);this.ww(this.SP,this.idxHL());this.setIdxHL(t);this.T+=19;}
+        else if(y===5){const t=this.DE;this.DE=this.HL;this.HL=t;this.T+=4;}
+        else if(y===6){this.IFF1=0;this.IFF2=0;this.T+=4;}
+        else{this.IFF1=1;this.IFF2=1;this.T+=4;}
+        return;
+      case 4:{const a=this.fetchw();if(this.cc(y)){this.push(this.PC);this.PC=a;this.T+=17;}else this.T+=10;return;}
+      case 5:
+        if(q===0){this.push(this.rp2(p));this.T+=11;}
+        else if(p===0){const a=this.fetchw();this.push(this.PC);this.PC=a;this.T+=17;}
+        return;
+      case 6:{this.alu(y,this.fetch());this.T+=7;return;}
+      default:{this.push(this.PC);this.PC=y*8;this.T+=11;return;}
+    }
+  }
+
+  cb(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7;
+    if(x===0){const v=this.rot(y,this.rd(z));this.wr(z,v);this.T+=z===6?15:8;return;}
+    if(x===1){const v=this.rd(z);
+      this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80);
+      this.F|= z===6 ? 0 : (v&0x28);
+      this.T+=z===6?12:8;return;}
+    if(x===2){this.wr(z,this.rd(z)&~(1<<y));this.T+=z===6?15:8;return;}
+    this.wr(z,this.rd(z)|(1<<y));this.T+=z===6?15:8;
+  }
+
+  ddcb(){
+    const d=this.disp();const op=this.fetch();this.R=(this.R+1)&0x7F;
+    const x=op>>6,y=(op>>3)&7,z=op&7;const a=this.addr(d);const v=this.rb(a);
+    if(x===1){this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80)|((a>>8)&0x28);this.T+=20;return;}
+    let r;
+    if(x===0)r=this.rot(y,v);
+    else if(x===2)r=v&~(1<<y);
+    else r=v|(1<<y);
+    this.wb(a,r);
+    if(z!==6)this.wrp(z,r);   // undocumented: result also copied to a register
+    this.T+=23;
+  }
+
+  ed(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x!==1&&x!==2){this.T+=8;return;}
+    if(x===1){
+      switch(z){
+        case 0:{const v=this.bus.in(this.C,this.B);if(y!==6)this.wr(y,v);
+          this.F=SZ53P[v]|(this.F&F_C);this.T+=12;return;}
+        case 1:{this.bus.out(this.C,this.B,y===6?0:this.rd(y));this.T+=12;return;}
+        case 2:{if(q===0)this.sbc16(this.rp(p));else this.adc16(this.rp(p));this.T+=15;return;}
+        case 3:{const a=this.fetchw();if(q===0)this.ww(a,this.rp(p));else this.setrp(p,this.rw(a));this.T+=20;return;}
+        case 4:{const a=this.A;this.A=0;this.sub8(a);this.T+=8;return;}
+        case 5:{this.PC=this.pop();this.IFF1=this.IFF2;this.T+=14;return;}
+        case 6:{this.IM=(y===0||y===1||y===4||y===5)?0:(y===2||y===6)?1:2;this.T+=8;return;}
+        default:
+          if(y===0){this.I=this.A;this.T+=9;}
+          else if(y===1){this.R=this.A&0x7F;this.R7=this.A&0x80;this.T+=9;}
+          else if(y===2){this.A=this.I;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===3){this.A=(this.R&0x7F)|this.R7;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===4){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m<<4)|(a&0x0F))&0xFF);this.A=(a&0xF0)|(m>>4);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else if(y===5){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m>>4)|((a&0x0F)<<4))&0xFF);this.A=(a&0xF0)|(m&0x0F);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else this.T+=8;
+          return;
+      }
+    }
+    // x === 2 : block instructions
+    if(z>3||y<4){this.T+=8;return;}
+    const inc=(y&1)?-1:1;
+    const rep=(y&2)!==0;
+    switch(z){
+      case 0:{ // LDI/LDD/LDIR/LDDR
+        const v=this.rb(this.HL);this.wb(this.DE,v);
+        this.DE=(this.DE+inc)&0xFFFF;this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(v+this.A)&0xFF;
+        this.F=(this.F&(F_S|F_Z|F_C))|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 1:{ // CPI/CPD/CPIR/CPDR
+        const v=this.rb(this.HL);const r=(this.A-v)&0xFF;
+        let h=((this.A&0x0F)-(v&0x0F))<0?F_H:0;
+        this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(r-(h?1:0))&0xFF;
+        this.F=(this.F&F_C)|F_N|h|(r&0x80)|(r===0?F_Z:0)|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC&&r!==0){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 2:{ // INI/IND/INIR/INDR
+        const v=this.bus.in(this.C,this.B);this.wb(this.HL,v);
+        this.B=(this.B-1)&0xFF;this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      default:{ // OUTI/OUTD/OTIR/OTDR
+        const v=this.rb(this.HL);this.B=(this.B-1)&0xFF;
+        this.bus.out(this.C,this.B,v);this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+    }
+  }
+}
+
+
+const ROM=Uint8Array.from(atob("AQDocAAFAAX+AAMABtmAA8AD2UAEgAbZAAQABdnABAAGAUAFQAfZgAWAA9lABgAG2cAGQAXZQAdABNkAAAAA/wAAAAD/AAAAAAAAAAAAAOUY5iqvUzrBU/4DKAs6tVMjPSgBIyKvUyK3Uw4ByTKyU0fNh3F4wDqTVv4BeMghBVM1NCAFNvjNG3M6tVNH5SGyU83MVyMQ+uE09cyEV/HE8gAAAAEAAwAEAAYABwAJAAsADAAOABAAEQATABUAFgAYABoAHAAeACAAIgAkACYAKAAqAC0ALwAxADQANwA6ADwAQABDAEYASgBNAFIAVgBaAF8AZQBqAHAAdwB/AIcAkACaAQDmcQClALIAwQDSAOcA/wEdAUEBcAGvAgYCiQNjBRYKLwQJEBkkMUBRZAcGBgUFBAMCAXyPgY+Ij4+PpI+9j9yPHZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEhISEhISEhISEhISEhISEhISEhISJCQkJCQkJCQkJCQkJCQkJCQkJCQkNjY2NjY2NjY2NjY2NjY2NjY2NjY2NkhISEhISEhISEhISEhISEhISEhISFpaWlpaWlpaWlpaWlpaWlpaWlpaWmxsbGxsbGxsbGxsbGxsbGxsbGxsbGx+fn5+fn5+fn5+fn5+fn5+fn5+fn6QkJCQkJCQkJCQkJCQkJCQkJCQAQDkcpCQoqKioqKioqKioqKioqKioqKioqKiorS0tLS0tLS0tLS0tLS0tLS0tLS0tMbGxsbGxsbGxsbGxsbGxsbGxsbGxgAIAAAACP//AAf//wAG//8ACP/+AAf//gAI//0AB//9AAj//AAH//wACP/7AAb//AAH//sACP/6AAb/+wAH//oABv/6AAb/+QAF//oABv/4AAX/+QAE//oABf/4AAT/+QAE//gAA//5AAP/+AAC//kAAv/4AAH/+gAB//kAAf/4AAD/+P////j////5////+v/+//j//v/5//3/+P/9//n//P/4//z/+f/7//j//P/6//v/+f/6//j/+//6AQDic//6//n/+v/6//n/+v/6//v/+P/6//n/+//6//z/+P/7//n//P/4//z/+f/9//j//f/5//7/+P/+//r////5////+P////gAAP/4AAH/+QAB//oAAf/4AAL/+QAC//gAA//5AAP/+AAE//kABP/4AAX/+gAE//kABf/4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vbywkGkTsLi8v7+/v7+/v7+/v7+/v7y0sGAdoLC8vr+/v7+/v7+/v7+/v7+/v7+/v7+/v728sJBaH4OBqr+/n4+Pn4+Pv7+/v7+/v7+/j4+vj4+vv7+VgoNbG6q/v52MjJ2MjL+/v7+/v7+/v4yMroyMrr+/lV0bqr+/vby8vby8v7+/v7+/v7+/AQDSe7y8vry8vr+/lVsfsLC6v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7WwsABrAQegsLy+vLSwbRCwuLy/v7+/v7+/v7+9vLCQZBegmL6/v7+/v7+/v7+/v7+/v7+/v7+csGMUv7+3s7ezv7+/v7+/v7ezt7O/v5VkFL+/vby9vL+/v7+/v7+9vL28v7+VYheIjI+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+NjABpAQOguLBxDLC4vL+/v7+/vbywkGkSjL6/v7+/v7+/v7+/v7+/v5yEZxC/v4OXq7+/v7+/v4OXq7+VZxKwv7+/v7+/v7+/v7+/v7+/tZAA8wAHoLC8v7ywAQDQfJBtD6C4vL+/v7+/v7+/v7y0kGoNqr+Xg6u/v7+Xg6u/lWoPiI6Pj4+Pj4+Pj4+Pj42EAPAAAaBzCaCwvL6/v7y0sG4Lgqu/s7u/v7O7v4NuCYKDg4ODg4ODgwB5AAOwvLB0Bau7v7eXAHgAAbB2A4uPhwAAAAGPAAAAAYwAAAABhAAAAAGMAAEAA4iPhAB4AAGQdQW4jo+skAB4AAGQdQWovp+MkAB4AAGQdQWIvr+dlAB4AAGQdQWIvr+/nAB4AAGQdQWorr+9hAB4AAGQdQSYvq+8AHgAAZB1Bbiuv6yQAHgAAZB1Bai+r5yQAHgAAZB1BKy/v6wAeAABkHQFAQDOfYi+v7+cAHgAAZB1BJy/v5wAeAABkHUEmI6/vAB5AAKgtHQHsLy/vr20kHEHg4CAgICCgQB5AAKgtHQHsKyvv7+3sHEHgoGBg4CCgQB5AAKgtHMJoLCcn5+/t6OgcAiDgoKCgoGDgQB5AAKgtHMJsLCcn5+ft7OzbwmCgoKCgoKCgoEAeQACoLRzCaCwvL+/r6ejkHAHg4KDgoGBgwB5AAKgtHQHsLy/v7+noHEHgoGDg4KBgQB5AAKgtHQHsLy/v720kHEHg4KDg4OCgQB5AAKgtHMIoKKvv7+9tJBxBoGDgoOBgwB5AAKgtHMIsqOvr7+9tLBwCIKBgYOCg4KBAQDMfgB5AAKgtHIKorOzn5+fnbSwkG8Ig4KCgoKCgoIAeQACoLRyCaCio7+fn520sHAIg4GDgoKCgoEAeQACoLRzCKCyv7+/raSQcQaDgIKBgYMAeQADoLWQcwewvr+wv72wbwuKj4eDg4ODg4uPhQB5AAOgtZByCaCwvr+/v7+zkG4Mgo2JiYuNg4ODh46BAHkAA6C1kHILoLC+v7+/v7OTg4FsDYuNiYmJiYmPiY+Jj4EAeQADoLWQcwqwvr+/v7+zk4ODbAyLh4aGhoaGhoaHj4cAeQADoLWQcwmwvr+/v7+zk4FtDIKPho2LjYmJiYmPgQB5AAOgtZBzCLC+v7+/AQDKf7+xkG4Lgo+Ni4+PjYuPhoYAeQADoLWQcwewvr+/v72wbwuKj4ePj4+Pj4uPhQB5AAOgtZByCKCyv7+/v72wbwuJiY+Hjo+Ph46PgQB5AAOgtZBxCYKjs7+/v7+9sG4Mgo+GhoaGjoeOiY+BAHkAA6C1kHAKg4Ojs7+/v7+9sG4Mi4+LiYmJiYmJiYuHAHkAA6C1kHEKg6Ozv7+/v72wkGwNgo+Gj4aPhoaGhoaOhwB5AAOgtZByCaCzv7+/v72wkG0Mgo2Lg4ODjoeGho6BAPAAAZB1BaCwtbCQcAuguL+/v0+/v7+0kGsPqrOzn4aPj4+Pj4mvs7OVAPAAAZB1AQDIgAWgsLWwkG8MoLC8v7+/v7+/v7OwahKCp6Kiorazm4mPj4+Pj7mzs4cA8AABkHUFoLC1sJBvD7CwvL+/v7+/v7+/s7ODg2cUi7OhoaGhoaGhobmzm4mPj6e2s4cA8AABkHUFoLC1sJBvEbCwvL+/v7+/v7+/s7OTg4ODZBSDr7OhoaGhoaGhoaGhoaGho6O7hwDwAAGQdQWgsLWwkG8PoLC8v7+/v7+/v7+zs4OBZhSCp7O2r7+2p7O2kpKSkpKSkrKbgQDwAAGQdQWgsLWwkG8MoLC8v7+/v7+/v7OwahGCp7O5m7+/v7+2p7O5saGhhwDwAAGQdQWgsLWwkHALAQDGgaC4v7+/v7+/v7SQaw+qs7OXv7+/v7+/v6uzs5UA8AABkHUFoLC1sJBwDLCzv7+/v7+/v7ywkGkRi5KSsrazm7m/v7+/p7azm4EA8AABkHUFoLC1sJBtD4KDs7O/v7+/v7+/v7ywkGcUgqexoaGhoaGhobmzm7m/n7mzm4EA8AABkHUFoLC1sJBrEYODg6Ozs7+/v7+/v7+/vLCwZxSLt5OTkpKSkpKSkpKSkpKSkrOfgwDwAAGQdQWgsLWwkG0Pg4Ozs7+/v7+/v7+/vLCwZhSLs7mbj4+Gp7O2kpKSkpKSkpKzhwDwAAGQdQWgsLWwkHAMsLO/v7+/v7+/vLCQAQDEgmgSi7Ozto+Pj4+PhqezuZGRkZuBAPAAAZV0B6CwsLWwsJBtD7C4vL+/vyhPKb+/v7y0sGYVipePj6u3r7+/v7+/v7+fu5ePj6uFZBONjIyOg4GDg4ODg4ODgoONjIyOAPAAAZV0B6CwsLWwsJBsD7CwvLy/v7+/v7+/v7+zsGYYq4uLi4uLi6uHj6evv7+/v7+/v5+fi4+bYRaJjY2NjY2NjIyBg4ODg4ODg4OOjIyGAPAAAZV0B6CwsLWwsJBsE7CwvLy/v7+/v7+/v7+/s7OTg4NhHYKnh4eHh4eHh4eHh4eHh5+Lp6e/v7+/v7+nh4+bXRqLjo6Ojo6Ojo6OAQDCg46OjoyMgYODg4ODg4mNjIYA8AABlXQHoLCwtbCwkGwXsLC8vL+/v7+/v7+/v7+zs7OTg4ODg4NdHIOvm4uLi4uLi4uLi4uLi4uLi4uLi4uLi4urn4FeGIuNjY2NjY2NjY2NjY2NjY2NjY2NjY2NhwDwAAGVdAegsLC1sLCQbBOgsLy8v7+/v7+/v7+/v7Ozk4OBYhmLn4+nr7+/v7+3r4+Pl4eHh4eHh4eHh7+BYBeCjIyNi4+Pj4+NiYyOjo6Ojo6Ojo6OgQDwAAGVdAegsLC1sLCQbBCgsLy8v7+/v7+/v7+/t7OQZhaLn4+Pm7+/v7+/v7+3r4+Pr4uLi6uXAQDAhGMUgoyMjoaPj4+Pj4+PjYmMjI2NjYcA8AABlXQHoLCwtbCwkG0PsLi8v7+/v7+/v7+/vLSwZhWvj4+Pv7+/v7+/v7+/v7+/v4+Pj59jFYqMjIyFj4+Pj4+Pj4+Pj4+KjIyMhQDwAAGVdAegsLC1sLCQbRCgs7u/v7+/v7+/v7+8vLCQZBarl4eHh5+Pj5+7v7+/v7+/v6ePj6+HYxSLjo6OjIyGjo+Pj4+Pj4+JjYyMgQDwAAGVdAegsLC1sLCQahOCg6Ozs7+/v7+/v7+/v7+8vLCQYhmCv4uLi4uLi4uLi6uPj5+7v7+/v5+bj6+HYBeCjY2NjY2NjY2NjYyGAQC+hY6Pj4+Ph46MjIEA8AABlXQHoLCwtbCwkGYXg4ODg4Ojs7Ozv7+/v7+/v7+/v7y8sLBgHIKvl4eHh4eHh4eHh4eHh4eHh4eHh4eHh4enn4NeGIuOjo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6OhwDwAAGVdAegsLC1sLCQahODg6Ozs7+/v7+/v7+/v7+8vLCwXx2nj4ubv7+/v7+/m5uHr4uLi4uLi4uLi4uLi4ubgVwaiYyOhoODg4ODg4KMjI2NjY2NjY2NjY2NjYcA8AABlXQHoLCwtbCwkG4PsLO/v7+/v7+/v7+8vLCwYxinj4evr7+/v7+/v7+fm4+Ll4eHh4eHAQC8hoeXYRaJjIyNg4ODg4ODg4OCjIyOjo6Ojo6GAGgBAZB3AZVzCaCwsLC1sLCwkGsRsLC/v7+/PChPKT6/v7+/sLBhHaCwsLC4vL+/v7+/v7+/v7+/v7+/v7+/vLSwsLCQXBurio+Phb+2r7+/v7+/v7+/v7+/n7m/io+PhZddG6qwsLCwl4OBg4ODg4ODg4ODg4OCg6uwsLCwlQBoAQGQdwGVcwmgsLCwtbCwsJBrEbCwv7+/v7+/v7+/v7+/v5+PYCKwsLCwsLy8v7+/v7+/v7+/v7+/v7+/v728vLCwsLCwsLCwViKrl6+Dr4Ovg6+jn7u/n7uvv7+/v7+/v7+/AQC6h7+/n7+nv5+7h1cgr7C+sL6wvri3sLCwnoGDg4ODg4ODg4ODg6O+sbCwnoEAaAEBkHcBlXMJoLCwsLWwsLCQaxmwsL+/v7+/v7+/v7+/v7+/j4+Pj4+Pj4+PVimgsLCwsLC8vLy/v7+/v7+/v7+/v7+/v7+/v7y8vLSwsLCwsLCwsLCwsE8pgq+Tr4Ovg6+Dr4Ovg6+Dr4Ovg6+jn7u/p5+/v7+/v7+/v5+/p7+fu4dRJou0vrC+sL6wvrC+sL6wvrC+uLewsLiHgoODg4ODg4OjvrGwsJ6BAGgBAZB3AZVzCaCwsLC1sLCwkGsesLC/v7+/v7+/v7+/v7+/v7+PAQC4iI+Pj4+Pj4+Pj4+PhVAooLCwsLCwsLy8vL+/v7+/v7+/v7+/v7+/v7+/v728vLy0sLCwsLCwsFAogq+Tr4Ovg6+Dr4Ovg6+Dr4Ovg6+Dr4Ovg6+Dr4Ovg6+Dr4Ovg6+/h1Ili7S+sL6wvrC+sL6wvrC+sL6wvrC+sL6wvrC+sL6wvrC+sL6egQBoAQGQdwGVcwmgsLCwtbCwsJBrFrCwv7+/v7+/v7+/v7+/v7+Pj4+Pj49ZJaCwsLCwsLC8vL+/v7+/v7+/v7+/v7+/v7+/vLy8sLCwsLCwsLBTJYKvn7+/r5u/v7+/v7+3r5+/v6+/g6+Dr4Ovg6+Dr4Ovg6+DAQC2ib+HVSKLtLCwu7avv7+/v7+9m7SwsLu9sL6wvrC+sL6wvrC+sJ6BAGgBAZB3AZVzCaCwsLC1sLCwkGsRsLC/v7+/v7+/v7+/v7+/n49gIbCwsLCwuLy/v7+/v7+/v7+/v7+/v7+/vLywsLCwsLCwkFchi7+vv7+vm7+/v7+/v7+/v7+/t6+fv7+ft4uXi5eLl7+BWB+CrbCwsLu2r7+/v7+/v7+/v7+9m7SwsLK9uLW4tbqFAGgBAZB3AZVzCaCwsLC1sLCwkGsRsLC/v7+/v7+/v7+/v7+/sLBhHaCwsLC4vL+/v7+/v7+/v7+/v7+/v7+/vLSwsLCQXBurr7+/AQC0ip+/v7+/v7+/v7+/v7+/v7+/v6+/v5+XXRuqsLCwsJW/v7+/v7+/v7+/v7+/v7+qsLCwsJUAaAEBkHcBlXMJoLCwsLWwsLCQaxGPr7+/v7+/v7+/v7+/v7+wsF4hoLCwsLCwsLC8vL+/v7+/v7+/v7+/v7+/v7+8tLCwsLCwVyGCv6uHq4erh7uvv7+vn7u/v7+/v7+/v7+/v6efv7+fv4dYH4q1urS6tL6xsLC4p76/v7+/v7+/v7+/n7m3sLCwnoEAaAEBkHcBlXMJoLCwsLWwsLCQZhaPj4+Pj4+/v7+/v7+/v7+/v7+/v7CwXCWwsLCwsLCwsLy8vL+/v7+/AQCyi7+/v7+/v7+/v7+/v7y8sLCwsLCwkFMli7+Dn4Ofg5+Dn4Ofg5+Dn4O/n7+/r5+7v7+/v7+/p5+/v6+fgVQigq2wvbC9sL2wvbC9sL2wvrewsLinvr+/v7+/n7m3sLC4hwBoAQGQdwGVcwmgsLCwtbCwsJBeHoqPj4+Pj4+Pj4+Pj4+/v7+/v7+/v7+/v7+/v7+wsFoosLCwsLCwsLi8vLy+v7+/v7+/v7+/v7+/v7+/v7+/vLy8sLCwsLCwkFAoi7+fg5+Dn4Ofg5+Dn4Ofg5+Dn4Ofg5+Dn4Ofg5+Dn4Ofg5+Dn6OfgVElgq29sL2wvbC9sL2wvbC9sL2wvbC9AQCwjLC9sL2wvbC9sL2wvbC9uIcAaAEBkHcBlXMJoLCwsLWwsLCQYxmPj4+Pj4+Pj4+/v7+/v7+/v7+/v7+/v7CwWCmwsLCwsLCwsLCwsLi8vLy/v7+/v7+/v7+/v7+/v7+/v7y8vLCwsLCwkE8pi7evv5u/r7+/v7+/v7+/r5u/t6+Tn4Ofg5+Dn4Ofg5+Dn4Ofg5+jn4FQJoKtsLCyvZODg4ODg4ODgYu0sLC7tL2wvbC9sL2wvbC9sL2wvbiHAGgBAZB3AZVzCaCwsLC1sLCwkGsRj6+/v7+/v7+/v7+/v7+/sLBdIrCwsLCwsLCwvLy+v7+/v7+/v7+/v7+/v7+/AQCujb+8vLCwsLCwViKLt6+/m7+vv7+/v7+/v7+/v7+ft6+/t6+Tn4Ofg5+Dn6uXVyCCrbCwsr2Tg4ODg4ODg4ODg4OCrbCwsLu0vbC9sL2wnwAAAAGMAAEAA7+/vwB5AAOgsJB0Ba6/v7+ddAOCg4EAeQADsLywcweMv7+/v7+McwODj4MAegAFsLy/vLBxCYy/v7+/v7+/jHEFg4+/j4MA8AABsHQHvLy/v7+8vG8LjL+/v7+/v7+/v4xvB4+Pv7+/j490AYMA8QADsLywcgm8v7+/v7+/v7xtDYy/v7+/v7+/v7+/v4xtCY+/v7+/v7+/j3IDg4+DAGgBAbBzCbC8AQCsjry/v7+8vLBtDby/v7+/v7+/v7+/v7xpEYy/v7+/v7+/v7+/v7+/v7+MaQ2Pv7+/v7+/v7+/v7+PbQmDj4+/v7+Pj4NzAYMAbQELsLC8vL+/v7y8sLBqEbC/v7+/v7+/v7+/v7+/v7+wZRWwvL+/v7+/v7+/v7+/v7+/v7+/vLBiF4y/v7+/v7+/v7+/v7+/v7+/v7+/v7+MYhWDj7+/v7+/v7+/v7+/v7+/v7+/j4NlEYO/v7+/v7+/v7+/v7+/v7+DaguDg4+Pv7+/j4+DgwAAAAGMAAEAA4y/jAABAAOzjLMAegAFsICAgLB0A4y/jHQFg4CAgIMAegAFsIC8AQCqj4CwcgeMjLOMs4yMcgWDII8ggwB7AAeMsICPgLCMcAmMjICMv4yAjIxwB4yDgLyAg4wA9QALsICAgIC8gICAgLBuCYOMgICDgICMg20NjIyMgICAjICAgIyMjG0JsIyAgLCAgIywbguDgICAgI+AgICAgwBwARGwgICAgICAgLyAgICAgICAsGgPg4ywgICAgI+AgICAsIyDdwGAZxOMjIyMgICAgICMgICAgICMjIyMdwGAZw+wjIOAgICAvICAgICDjLBoEYOAgICAgICAj4CAgICAgICDAICAgICAgLifr5SAgICAv4ODg6uUgL+0oL6VoJ6DiZCqs7OEt5OBAQCokJepAYCAgICgvrewsr+QgICAv4yMrJOAgL+Ch6qVqpWAgJWqgIKUtbCQjYYBgICAuJ+BgICAir2AgIC/gICAgr2Av4CAqpWCjYyGgIKQgJABgKC+h4CAgICAgKu1gICPgICAgIOAs7C4jISojIOUqIOqgJUBuJ+BgICAgICAsLCwjIykkICol72AgIC/gICqjKeAqoCagJ2MAYCAgICAgICAv4CAgICguoWgn4yOvYCAv4CAqoCAhYCDAYCAgICAgICAv7CMjIeDgIC+gYCAgr2AjwGAgICAgICAgL+AgICAgIC+gQGAgICAgICAgL8Cg509rp49jJw9nN09qp89AQCmkbNdPbTdPaqgPbFcPYubPaPbPYOhPZBgPaCaPYLaPYPhPYJhPbhaPZDZPYziPYNiPYxZPbAdPoLjPYNjPYMcPZBYPbDYPYwePpXkPY1kPYEkPaAbPYtXPbDXPbBePoLlPYwlPbDbPJBWPbBVPbDWPbDVPbDmPYwmPbDaPLDnPbBfPoNgPoMnPbAoPbApPbDoPbBUPbBhPozZPLBTPbDUPbDpPbApPqrTPbDSPbAqPYxiPqwrPYwqPrBSPbDRPbDQPbDYPLArPrAPPoNjPrDXPIwsPYwsPrBkPpAOPoNRPbAtPYPWPI1QPbCkPostPrDVPINPPbANPp/uPLAuPrBOAQCkkj2wLz6wpT6Q7zyMlDy1TT2MTD2MSz2LMD6wcD6DcT6DDD6gTD6B8DyHSj2CCj2Qcj6Dcz6MCT2kSz6e8TyBsTygdD6MsjyWCD2LxzywxjyMSj6gij6BiT6HdT6Mdj6wxTyD5T6liD6Mhz6Mhj6whDywdz6whT6wxD6Dtz6CuD6JuT60uj6wcjygVDyQJT+Cwz6OgzyMczyOUzyJuz6wvD6Qwj64gjyJdDyD/D6C/T6DNDygEzyUgTyDwT6g/j6DNTycAT+DDD6HCz6MCj6MMT6wMj6wMz6wND6wNT6wCT6LCD6CxzyBNj6YNz6GyD2Qxz2wij62hzyWRzygxj2sAQCikzg+g/k9sMo+gsU9jUg8mPo9nPs9jMQ9g4M9sEk8hwk8oAo8nPw9jP09jP49jII9jIE9g8s+rAw/gQAAQQAGuL2wsLCwNwmsrKenp6etrJwArJAgICAgICAgICCgsJyOjaywICAgICAgICCguKSQICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgILCcibSQICAgICAgICAgICAgsLi0sCAgICAgICAgICAgICCwrLCQICAgICAgICAgICAgICAgICAgICAgILiLrLCQICAgICAgICAgICAgICAgAQCglCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIKC4jIyMjIyMjIyMjKywICAgICAgICAgICAgICAgICAgsLiHi6ywICAgICAgsJ4AIIODjaywkKCwnIeDICAgICCCi6ywICCwnI6DICCDjaywkCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICCwuIyHjaywICAgICAgIKC4joEgICCDi4y0sCAgICCwuIyHgSAggoOLjIyssLCQICCwnIeBICCDi6ywICAgICAgsLCcjIeLjKywsCCwnIUgICCDg4OPjIyssLAgICAgAQCelSAgICAgsLiMh4ODi4yssLAgICAgICAgIKCwkCAgICAgIKCwsJyMh4MgICAgICAgICAgICCCi42ssCAgICAgICAgICCwnIeDgSAgICCCi7ScjI6DgSAAICAgILCch4MgICAgICAgICAgICCCg4uMtLAgICAgICAgg4uMtLCwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICCwsJyMh4OBICAgICCCg42MjLC4joMgICAgICAgICAggoOLjLexkCAgICAgICAgICAgIKK7jYeBICAgICAgICCCg420vIeDgSAgICAgIKCwnoeBICAgICAgICAgICAgIIKLAQCcloysvLC4jIyHgSAgICAgICAgIIKDi4yssLiMh4Mgg4ONrLC8h4MgICAgICAgICAgICAgICAgICAgICAgg4uNrLCQILC4joOBICAgICCwsJyOg4EgICAgICAAsLiMh4EgICAgICAgICAgICAgICAgICAgIIKDj4yssLAgICAgICCCg4ONjLywsLCQICAgICAgICAgICAgICAgILCwuIyMh4OBICAgICAgICAgICAgsLiMh4EgICAgICAgICAgICAgICAgICAgg4ONrLCwICAgILCcjoMgICAgICAgICAgICAgICAggoussJAgILCwvoMgICAgICAgICAgICAgICAgAQCalyAgICAgIIKDjYy8sJAgICAgICAgICAgsJyOgyAgICAgICAgICCDg42MtJAgICAgICAgICAgICAgICAgICAgICCwsJyOg4EgICAgILC4jIeBICAgICAgICAgICAAAAABhAAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKiAgICAgICAgICAgICAgICAgIEEgUiBNIE8gUiBFIEQgIFAgQSBUIFIgTyBMICAgICAgICAgICAgICAgICAgKiogICAgICAgICAgICAgICAgICAgICAgICAgICAgAQCYmCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAqKiAgIFlPVVIgTUlTU0lPTjogIEZpbmQgYW5kIGRlc3Ryb3kgZW5lbXkgY3JhZnQgaW4geW91ciBhcmVhLiAgKiogICAgICBZb3UgYXJlIGxvY2F0ZWQgaW5zaWRlIHlvdXIgVC0zNiB0YW5rIGxvb2tpbmcgb3V0IG9udG8gICoqICAgICAgdGhlIGFsaWVuIGxhbmRzY2FwZS4gIFlvdXIgdGFuayBpcyBlcXVpcHBlZCB3aXRoIGEgaGlnaCAqKiAgICAgIGVuZXJneSBwbGFzbWEgd2VhcG9uAQCWmS4gIFRoZSBlbmVteSB0YW5rcyBhcmUgc2ltaWxhci4gICAgICoqICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAqKiAgICAgRk9SV0FSRCAgICAgICAgQkFDS1dBUkQgICAgICAgUklHSFQgVFVSTiAgICAgTEVGVCBUVVJOICAgKiogICA8QT4gICAgPDs+ICAgICAgPCA+ICAgIDwgPiAgICAgIDxBPiAgICA8ID4gICAgPCA+ICAgIDw7PiAgICoqICAgIDwgPiAgPCA+ICAgICAgICA8Wj4gAQCUmiA8Lj4gICAgICAgIDwgPiAgPC4+ICAgICAgPFo+ICA8ID4gICAgKiogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICoqICAgICAgICAgICAgICAgICAgVXNlIHRoZSA8U1BBQ0UgQkFSPiB0byBmaXJlICAgICAgICAgICAgICAgICAqKiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKiogICAgICAgICAgICAgICAgICAgICBIAQCSm2l0IEVOVEVSIHRvIGNvbnRpbnVlICAgICAgICAgICAgICAgICAgICAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqICAgICAgICAgICAgICAgICAgIKC0ICAgICAgICAgICAgICAgICAgICAgurO1ICAgICAgICAgICAgICAgICAqKiAgICAgIFNDT1JJTkc6ICCwsJyfAQCQnJ+ft7OzICAgMTAwMCAgICAgICAgICCrv5cgICAgICAyMDAwICAgICAgICoqICAgICAgICAgICAgICAgIIKCgoKCgoKCgSAgICAgICAgICAgICAgICAgg4ODICAgICAgICAgICAgICAgICAqKiAgICAgICAgICBBbiBleHRyYSB0YW5rIGlzIGF3YXJkZWQgYXQgYSBzY29yZSBvZiAyMCwwMDAgICAgICAgKiogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICoqICAgICAgUkFEQVI6ICAgICAgAQCOnSAgICAgICAgIEVORU1ZIEZPUldBUkQgICAgICAgICAgICAgICAgICAgICAgKiogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBGICAgICAgICAgICAgICAgICAgICAgICAgICAgICoqICAgICAgICBFTkVNWSBUTyBUSEUgTEVGVCAgICA8ICAggyAgID4gICAgRU5FTVkgVE8gVEhFIFJJR0hUICAqKiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEIgICAgICAgICAgICAgICAgICAgICAgICAgICAgKiogICAgICAgICAgICAgICAgAQCMniAgICAgICAgIEVORU1ZIFRPIFRIRSBSRUFSICAgICAgICAgICAgICAgICAgICAqKiAgICBXaGVuIHRoZSByb2JvdCBhcHBlYXJzgGFugGFzdGVyaXNrgHdpbGyAYXBwZWFygGluIHRoZSAgICAgKiogICAgY2VudGVyIG9mIHRoZSByYWRhci4gIFRvIHJlc2V0IGdhbWUgcHJlc3MgPFNISUZUIEJSRUFLPiAgICoqICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAqKiAgICAgICAgICAgICAgAQCKnyAgICAgICAgSGl0IEVOVEVSIHRvIGJlZ2luICAgICAgICAgICAgICAgICAgICAgICoqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqeAAEsLCQlHMFgr+vsZVyBoi8n6q/lXQDv7+BcwaIjo+PjYQAeQAEoLCwuHQFory/u5ByBoiutb6/lXMEqpe/gXMGjI+Pj42EAHkABKC4sJBzBqCyvLyxkHIGpoa/v4mZcwSql6uVcwaMj42Oj4wAeQAEtLCwkHMFoLe/vJFzBqq/vbqdhHMEgr+rlXMGAQCIoIiOj4+PjAB6AASooLCwdAWqsp+/gXMGqr+Vr7yEcwOCv790BoiOj4+NhAB4AAOwkJR0BIKXvZV0BIO9l4F0BI6Pj4QAeQADoLC4dQSqjL+UdASrnr+BdASOj4+EAHkAA6C4sHUEnryelHMFgqmfvYNzBYiOjY+MAHkAA6iwsHUDvp2udQSrn76BdASOj4+EAHkAA5SwkHUDvZeXdQSDvZeBdASOj4+EAHgAArCwdQOyl791A7i/tQB5AAOgsJB1A7q+vXUDur+1AHkAA6CwkHUDvry9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"),c=>c.charCodeAt(0));
+const FONT=Uint8Array.from("00000000000000040404040400040a0a0a000000000a0a1f0a1f0a0a040f140e051e04181902040813030c12140815120d0c04080000000002040808080402080402020204080004150e1504000004041f040400000000000c04080000001f00000000000000000c0c000102040810000e11131519110e040c040404040e0e11010204081f1f02040201110e02060a121f02021f101e0101110e0608101e11110e1f1102040808080e11110e11110e0e11110f01020c000c0c000c0c00000c0c000c04080204081008040200001f001f0000080402010204080e1101020400040e11010d15150e040a11111f11111e11111e11111e0e11101010110e1c12111111121c1f10101e10101f1f10101e1010100e11101711110f1111111f1111110e04040404040e0702020202120c111214181412111010101010101f111b1515111111111119151311110e11111111110e1e11111e1010100e11111115120d1e11111e1412110f10100e01011e1f0404040404041111111111110e11111111110a041111111515150a11110a040a111111110a040404041f01020408101f0e08080808080e001008040201000e02020202020e040a11000000000000000000001f0000000000000000000e010f110f10101e1111111e00000f1010110e01010f1111110f00000e111f100e0609081c080808000f11110f010e10101e1111111104000c0404040e0200060202120c101012141814120c04040404040e00001a1515151500001e1111111100000e1111110e001e11111e1010000f11110f01010000161910101000000f100e011e08081c080809060000111111130d00001111110a040000111115150a0000110a040a11001111110f010e00001f0204081f02040408040402040404000404040804040204040800000d12000000".match(/../g).map(h=>parseInt(h,16)));
+const GAME="armored-patrol";
+
+function loadCMD(d){
+  const mem=new Map(); let entry=null,i=0;
+  while(i<d.length){
+    const t=d[i],n=d[i+1];
+    if(t===1){const body=(n>=3)?(n-2):(n+254);const addr=d[i+2]|(d[i+3]<<8);
+      for(let k=0;k<body;k++)mem.set((addr+k)&0xFFFF,d[i+4+k]); i+=4+body;}
+    else if(t===2){entry=d[i+2]|(d[i+3]<<8);break;}
+    else if(t===0||t>0x1f)break;
+    else i+=2+n;
+  }
+  return {mem,entry};
+}
+// the TRS-80 key matrix: row -> the eight keys on it
+const KEYROW={0:['@','A','B','C','D','E','F','G'],1:['H','I','J','K','L','M','N','O'],
+ 2:['P','Q','R','S','T','U','V','W'],3:['X','Y','Z','[','\\',']','^','_'],
+ 4:['0','1','2','3','4','5','6','7'],5:['8','9',':',';',',','-','.','/'],
+ 6:['ENTER','CLEAR','BREAK','UP','DOWN','LEFT','RIGHT','SPACE'],7:['SHIFT','','','','','','','']};
+const KEYPOS={};
+for(const r in KEYROW)KEYROW[r].forEach((k,b)=>{if(k)KEYPOS[k]=[+r,b];});
+
+// ---- the machine -------------------------------------------------------
+// Nothing from the TRS-80 ROM is included. The games call four ROM entries and
+// five TRSDOS vectors; all nine are answered here, in our own code.
+const DOS={0x4420:'INIT',0x4424:'OPEN',0x4428:'CLOSE',0x4436:'READ',0x4439:'WRITE'};
+class Machine{
+  constructor(){
+    this.ram=new Uint8Array(65536); this.keys=new Set(); this.spk=[]; this.level=0;
+    this.open=new Map(); this.rndState=0x2545F491; this.rndVal=0;
+    this.files=this.loadScores();
+    const self=this;
+    this.cpu=new Z80({
+      read(a){ if(a>=0x3800&&a<0x3900){let v=0;for(let r=0;r<8;r++)if(a&(1<<r))v|=self.row(r);return v;}
+               return self.ram[a]; },
+      write(a,v){ if(a>=0x3000) self.ram[a]=v; },
+      in(){ return 0xFF; },
+      out(p,hi,v){ if((p&0xFF)===0xFF){const L=(v&3)===1?1:((v&3)===2?-1:0);
+        if(L!==self.level){self.level=L;self.spk.push([self.cpu.T,L]);}} }
+    });
+    const raw=this.cpu.step.bind(this.cpu);
+    this.cpu.step=()=>{ const t=this.trap(this.cpu.PC); return t?t:raw(); };
+    const {mem,entry}=loadCMD(ROM);
+    for(const [a,v] of mem) this.ram[a]=v;
+    this.cpu.PC=entry; this.cpu.SP=0x4495;
+  }
+  row(r){let v=0;for(const k of this.keys){const p=KEYPOS[k];if(p&&p[0]===r)v|=1<<p[1];}return v;}
+
+  // high scores live in this browser, standing in for the game's /HIS file
+  loadScores(){
+    const m=new Map();
+    try{ const raw=localStorage.getItem('trs80-his-'+GAME);
+      if(raw){ const o=JSON.parse(raw);
+        for(const k in o) m.set(k,o[k].map(r=>Uint8Array.from(r))); } }catch(e){}
+    return m;
+  }
+  saveScores(){
+    try{ const o={};
+      for(const [k,v] of this.files) o[k]=v.map(r=>Array.from(r));
+      localStorage.setItem('trs80-his-'+GAME,JSON.stringify(o)); }catch(e){}
+  }
+  dcbName(d){ let s='';
+    for(let i=0;i<32;i++){const c=this.ram[(d+i)&0xFFFF];
+      if(c===0x0D||c===0x03||c===0||c<32||c>126)break; s+=String.fromCharCode(c);}
+    return s.trim().toUpperCase(); }
+  rnd(n){ this.rndState=(this.rndState*1103515245+12345+((this.cpu.R&0x7F)|this.cpu.R7))>>>0;
+          return n>0?1+((this.rndState>>>16)%n):0; }
+  trap(pc){
+    const c=this.cpu;
+    const ret=(t)=>{ c.PC=c.pop(); c.T+=t; return t; };
+    // --- the four ROM entries the games use ---
+    if(pc===0x0060){                                                    // delay: DEC BC / LD A,B / OR C / JR NZ / RET
+      const n=c.BC||0x10000;                                            // BC=0 means a full 65536 pass
+      c.BC=0; c.A=0; c.F|=0x40;
+      return ret(26*n+10);                                              // charge what the real loop costs
+    }
+    if(pc===0x002B||pc===0x0049){                                       // get a character
+      const k=this.romKey(); c.A=k; c.F = k?(c.F&~0x40):(c.F|0x40); return ret(40); }
+    if(pc===0x01D3){ this.ram[0x40AB]=(c.R&0x7F)|c.R7; return ret(20); } // seed
+    if(pc===0x14C9){ this.rndVal=this.rnd(this.ram[0x4121]|(this.ram[0x4122]<<8)); return ret(60); }
+    if(pc===0x0A7F){ c.HL=this.rndVal|0; c.A=c.HL&0xFF; return ret(40); }
+    // --- the five TRSDOS vectors ---
+    const op=DOS[pc]; if(!op) return 0;
+    const dcb=c.DE, hl=c.HL;
+    const done=(err)=>{ if(err){c.A=err;c.F=(c.F&~0x40)|0x02;} else {c.A=0;c.F|=0x40;} return ret(30); };
+    if(op==='OPEN'||op==='INIT'){
+      const name=this.dcbName(dcb); if(!name) return done(0x18);
+      let f=this.files.get(name);
+      if(op==='OPEN'&&!f) return done(0x18);
+      if(!f){ f=[]; this.files.set(name,f); }
+      this.open.set(dcb,{name,buf:hl,pos:0}); return done(0);
+    }
+    const h=this.open.get(dcb); if(!h) return done(0x18);
+    const f=this.files.get(h.name);
+    if(op==='READ'){ if(h.pos>=f.length) return done(0x1C);
+      const r=f[h.pos++]; for(let i=0;i<256;i++) this.ram[(h.buf+i)&0xFFFF]=r[i]; return done(0); }
+    if(op==='WRITE'){ const r=new Uint8Array(256);
+      for(let i=0;i<256;i++) r[i]=this.ram[(h.buf+i)&0xFFFF];
+      f[h.pos++]=r; this.saveScores(); return done(0); }
+    if(op==='CLOSE'){ this.open.delete(dcb); this.saveScores(); return done(0); }
+    return done(0);
+  }
+  romKey(){
+    const A={ENTER:0x0D,CLEAR:0x1F,BREAK:0x01,SPACE:0x20,LEFT:0x08,RIGHT:0x09,DOWN:0x0A,UP:0x0B};
+    for(const k of this.keys){ if(A[k]!==undefined) return A[k];
+      if(k.length===1) return k.charCodeAt(0); }
+    return 0;
+  }
+  run(t){const end=this.cpu.T+t;let g=0;
+    while(this.cpu.T<end&&g++<4000000){this.cpu.step();if(this.cpu.halted)break;}}
+}
+
+const CONTROLS=[["A and ;","Forward"],["Z and .","Backward"],["A and .","Turn right"],["Z and ;","Turn left"],["Space","Fire"]];
+const BINDABLE=["A","Z",";",".","SPACE","ENTER"];
+// ---- screen ------------------------------------------------------------
+const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
+const CELLW=cv.width/64, CELLH=cv.height/16, PHOS='#e8e6d9', BG='#0a0a08';
+ctx.imageSmoothingEnabled=false;
+function draw(m){
+  ctx.fillStyle=BG; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle=PHOS;
+  const v=m.ram;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    const c=v[0x3C00+row*64+col];
+    if(c>=0x80&&c<=0xBF){
+      for(let b=0;b<6;b++) if(c&(1<<b))
+        ctx.fillRect(Math.round(col*CELLW+(b&1)*(CELLW/2)), Math.round(row*CELLH+(b>>1)*(CELLH/3)),
+                     Math.ceil(CELLW/2), Math.ceil(CELLH/3));
+    }
+  }
+  const fold=+document.getElementById('mach').value<2000000;
+  const gw=CELLW/6, gh=CELLH/12;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    let c=v[0x3C00+row*64+col];
+    if(c<0x20||c>0x7E) continue;
+    if(fold&&c>=0x61&&c<=0x7A) c-=0x20;
+    const base=(c-0x20)*7;
+    for(let r=0;r<7;r++){ const bits=FONT[base+r]; if(!bits) continue;
+      for(let b=0;b<5;b++) if(bits&(1<<(4-b)))
+        ctx.fillRect(Math.round(col*CELLW+b*gw), Math.round(row*CELLH+(r+2)*gh),
+                     Math.ceil(gw), Math.ceil(gh)); }
+  }
+}
+// ---- sound -------------------------------------------------------------
+let ac=null,nextAt=0;
+function flush(m,hz){
+  if(!document.getElementById('snd').checked||!m.spk.length){m.spk.length=0;return;}
+  if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();nextAt=ac.currentTime;}
+  const SR=ac.sampleRate, ev=m.spk; m.spk=[];
+  const t0=ev[0][0], t1=m.cpu.T, n=Math.max(1,Math.floor((t1-t0)/hz*SR));
+  if(n>SR) return;
+  const buf=ac.createBuffer(1,n,SR), d=buf.getChannelData(0);
+  let ei=0,lvl=ev[0][1];
+  for(let i=0;i<n;i++){ const T=t0+(i/SR)*hz;
+    while(ei<ev.length&&ev[ei][0]<=T){lvl=ev[ei][1];ei++;}
+    d[i]=lvl*0.12; }
+  const s=ac.createBufferSource(); s.buffer=buf; s.connect(ac.destination);
+  const now=ac.currentTime; if(nextAt<now) nextAt=now+0.01;
+  s.start(nextAt); nextAt+=n/SR;
+}
+// ---- keys, remappable --------------------------------------------------
+const DEFAULTS={UP:'ArrowUp',DOWN:'ArrowDown',LEFT:'ArrowLeft',RIGHT:'ArrowRight',
+  SPACE:' ',ENTER:'Enter',CLEAR:'Home',BREAK:'Escape',SHIFT:'Shift'};
+for(const k in KEYPOS) if(k.length===1) DEFAULTS[k]=DEFAULTS[k]||k;
+let BIND=Object.assign({},DEFAULTS);
+try{ const s=localStorage.getItem('trs80-keys-'+GAME); if(s) Object.assign(BIND,JSON.parse(s)); }catch(e){}
+function saveBind(){ try{ localStorage.setItem('trs80-keys-'+GAME,JSON.stringify(BIND)); }catch(e){} }
+function toTRS(ev){
+  const want=ev.key;
+  for(const trs in BIND){
+    const b=BIND[trs];
+    if(b===want) return trs;
+    if(b.length===1&&want.length===1&&b.toUpperCase()===want.toUpperCase()) return trs;
+  }
+  // Left Ctrl is a second, permanent way to reach CLEAR
+  if(want==='Control') return 'CLEAR';
+  return null;
+}
+let grabbing=null;
+function renderControls(){
+  const t=document.getElementById('ctrls');
+  t.innerHTML='';
+  for(const [label,what] of CONTROLS){
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="k">'+label+'</td><td>'+what+'</td>';
+    t.appendChild(tr);
+  }
+  if(!grabbing) return;
+  for(const trs of BINDABLE){
+    const tr=document.createElement('tr');
+    const td1=document.createElement('td'); td1.className='k'; td1.textContent=trs;
+    const td2=document.createElement('td');
+    const b=document.createElement('button');
+    b.textContent = grabbing===trs ? 'press a key…' : BIND[trs];
+    b.onclick=()=>{ grabbing=trs; renderControls(); };
+    td2.appendChild(b); tr.appendChild(td1); tr.appendChild(td2); t.appendChild(tr);
+  }
+  const tr=document.createElement('tr'), td=document.createElement('td');
+  td.colSpan=2;
+  const r=document.createElement('button'); r.textContent='Reset to defaults';
+  r.onclick=()=>{ BIND=Object.assign({},DEFAULTS); saveBind(); renderControls(); };
+  const dn=document.createElement('button'); dn.textContent='Done'; dn.style.marginLeft='8px';
+  dn.onclick=()=>{ grabbing=null; document.getElementById('rebind').textContent='Change keys'; renderControls(); };
+  td.appendChild(r); td.appendChild(dn); tr.appendChild(td);
+  document.getElementById('ctrls').appendChild(tr);
+}
+document.getElementById('rebind').onclick=()=>{
+  grabbing = grabbing===null ? BINDABLE[0] : null;
+  document.getElementById('rebind').textContent = grabbing?'Hide key setup':'Change keys';
+  renderControls();
+};
+addEventListener('keydown',e=>{
+  if(grabbing){ BIND[grabbing]=e.key; saveBind(); grabbing=null; renderControls(); e.preventDefault(); return; }
+  const k=toTRS(e); if(k){ m.keys.add(k); e.preventDefault(); }
+});
+addEventListener('keyup',e=>{ const k=toTRS(e); if(k){ m.keys.delete(k); e.preventDefault(); } });
+document.querySelectorAll('#pad button').forEach(b=>{
+  const k=b.dataset.k;
+  const dn=e=>{e.preventDefault();m.keys.add(k);}, up=e=>{e.preventDefault();m.keys.delete(k);};
+  b.addEventListener('touchstart',dn,{passive:false}); b.addEventListener('touchend',up);
+  b.addEventListener('mousedown',dn); b.addEventListener('mouseup',up); b.addEventListener('mouseleave',up);
+});
+// ---- loop --------------------------------------------------------------
+let m=new Machine(), running=false, last=0, frames=0, fpsT=0;
+function loop(ts){
+  if(!running) return;
+  if(!last) last=ts;
+  let dt=(ts-last)/1000; last=ts; if(dt>0.1) dt=0.1;
+  const hz=+document.getElementById('mach').value;
+  m.run(Math.floor(dt*hz)); draw(m); flush(m,hz);
+  frames++; if(ts-fpsT>1000){document.getElementById('fps').textContent=frames+' fps';frames=0;fpsT=ts;}
+  requestAnimationFrame(loop);
+}
+const runBtn=document.getElementById('run');
+runBtn.onclick=()=>{ running=!running; runBtn.textContent=running?'Pause':'Start';
+  if(running){ last=0; if(ac&&ac.state==='suspended') ac.resume(); requestAnimationFrame(loop); } };
+document.getElementById('reset').onclick=()=>{ m=new Machine(); draw(m); };
+renderControls(); draw(m);
+
+</script><script>
+(function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
+</script>
+</body></html>

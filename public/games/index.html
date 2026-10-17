@@ -18,6 +18,9 @@
  h2.sec{font-size:12px;letter-spacing:.24em;color:#6d8a66;font-weight:normal;
         margin:34px 0 13px;border-bottom:1px solid #2a3a27;padding-bottom:7px}
  h2.sec:first-of-type{margin-top:26px}
+ a.g .c{color:#8fae87;font-size:11px;line-height:1.5;margin-top:7px;
+        border-top:1px solid #2a3a27;padding-top:6px}
+ a.g .c b{color:#e8c35a;font-weight:normal}
  a.g.feat{border-color:#e8c35a;background:#181d0f}
  a.g.feat .t{font-size:18px;letter-spacing:.1em}
  a.g.feat .s{color:#e8c35a}
@@ -37,18 +40,64 @@
 <p class="sub">Lifted off Terry's own floppies and put back on their feet, in your browser.</p>
 
 <h2 class="sec">ARCADE</h2>
-<a class="g feat" href="seadragon.html">
-  <div class="t">SEA DRAGON</div>
-  <div class="s">Wayne Westmoreland &amp; Terry Gilman, 1982</div>
-  <div class="b">Fly a submarine down 1,858 columns of undersea cavern on one lungful of air,
-  past tethered mines, mines that rise off the seabed when you are near, guns in the ceiling
-  and ships dropping depth charges. There are only five places in the whole run where you can
-  surface for air.<br><br>
-  This one is not a port. The 1982 machine code is inside the page and a Z80 runs it, so the
-  cavern, the enemies, the physics, the scoring and the sound are the original, at the speed a
-  real Model I ran them. Arrow keys move, space fires a torpedo, Enter fires a missile and
-  starts the game.</div>
-</a>
+<p class="sub">Nine games Wayne Westmoreland and Terry Gilman wrote for the TRS-80 between 1981 and 1983,
+in the order they wrote them. Not ports: the original machine code is inside each page and a Z80 runs it.</p>
+<div class="grid">
+    <a class="g" href="tank-zone.html">
+      <div class="t">TANK ZONE 2000</div>
+      <div class="s">1981</div>
+      <div class="b">Battlezone on a TRS-80, under its first name. The pyramids are still pyramids.</div>
+      <div class="c"><b>A and ;</b> forward &middot; <b>Z and .</b> backward &middot; <b>A and .</b> turn right &middot; <b>Z and ;</b> turn left &middot; <b>Space</b> fire</div>
+    </a>
+    <a class="g" href="armored-patrol.html">
+      <div class="t">ARMORED PATROL</div>
+      <div class="s">1981</div>
+      <div class="b">The same tank after the publisher asked for houses instead of pyramids and a robot instead of a saucer.</div>
+      <div class="c"><b>A and ;</b> forward &middot; <b>Z and .</b> backward &middot; <b>A and .</b> turn right &middot; <b>Z and ;</b> turn left &middot; <b>Space</b> fire</div>
+    </a>
+    <a class="g" href="defender.html">
+      <div class="t">DEFENDER</div>
+      <div class="s">1981</div>
+      <div class="b">Williams’ Defender on a TRS-80, before the renaming.</div>
+      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> smart bomb &middot; <b>Home or Left Ctrl</b> hyperspace</div>
+    </a>
+    <a class="g" href="eliminator.html">
+      <div class="t">THE ELIMINATOR</div>
+      <div class="s">1981</div>
+      <div class="b">The same game after Williams took a percentage, at which point it became the official TRS-80 Defender.</div>
+      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> smart bomb &middot; <b>Home or Left Ctrl</b> hyperspace</div>
+    </a>
+    <a class="g" href="seadragon.html" style="border-color:#e8c35a">
+      <div class="t">SEA DRAGON</div>
+      <div class="s">1982</div>
+      <div class="b">Their own idea, and their favorite. A submarine, 1,858 columns of cavern, and one lungful of air.</div>
+      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> torpedo &middot; <b>Enter</b> missile</div>
+    </a>
+    <a class="g" href="rear-guard.html">
+      <div class="t">REAR GUARD</div>
+      <div class="s">1982</div>
+      <div class="b">Up and down only. Commissioned by Adventure International, and the one they liked least.</div>
+      <div class="c"><b>Up and Down</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> shields &middot; <b>Home or Left Ctrl</b> smart bomb</div>
+    </a>
+    <a class="g" href="donkey-kong.html">
+      <div class="t">DONKEY KONG</div>
+      <div class="s">1982</div>
+      <div class="b">Written for the fun of it. Nintendo never gave permission, so it was never sold.</div>
+      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> jump</div>
+    </a>
+    <a class="g" href="zaxxon.html">
+      <div class="t">ZAXXON</div>
+      <div class="s">1983</div>
+      <div class="b">Licensed from Sega, with a Tandy distribution deal that manufacturing problems cut short.</div>
+      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire</div>
+    </a>
+    <a class="g" href="robot-king-of-the-hill.html">
+      <div class="t">ROBOT: KING OF THE HILL</div>
+      <div class="s">1983</div>
+      <div class="b">Donkey Kong reskinned and released as Smith & Jones Software. The assembler left the symbol APEPLAC in the code.</div>
+      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> jump</div>
+    </a>
+</div>
 
 <h2 class="sec">ADVENTURES</h2>
 <p class="sub">Sixteen adventures lifted out of <code>adams1</code> and <code>adams2</code>,
@@ -143,14 +192,16 @@ where you have been; the game autosaves every turn.</p>
     </a>
 </div>
 <footer>
-Sea Dragon was written for the TRS-80 in 1982 by Wayne Westmoreland and Terry Gilman,
-and was recovered from the disk image by disassembling it and then running it.<br>
-Thirteen of the adventures are the original Adams series, read straight off your disk images -
+The arcade games are by Wayne Westmoreland and Terry Gilman, written for the TRS-80 between
+1981 and 1983 and recovered from Terry’s own disks and one cassette. Wayne has since released
+them into the public domain. Robot: King of the Hill went out as Smith &amp; Jones Software; it is
+Donkey Kong reskinned after Nintendo declined permission.<br>
+Thirteen of the adventures are the original Adams series, read straight off the disk images -
 the game data is byte-for-byte what the TRS-80 loaded.<br>
-The last three are third-party games written with the same engine: a James Bond
-adventure, and two by Bruce Hansen built with THE ADVENTURE SYSTEM.<br>
-Eight of them are not treasure hunts and finish on an event rather than a score. In
-those SCORE is not a command, or the game answers it in its own words.
+The last three are third-party games written with the same engine: a James Bond adventure, and
+two by Bruce Hansen built with THE ADVENTURE SYSTEM.<br>
+Eight of them are not treasure hunts and finish on an event rather than a score. In those SCORE
+is not a command, or the game answers it in its own words.
 </footer>
 </div><script>
 (function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
