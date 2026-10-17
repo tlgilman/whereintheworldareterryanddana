@@ -1,0 +1,21 @@
+public/games/index.html
+  s_f99eae4185d4ad::t_56b04a2a68c61d 4,18-24,36-53,146-148
+public/games/seadragon.html
+  s_f99eae4185d4ad::t_16a94c2f1fcaff 1-536
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "889166898ff9849e446ec0647e4fb57ff87a4e58",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
