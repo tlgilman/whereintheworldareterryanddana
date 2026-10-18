@@ -1,0 +1,19 @@
+public/games/index.html
+  s_f99eae4185d4ad::t_8f9e8d981ec0a8 5,7-66,68,70,72-92,94-100,103-109,112-118,121-127,129-136,139-145,148-154,157-163,166-172,174-175,177-180,182-186,189-193,196-200,203-207,210-214,217-221,224-228,231-235,238-242,245-249,252-256,259-263,266-270,273-277,280-284,287-291,293-309,311-319,321-344,347
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c3dc0edbc173db7bcd777bcb1d20726abebdb89",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
