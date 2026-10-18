@@ -1,0 +1,1415 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zaxxon: inside the code</title>
+<style>
+:root{--bg:#0a0a08;--phos:#e8e6d9;--dim:#8b8a80;--faint:#45443e;--rule:#23231f;
+      --hi:#3a3520;--brk:#c0392b;--orig:#d9b44a;--panel:#111110;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--phos);
+     font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:14px 16px 0}
+h1{margin:0 0 2px;font-size:17px;font-weight:600;letter-spacing:.01em}
+.sub{color:var(--dim);font-size:13px;margin:0 0 12px;max-width:64em}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+     padding:8px 16px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+     position:sticky;top:0;background:var(--bg);z-index:5}
+button,select,input[type=text]{font:13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--panel);color:var(--phos);border:1px solid var(--faint);
+  border-radius:4px;padding:5px 9px;cursor:pointer}
+button:hover,select:hover{border-color:var(--dim)}
+button:disabled{opacity:.4;cursor:default}
+button.on{background:var(--hi);border-color:var(--orig)}
+input[type=text]{width:7em;cursor:text}
+label.ck{display:inline-flex;align-items:center;gap:5px;color:var(--dim);font-size:13px;cursor:pointer}
+.sep{width:1px;height:22px;background:var(--rule);margin:0 4px}
+main{display:grid;grid-template-columns:clamp(320px,40vw,560px) minmax(380px,1fr);
+     gap:16px;padding:16px;align-items:start}
+main>section{min-width:0}
+.panel{overflow-wrap:break-word}
+canvas{width:100%;max-width:560px;image-rendering:pixelated;background:#000;
+       border:1px solid var(--rule);border-radius:4px;display:block}
+.panel{margin-top:12px;border:1px solid var(--rule);border-radius:4px;background:var(--panel);
+       padding:10px 12px;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.panel h2{margin:0 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+          color:var(--dim);font-weight:600}
+.panel+.panel{margin-top:10px}
+.reg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
+.reg b{color:var(--dim);font-weight:400}
+.fl span{color:var(--faint)} .fl span.set{color:var(--orig)}
+#stack div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#listwrap{border:1px solid var(--rule);border-radius:4px;background:var(--panel);overflow:hidden}
+#list{height:72vh;min-height:360px;overflow-y:auto;overflow-x:auto;
+      font:12.5px/19px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#space{position:relative;min-width:var(--lw,120ch)}
+#rows{position:absolute;left:0;top:0;width:var(--lw,120ch);will-change:transform}
+.r{height:19px;white-space:pre;padding:0 10px;cursor:default;width:100%}
+.bpdot,.bp{display:inline-block;width:1ch}
+.r.ins:hover{background:#17170f}
+.r.cur{background:var(--hi)}
+.r.cmt{color:var(--dim)}
+.r.gap{color:var(--faint)}
+.lab{color:var(--orig)}
+.lab.gen{color:var(--dim)}
+.ad{color:var(--dim);cursor:pointer}
+.ad:hover{color:var(--phos);text-decoration:underline}
+.by{color:var(--faint)}
+.mn{color:var(--phos)}
+.op{color:#9fc4d6}
+.op a{color:#9fc4d6;text-decoration:none;border-bottom:1px dotted #55707e;cursor:pointer}
+.op a:hover{color:#cfe6f2}
+.cm{color:var(--dim)}
+.bp{color:var(--brk)}
+.cold{opacity:.55}
+.foot{padding:0 16px 28px;color:var(--dim);font-size:12.5px;max-width:70em}
+.foot code{color:var(--phos)}
+.key{display:flex;flex-wrap:wrap;gap:4px 18px;margin:8px 0 0;padding:0;list-style:none;
+     font:12px ui-monospace,monospace;color:var(--dim)}
+#why{font:13px/1.55 ui-sans-serif,system-ui,-apple-system,sans-serif}
+#why .wmn{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--orig);margin-bottom:5px}
+#why .wmean{color:var(--phos);margin-bottom:7px}
+#why .wnow{color:#9fc4d6;margin-bottom:7px}
+#why .wfl{color:var(--dim);font-size:12px;line-height:1.5}
+.back{display:inline-block;font-size:11.5px;color:var(--dim);text-decoration:none;
+      letter-spacing:.05em;margin:0 20px 10px 0}
+.back:hover{color:var(--orig)}
+@media (max-width:900px){main{grid-template-columns:1fr}#list{height:56vh}}
+@media (min-width:901px){canvas{width:100%}}
+</style></head>
+<body>
+<header>
+<div><a class="back" href="index.html#ours">&larr; TRS-80 Retro Games</a><a class="back"
+ href="zaxxon.html">Play Zaxxon &rarr;</a></div>
+<h1>Zaxxon (1983): inside the code</h1>
+<p class="sub">The original 1983 machine code, running, with the instruction it is executing
+highlighted on the right. Nothing here is a reconstruction: the page loads the binary, runs the
+relocator, disassembles what that produces, and then runs it. Click an address to set a breakpoint.</p>
+</header>
+<div class="bar">
+<button id="run">Start</button>
+<button id="step">Step</button>
+<button id="over">Step over</button>
+<button id="reset">Reset</button>
+<span class="sep"></span>
+<select id="speed">
+<option value="hz:1774080">1.774 MHz (a Model I)</option>
+<option value="hz:177408">1/10 speed</option>
+<option value="hz:17740">1/100 speed</option>
+<option value="hz:1774">1/1000 speed</option>
+<option value="ips:60">60 instructions a second</option>
+<option value="ips:8">8 instructions a second</option>
+<option value="ips:2">2 instructions a second</option>
+</select>
+<button id="follow" class="on">Follow PC</button>
+<button id="findpc">Find PC</button>
+<label class="ck"><input type="checkbox" id="snd">sound</label>
+<span class="sep"></span>
+<input type="text" id="goto" placeholder="addr/name">
+<button id="clrbp">Clear breakpoints</button>
+<span class="sep"></span>
+<span id="status" style="color:var(--dim);font:12.5px ui-monospace,monospace"></span>
+</div>
+<main>
+<section>
+<canvas id="c" width="512" height="192"></canvas>
+<div class="panel"><h2>Where it is</h2><div id="where"></div></div>
+<div class="panel"><h2>This instruction</h2><div id="why"></div></div>
+<div class="panel"><h2>Registers</h2><div class="reg" id="regs"></div>
+<div class="fl" id="flags" style="margin-top:6px"></div></div>
+<div class="panel"><h2>Call stack</h2><div id="stack"></div></div>
+</section>
+<section>
+<div id="listwrap"><div id="list"><div id="space"><div id="rows"></div></div></div></div>
+<ul class="key">
+<li><span class="lab">gold</span> a name of ours, from the assembler scraps</li>
+<li><span class="lab gen">grey</span> a name we have not worked out yet</li>
+<li><span class="cold">faded</span> never seen to execute</li>
+<li><span class="bp">&bull;</span> breakpoint</li>
+</ul>
+</section>
+</main>
+<div class="foot">
+<p>Written by Terry Gilman and Wayne Westmoreland for the TRS-80, 1983. Names in gold are ours, recovered from assembler buffer scraps the assembler left inside the shipped binary; the grey ones are placeholders for code we have not explained yet. Built from <code>zaxxon.cmd</code>.</p>
+</div>
+<script>
+const Z80=(function(){
+// Z80 CPU core, written for the Sea Dragon reconstruction.
+// Covers the documented instruction set plus the undocumented IXH/IXL/IYH/IYL
+// halves, and models the R register properly: Sea Dragon uses LD A,R as its
+// random number source, so R has to increment exactly as the hardware does.
+
+const F_C=0x01,F_N=0x02,F_PV=0x04,F_3=0x08,F_H=0x10,F_5=0x20,F_Z=0x40,F_S=0x80;
+
+const PAR=new Uint8Array(256);
+for(let i=0;i<256;i++){let p=0,v=i;while(v){p^=v&1;v>>=1;}PAR[i]=p?0:F_PV;}
+const SZ53=new Uint8Array(256),SZ53P=new Uint8Array(256);
+for(let i=0;i<256;i++){const b=(i&0x80)|(i===0?F_Z:0)|(i&0x28);SZ53[i]=b;SZ53P[i]=b|PAR[i];}
+
+class Z80{
+  constructor(bus){
+    this.bus=bus;
+    this.A=0;this.F=0;this.B=0;this.C=0;this.D=0;this.E=0;this.H=0;this.L=0;
+    this.A2=0;this.F2=0;this.B2=0;this.C2=0;this.D2=0;this.E2=0;this.H2=0;this.L2=0;
+    this.IXH=0;this.IXL=0;this.IYH=0;this.IYL=0;
+    this.SP=0xFFFF;this.PC=0;this.I=0;this.R=0;this.R7=0;
+    this.IFF1=0;this.IFF2=0;this.IM=0;this.halted=false;this.T=0;this.idx=0;
+    this.MEMPTR=0;
+  }
+  // ---- memory / fetch -------------------------------------------------
+  rb(a){return this.bus.read(a&0xFFFF);}
+  wb(a,v){this.bus.write(a&0xFFFF,v&0xFF);}
+  rw(a){return this.rb(a)|(this.rb((a+1)&0xFFFF)<<8);}
+  ww(a,v){this.wb(a,v&0xFF);this.wb((a+1)&0xFFFF,(v>>8)&0xFF);}
+  fetch(){const v=this.rb(this.PC);this.PC=(this.PC+1)&0xFFFF;return v;}
+  fetchw(){const lo=this.fetch();return lo|(this.fetch()<<8);}
+  m1(){this.R=(this.R+1)&0x7F;return this.fetch();}
+  disp(){const d=this.fetch();return d<128?d:d-256;}
+  push(v){this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v>>8);this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v&0xFF);}
+  pop(){const v=this.rw(this.SP);this.SP=(this.SP+2)&0xFFFF;return v;}
+
+  // ---- register file --------------------------------------------------
+  get HL(){return (this.H<<8)|this.L;}  set HL(v){this.H=(v>>8)&0xFF;this.L=v&0xFF;}
+  get BC(){return (this.B<<8)|this.C;}  set BC(v){this.B=(v>>8)&0xFF;this.C=v&0xFF;}
+  get DE(){return (this.D<<8)|this.E;}  set DE(v){this.D=(v>>8)&0xFF;this.E=v&0xFF;}
+  get IX(){return (this.IXH<<8)|this.IXL;} set IX(v){this.IXH=(v>>8)&0xFF;this.IXL=v&0xFF;}
+  get IY(){return (this.IYH<<8)|this.IYL;} set IY(v){this.IYH=(v>>8)&0xFF;this.IYL=v&0xFF;}
+  get AF(){return (this.A<<8)|this.F;}  set AF(v){this.A=(v>>8)&0xFF;this.F=v&0xFF;}
+
+  idxHL(){return this.idx===1?this.IX:this.idx===2?this.IY:this.HL;}
+  setIdxHL(v){if(this.idx===1)this.IX=v;else if(this.idx===2)this.IY=v;else this.HL=v;}
+  addr(d){return (this.idxHL()+(this.idx?d:0))&0xFFFF;}
+
+  rd(i,d){switch(i){
+    case 0:return this.B;case 1:return this.C;case 2:return this.D;case 3:return this.E;
+    case 4:return this.idx===1?this.IXH:this.idx===2?this.IYH:this.H;
+    case 5:return this.idx===1?this.IXL:this.idx===2?this.IYL:this.L;
+    case 6:return this.rb(this.addr(d));
+    default:return this.A;}}
+  wr(i,v,d){v&=0xFF;switch(i){
+    case 0:this.B=v;break;case 1:this.C=v;break;case 2:this.D=v;break;case 3:this.E=v;break;
+    case 4:if(this.idx===1)this.IXH=v;else if(this.idx===2)this.IYH=v;else this.H=v;break;
+    case 5:if(this.idx===1)this.IXL=v;else if(this.idx===2)this.IYL=v;else this.L=v;break;
+    case 6:this.wb(this.addr(d),v);break;
+    default:this.A=v;}}
+  // plain H/L, used for the register side of an (IX+d) memory instruction
+  rdp(i){const s=this.idx;this.idx=0;const v=this.rd(i);this.idx=s;return v;}
+  wrp(i,v){const s=this.idx;this.idx=0;this.wr(i,v);this.idx=s;}
+
+  rp(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.SP;}}
+  setrp(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.SP=v&0xFFFF;}}
+  rp2(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.AF;}}
+  setrp2(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.AF=v;}}
+
+  cc(y){switch(y){
+    case 0:return !(this.F&F_Z);case 1:return !!(this.F&F_Z);
+    case 2:return !(this.F&F_C);case 3:return !!(this.F&F_C);
+    case 4:return !(this.F&F_PV);case 5:return !!(this.F&F_PV);
+    case 6:return !(this.F&F_S);default:return !!(this.F&F_S);}}
+
+  // ---- ALU ------------------------------------------------------------
+  add8(v){const a=this.A,r=a+v;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F))>0x0F?F_H:0);
+    this.A=rr;}
+  adc8(v){const a=this.A,c=this.F&F_C,r=a+v+c;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F)+c)>0x0F?F_H:0);
+    this.A=rr;}
+  sub8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);
+    this.A=rr;}
+  sbc8(v){const a=this.A,c=this.F&F_C,r=a-v-c;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F)-c)<0?F_H:0);
+    this.A=rr;}
+  and8(v){this.A=(this.A&v)&0xFF;this.F=SZ53P[this.A]|F_H;}
+  xor8(v){this.A=(this.A^v)&0xFF;this.F=SZ53P[this.A];}
+  or8(v){this.A=(this.A|v)&0xFF;this.F=SZ53P[this.A];}
+  cp8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=(rr&0x80)|(rr===0?F_Z:0)|(v&0x28)|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);}
+  alu(y,v){switch(y){case 0:this.add8(v);break;case 1:this.adc8(v);break;case 2:this.sub8(v);break;
+    case 3:this.sbc8(v);break;case 4:this.and8(v);break;case 5:this.xor8(v);break;
+    case 6:this.or8(v);break;default:this.cp8(v);}}
+  inc8(v){const r=(v+1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|((r&0x0F)===0?F_H:0)|(r===0x80?F_PV:0);return r;}
+  dec8(v){const r=(v-1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|F_N|((v&0x0F)===0?F_H:0)|(r===0x7F?F_PV:0);return r;}
+  add16(a,b){const r=a+b;
+    this.F=(this.F&(F_S|F_Z|F_PV))|((r>>8)&0x28)|(r>0xFFFF?F_C:0)|(((a&0x0FFF)+(b&0x0FFF))>0x0FFF?F_H:0);
+    return r&0xFFFF;}
+  adc16(b){const a=this.HL,c=this.F&F_C,r=a+b+c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|(r>0xFFFF?F_C:0)
+      |(((a^b^0x8000)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)+(b&0x0FFF)+c)>0x0FFF?F_H:0);
+    this.HL=rr;}
+  sbc16(b){const a=this.HL,c=this.F&F_C,r=a-b-c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|F_N|(r<0?F_C:0)
+      |(((a^b)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)-(b&0x0FFF)-c)<0?F_H:0);
+    this.HL=rr;}
+  daa(){const n=this.F&F_N;let c=this.F&F_C,add=0,a=this.A,h;
+    if((this.F&F_H)||(a&0x0F)>9)add=6;
+    if(c||a>0x99){add|=0x60;c=F_C;}
+    if(n){h=((a&0x0F)<(add&0x0F))?F_H:0;a=(a-add)&0xFF;}
+    else{h=(((a&0x0F)+(add&0x0F))>0x0F)?F_H:0;a=(a+add)&0xFF;}
+    this.F=SZ53P[a]|c|n|h;this.A=a;}
+  // rotates returning value + flags (CB form)
+  rlc(v){const c=(v>>7)&1;const r=((v<<1)|c)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rrc(v){const c=v&1;const r=((v>>1)|(c<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rl(v){const c=(v>>7)&1;const r=((v<<1)|(this.F&F_C))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rr(v){const c=v&1;const r=((v>>1)|((this.F&F_C)<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sla(v){const c=(v>>7)&1;const r=(v<<1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  sra(v){const c=v&1;const r=((v>>1)|(v&0x80))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sll(v){const c=(v>>7)&1;const r=((v<<1)|1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  srl(v){const c=v&1;const r=(v>>1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rot(y,v){switch(y){case 0:return this.rlc(v);case 1:return this.rrc(v);case 2:return this.rl(v);
+    case 3:return this.rr(v);case 4:return this.sla(v);case 5:return this.sra(v);
+    case 6:return this.sll(v);default:return this.srl(v);}}
+
+  // ---- step -----------------------------------------------------------
+  step(){
+    const t0=this.T;
+    this.idx=0;
+    if(this.halted){this.R=(this.R+1)&0x7F;this.T+=4;return 4;}
+    let op=this.m1();
+    while(op===0xDD||op===0xFD){this.idx=(op===0xDD)?1:2;this.T+=4;op=this.m1();}
+    if(op===0xCB){ if(this.idx) this.ddcb(); else this.cb(); }
+    else if(op===0xED){ this.idx=0; this.ed(); }
+    else this.main(op);
+    return this.T-t0;
+  }
+
+  main(op){
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x===1){
+      if(y===6&&z===6){this.halted=true;this.T+=4;return;}
+      if(y===6){const d=this.idx?this.disp():0;this.wr(6,this.rdp(z),d);this.T+=this.idx?19:7;return;}
+      if(z===6){const d=this.idx?this.disp():0;this.wrp(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.wr(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===2){
+      if(z===6){const d=this.idx?this.disp():0;this.alu(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.alu(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===0){
+      switch(z){
+        case 0:
+          if(y===0){this.T+=4;}
+          else if(y===1){const t=this.AF;this.AF=(this.A2<<8)|this.F2;this.A2=(t>>8)&0xFF;this.F2=t&0xFF;this.T+=4;}
+          else if(y===2){const d=this.disp();this.B=(this.B-1)&0xFF;
+            if(this.B){this.PC=(this.PC+d)&0xFFFF;this.T+=13;}else this.T+=8;}
+          else if(y===3){const d=this.disp();this.PC=(this.PC+d)&0xFFFF;this.T+=12;}
+          else{const d=this.disp();if(this.cc(y-4)){this.PC=(this.PC+d)&0xFFFF;this.T+=12;}else this.T+=7;}
+          return;
+        case 1:
+          if(q===0){this.setrp(p,this.fetchw());this.T+=this.idx?14:10;}
+          else{this.setIdxHL(this.add16(this.idxHL(),this.rp(p)));this.T+=this.idx?15:11;}
+          return;
+        case 2:
+          if(q===0){
+            if(p===0){this.wb(this.BC,this.A);this.T+=7;}
+            else if(p===1){this.wb(this.DE,this.A);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.ww(a,this.idxHL());this.T+=16;}
+            else{const a=this.fetchw();this.wb(a,this.A);this.T+=13;}
+          }else{
+            if(p===0){this.A=this.rb(this.BC);this.T+=7;}
+            else if(p===1){this.A=this.rb(this.DE);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.setIdxHL(this.rw(a));this.T+=16;}
+            else{const a=this.fetchw();this.A=this.rb(a);this.T+=13;}
+          }
+          return;
+        case 3:
+          this.setrp(p,(this.rp(p)+(q?-1:1))&0xFFFF);this.T+=6;return;
+        case 4:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.inc8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.inc8(this.rd(y)));this.T+=4;}
+          return;}
+        case 5:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.dec8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.dec8(this.rd(y)));this.T+=4;}
+          return;}
+        case 6:{
+          if(y===6){const d=this.idx?this.disp():0;const n=this.fetch();this.wb(this.addr(d),n);this.T+=this.idx?19:10;}
+          else{this.wr(y,this.fetch());this.T+=7;}
+          return;}
+        default:
+          switch(y){
+            case 0:{const c=(this.A>>7)&1;this.A=((this.A<<1)|c)&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 1:{const c=this.A&1;this.A=((this.A>>1)|(c<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 2:{const c=(this.A>>7)&1;this.A=((this.A<<1)|(this.F&F_C))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 3:{const c=this.A&1;this.A=((this.A>>1)|((this.F&F_C)<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 4:this.daa();break;
+            case 5:this.A=(~this.A)&0xFF;this.F=(this.F&(F_S|F_Z|F_PV|F_C))|F_H|F_N|(this.A&0x28);break;
+            case 6:this.F=(this.F&(F_S|F_Z|F_PV))|F_C|(this.A&0x28);break;
+            default:{const c=this.F&F_C;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(c?F_H:0)|(c?0:F_C)|(this.A&0x28);break;}
+          }
+          this.T+=4;return;
+      }
+    }
+    // x === 3
+    switch(z){
+      case 0: if(this.cc(y)){this.PC=this.pop();this.T+=11;}else this.T+=5; return;
+      case 1:
+        if(q===0){this.setrp2(p,this.pop());this.T+=10;}
+        else{
+          if(p===0){this.PC=this.pop();this.T+=10;}
+          else if(p===1){let t=this.BC;this.BC=(this.B2<<8)|this.C2;this.B2=(t>>8)&0xFF;this.C2=t&0xFF;
+            t=this.DE;this.DE=(this.D2<<8)|this.E2;this.D2=(t>>8)&0xFF;this.E2=t&0xFF;
+            t=this.HL;this.HL=(this.H2<<8)|this.L2;this.H2=(t>>8)&0xFF;this.L2=t&0xFF;this.T+=4;}
+          else if(p===2){this.PC=this.idxHL();this.T+=4;}
+          else{this.SP=this.idxHL();this.T+=6;}
+        }
+        return;
+      case 2:{const a=this.fetchw();if(this.cc(y))this.PC=a;this.T+=10;return;}
+      case 3:
+        if(y===0){this.PC=this.fetchw();this.T+=10;}
+        else if(y===1){/* CB handled in step */}
+        else if(y===2){const port=this.fetch();this.bus.out(port,this.A,this.A);this.T+=11;}
+        else if(y===3){const port=this.fetch();this.A=this.bus.in(port,this.A);this.F=SZ53P[this.A]|(this.F&F_C);this.T+=11;}
+        else if(y===4){const t=this.rw(this.SP);this.ww(this.SP,this.idxHL());this.setIdxHL(t);this.T+=19;}
+        else if(y===5){const t=this.DE;this.DE=this.HL;this.HL=t;this.T+=4;}
+        else if(y===6){this.IFF1=0;this.IFF2=0;this.T+=4;}
+        else{this.IFF1=1;this.IFF2=1;this.T+=4;}
+        return;
+      case 4:{const a=this.fetchw();if(this.cc(y)){this.push(this.PC);this.PC=a;this.T+=17;}else this.T+=10;return;}
+      case 5:
+        if(q===0){this.push(this.rp2(p));this.T+=11;}
+        else if(p===0){const a=this.fetchw();this.push(this.PC);this.PC=a;this.T+=17;}
+        return;
+      case 6:{this.alu(y,this.fetch());this.T+=7;return;}
+      default:{this.push(this.PC);this.PC=y*8;this.T+=11;return;}
+    }
+  }
+
+  cb(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7;
+    if(x===0){const v=this.rot(y,this.rd(z));this.wr(z,v);this.T+=z===6?15:8;return;}
+    if(x===1){const v=this.rd(z);
+      this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80);
+      this.F|= z===6 ? 0 : (v&0x28);
+      this.T+=z===6?12:8;return;}
+    if(x===2){this.wr(z,this.rd(z)&~(1<<y));this.T+=z===6?15:8;return;}
+    this.wr(z,this.rd(z)|(1<<y));this.T+=z===6?15:8;
+  }
+
+  ddcb(){
+    const d=this.disp();const op=this.fetch();this.R=(this.R+1)&0x7F;
+    const x=op>>6,y=(op>>3)&7,z=op&7;const a=this.addr(d);const v=this.rb(a);
+    if(x===1){this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80)|((a>>8)&0x28);this.T+=20;return;}
+    let r;
+    if(x===0)r=this.rot(y,v);
+    else if(x===2)r=v&~(1<<y);
+    else r=v|(1<<y);
+    this.wb(a,r);
+    if(z!==6)this.wrp(z,r);   // undocumented: result also copied to a register
+    this.T+=23;
+  }
+
+  ed(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x!==1&&x!==2){this.T+=8;return;}
+    if(x===1){
+      switch(z){
+        case 0:{const v=this.bus.in(this.C,this.B);if(y!==6)this.wr(y,v);
+          this.F=SZ53P[v]|(this.F&F_C);this.T+=12;return;}
+        case 1:{this.bus.out(this.C,this.B,y===6?0:this.rd(y));this.T+=12;return;}
+        case 2:{if(q===0)this.sbc16(this.rp(p));else this.adc16(this.rp(p));this.T+=15;return;}
+        case 3:{const a=this.fetchw();if(q===0)this.ww(a,this.rp(p));else this.setrp(p,this.rw(a));this.T+=20;return;}
+        case 4:{const a=this.A;this.A=0;this.sub8(a);this.T+=8;return;}
+        case 5:{this.PC=this.pop();this.IFF1=this.IFF2;this.T+=14;return;}
+        case 6:{this.IM=(y===0||y===1||y===4||y===5)?0:(y===2||y===6)?1:2;this.T+=8;return;}
+        default:
+          if(y===0){this.I=this.A;this.T+=9;}
+          else if(y===1){this.R=this.A&0x7F;this.R7=this.A&0x80;this.T+=9;}
+          else if(y===2){this.A=this.I;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===3){this.A=(this.R&0x7F)|this.R7;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===4){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m<<4)|(a&0x0F))&0xFF);this.A=(a&0xF0)|(m>>4);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else if(y===5){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m>>4)|((a&0x0F)<<4))&0xFF);this.A=(a&0xF0)|(m&0x0F);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else this.T+=8;
+          return;
+      }
+    }
+    // x === 2 : block instructions
+    if(z>3||y<4){this.T+=8;return;}
+    const inc=(y&1)?-1:1;
+    const rep=(y&2)!==0;
+    switch(z){
+      case 0:{ // LDI/LDD/LDIR/LDDR
+        const v=this.rb(this.HL);this.wb(this.DE,v);
+        this.DE=(this.DE+inc)&0xFFFF;this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(v+this.A)&0xFF;
+        this.F=(this.F&(F_S|F_Z|F_C))|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 1:{ // CPI/CPD/CPIR/CPDR
+        const v=this.rb(this.HL);const r=(this.A-v)&0xFF;
+        let h=((this.A&0x0F)-(v&0x0F))<0?F_H:0;
+        this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(r-(h?1:0))&0xFF;
+        this.F=(this.F&F_C)|F_N|h|(r&0x80)|(r===0?F_Z:0)|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC&&r!==0){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 2:{ // INI/IND/INIR/INDR
+        const v=this.bus.in(this.C,this.B);this.wb(this.HL,v);
+        this.B=(this.B-1)&0xFF;this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      default:{ // OUTI/OUTD/OTIR/OTDR
+        const v=this.rb(this.HL);this.B=(this.B-1)&0xFF;
+        this.bus.out(this.C,this.B,v);this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+    }
+  }
+}
+
+
+return Z80;})();
+const DIS=(function(){
+// Z80 disassembler for the TRS-80 reconstruction.
+//
+// Decoded from the same bit patterns as z80.js (x/y/z/p/q), including the
+// undocumented IXH/IXL/IYH/IYL halves and the DDCB register copy, so the
+// lengths reported here cannot disagree with the lengths the emulator
+// actually consumes. verify_disasm.js asserts exactly that against a
+// running game: every executed instruction must satisfy pc + len == next pc.
+
+const R    = ['B','C','D','E','H','L','(HL)','A'];
+const RP   = ['BC','DE','HL','SP'];
+const RP2  = ['BC','DE','HL','AF'];
+const CC   = ['NZ','Z','NC','C','PO','PE','P','M'];
+const ALU  = ['ADD\tA,','ADC\tA,','SUB\t','SBC\tA,','AND\t','XOR\t','OR\t','CP\t'];
+const ROT  = ['RLC','RRC','RL','RR','SLA','SRA','SLL','SRL'];
+const ACC  = ['RLCA','RRCA','RLA','RRA','DAA','CPL','SCF','CCF'];
+const BLK  = [['LDI','LDD','LDIR','LDDR'],['CPI','CPD','CPIR','CPDR'],
+              ['INI','IND','INIR','INDR'],['OUTI','OUTD','OTIR','OTDR']];
+
+// EDTASM-style hex: leading zero when it would start with a letter.
+function hex(n,w){ let s=n.toString(16).toUpperCase(); while(s.length<w)s='0'+s;
+                   return (s[0]>='A'?'0':'')+s+'H'; }
+function num(n){ return n<10 ? String(n) : hex(n, n>0xFF?4:2); }
+function sdisp(d){ return (d<0?'-':'+')+Math.abs(d); }
+
+// decode one instruction.
+//   read(addr) -> byte ;  sym(addr) -> label name or null (optional)
+// returns { addr, len, bytes, text, kind, target, cont }
+//   kind : call|jp|jr|djnz|ret|rst|jphl|halt|other
+//   cont : does execution fall through to addr+len
+function decode(read, addr, sym){
+  let pc = addr & 0xFFFF;
+  const bytes = [];
+  const b  = () => { const v = read(pc) & 0xFF; bytes.push(v); pc = (pc+1)&0xFFFF; return v; };
+  const nn = () => { const lo = b(); return lo | (b()<<8); };
+  const d8 = () => { const v = b(); return v<128 ? v : v-256; };
+  const S  = (a) => (sym && sym(a)) || hex(a,4);
+
+  let out = { addr: addr&0xFFFF, kind:'other', target:null, cont:true };
+  const fin = (text) => { out.text = text; out.len = bytes.length; out.bytes = bytes; return out; };
+
+  let idx = 0, op = b();
+  while(op===0xDD || op===0xFD){ idx = (op===0xDD)?1:2; op = b(); }
+  const IR  = idx===1?'IX' :idx===2?'IY' :'HL';
+  const IRH = idx===1?'IXH':idx===2?'IYH':'H';
+  const IRL = idx===1?'IXL':idx===2?'IYL':'L';
+  const rn  = (i) => i===4?IRH : i===5?IRL : R[i];          // honours the prefix
+  const rpn = (i) => i===2 ? IR : RP[i];
+  const rp2n= (i) => i===2 ? IR : RP2[i];
+  const mem = () => { if(!idx) return '(HL)'; const d=d8(); return '('+IR+sdisp(d)+')'; };
+
+  // ---- CB / DDCB ------------------------------------------------------
+  if(op===0xCB){
+    if(idx){                                  // DD CB d op : displacement first
+      const d = d8(), o = b();
+      const x=o>>6, y=(o>>3)&7, z=o&7;
+      const m = '('+IR+sdisp(d)+')';
+      if(x===1) return fin('BIT\t'+y+','+m);
+      const nm = x===0?ROT[y] : x===2?'RES':'SET';
+      const head = x===0 ? nm+'\t'+m : nm+'\t'+y+','+m;
+      return fin(z===6 ? head : head+','+R[z]);   // undocumented register copy
+    }
+    const o=b(), x=o>>6, y=(o>>3)&7, z=o&7;
+    if(x===0) return fin(ROT[y]+'\t'+R[z]);
+    if(x===1) return fin('BIT\t'+y+','+R[z]);
+    return fin((x===2?'RES':'SET')+'\t'+y+','+R[z]);
+  }
+
+  // ---- ED -------------------------------------------------------------
+  if(op===0xED){
+    const o=b(), x=o>>6, y=(o>>3)&7, z=o&7, p=y>>1, q=y&1;
+    if(x===1){
+      switch(z){
+        case 0: return fin('IN\t'+(y===6?'(C)':R[y]+',(C)'));
+        case 1: return fin('OUT\t(C),'+(y===6?'0':R[y]));
+        case 2: return fin((q?'ADC':'SBC')+'\tHL,'+RP[p]);
+        case 3: { const a=nn();
+                  return fin(q ? 'LD\t'+RP[p]+',('+S(a)+')' : 'LD\t('+S(a)+'),'+RP[p]); }
+        case 4: return fin('NEG');
+        case 5: out.kind='ret'; out.cont=false; return fin(y===1?'RETI':'RETN');
+        case 6: return fin('IM\t'+((y===0||y===1||y===4||y===5)?0:(y===2||y===6)?1:2));
+        default:
+          return fin(['LD\tI,A','LD\tR,A','LD\tA,I','LD\tA,R','RRD','RLD','NOP','NOP'][y]);
+      }
+    }
+    if(x===2 && z<=3 && y>=4) return fin(BLK[z][((y&2)?2:0)|(y&1)]);
+    return fin('DEFB\t0EDH,'+hex(o,2));          // not an instruction
+  }
+
+  const x=op>>6, y=(op>>3)&7, z=op&7, p=y>>1, q=y&1;
+
+  // ---- x = 1 : LD r,r' ------------------------------------------------
+  if(x===1){
+    if(y===6 && z===6){ out.kind='halt'; out.cont=false; return fin('HALT'); }
+    if(y===6) return fin('LD\t'+mem()+','+R[z]);     // plain register source
+    if(z===6) return fin('LD\t'+R[y]+','+mem());     // plain register dest
+    return fin('LD\t'+rn(y)+','+rn(z));
+  }
+
+  // ---- x = 2 : ALU A,r ------------------------------------------------
+  if(x===2) return fin(ALU[y]+(z===6?mem():rn(z)));
+
+  // ---- x = 0 ----------------------------------------------------------
+  if(x===0){
+    switch(z){
+      case 0:
+        if(y===0) return fin('NOP');
+        if(y===1) return fin("EX\tAF,AF'");
+        if(y===2){ const d=d8(); out.kind='djnz'; out.target=(pc+d)&0xFFFF;
+                   return fin('DJNZ\t'+S(out.target)); }
+        if(y===3){ const d=d8(); out.kind='jr'; out.cont=false; out.target=(pc+d)&0xFFFF;
+                   return fin('JR\t'+S(out.target)); }
+        { const d=d8(); out.kind='jr'; out.target=(pc+d)&0xFFFF;
+          return fin('JR\t'+CC[y-4]+','+S(out.target)); }
+      case 1:
+        if(q===0){ const a=nn(); return fin('LD\t'+rpn(p)+','+S(a)); }
+        return fin('ADD\t'+IR+','+rpn(p));
+      case 2:
+        if(q===0){
+          if(p===0) return fin('LD\t(BC),A');
+          if(p===1) return fin('LD\t(DE),A');
+          { const a=nn(); return fin('LD\t('+S(a)+'),'+(p===2?IR:'A')); }
+        }
+        if(p===0) return fin('LD\tA,(BC)');
+        if(p===1) return fin('LD\tA,(DE)');
+        { const a=nn(); return fin('LD\t'+(p===2?IR:'A')+',('+S(a)+')'); }
+      case 3: return fin((q?'DEC':'INC')+'\t'+rpn(p));
+      case 4: return fin('INC\t'+(y===6?mem():rn(y)));
+      case 5: return fin('DEC\t'+(y===6?mem():rn(y)));
+      case 6: { const m = y===6 ? mem() : rn(y); const n=b();   // disp precedes n
+                return fin('LD\t'+m+','+num(n)); }
+      default: return fin(ACC[y]);
+    }
+  }
+
+  // ---- x = 3 ----------------------------------------------------------
+  switch(z){
+    case 0: out.kind='ret'; return fin('RET\t'+CC[y]);
+    case 1:
+      if(q===0) return fin('POP\t'+rp2n(p));
+      if(p===0){ out.kind='ret'; out.cont=false; return fin('RET'); }
+      if(p===1) return fin('EXX');
+      if(p===2){ out.kind='jphl'; out.cont=false; return fin('JP\t('+IR+')'); }
+      return fin('LD\tSP,'+IR);
+    case 2: { const a=nn(); out.kind='jp'; out.target=a;
+              return fin('JP\t'+CC[y]+','+S(a)); }
+    case 3:
+      if(y===0){ const a=nn(); out.kind='jp'; out.cont=false; out.target=a;
+                 return fin('JP\t'+S(a)); }
+      if(y===2){ const n=b(); return fin('OUT\t('+num(n)+'),A'); }
+      if(y===3){ const n=b(); return fin('IN\tA,('+num(n)+')'); }
+      if(y===4) return fin('EX\t(SP),'+IR);
+      if(y===5) return fin('EX\tDE,HL');
+      if(y===6) return fin('DI');
+      if(y===7) return fin('EI');
+      return fin('DEFB\t'+hex(op,2));
+    case 4: { const a=nn(); out.kind='call'; out.target=a;
+              return fin('CALL\t'+CC[y]+','+S(a)); }
+    case 5:
+      if(q===0) return fin('PUSH\t'+rp2n(p));
+      if(p===0){ const a=nn(); out.kind='call'; out.target=a;
+                 return fin('CALL\t'+S(a)); }
+      return fin('DEFB\t'+hex(op,2));
+    case 6: { const n=b(); return fin(ALU[y]+num(n)); }
+    default: out.kind='rst'; out.target=y*8; return fin('RST\t'+hex(y*8,2));
+  }
+}
+
+function insLen(read, addr){ return decode(read, addr).len; }
+
+
+return {decode:decode,insLen:insLen,hex:hex,num:num};})();
+const ROM=Uint8Array.from(atob("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SAHIAUgByAFIAcgBCAGICAgNAA9QAdABkAEQAYACIAGgAiABoAEgAqAMIBQACCABgAoAAQgQSAFADFAFEAEAAYAJAAIgAwABgAYAGyAJAAZADyANAAJAAcABQAHAAUABwAJAAcABQAGICwgDAAVAD1AFEAHQAVADsAowAbABMAGwATABsAFwAdABUAHQF1ABsAEwAbABMAGwATABsAIwAbABMAGwATABsAG4ASgBqAEoAagDKAGoAwgHAAcQAVAB0AFQAdABAQBe0FAB0AFQAdABUAHQAVAB0AFQAdABUAHwAjABsAUwAbABMAGwAjABsAMwAbABMAGwARABUAHQAlAB0ANQAdAB/wJQAdABUAYQApABEApQAbACMAGwAjABsAFwAfACUAHQAlAB0AJQAdABUAHQAXABMAGwAjABsAEwASgBqAIoAagBKAGoAigBqAEoAqgFCBsACiAIAAsQEQABgAIAAoABAAKAAQACgAFQAtABUALQAVAB0AJQAdABUAHAAYgBKAKoAigBqAEoAWAB0AJQAdABUAHQAkgB6AMoAagCKAGoAjABsAIwAbABMAKwATABsAFwAlAB0AFQAtABUAHQAlABAQBc0ZACMAKwATABwAFAAUgDQAFIAsgBSAPQAbAPKAMIAYgCCAGIAQgBiAEADxAEAAEIAQABIAGgAiABoAIgAaABIAKgASABoAMgAQAVQBAAASABoAIgAqABIAGgAiABgAFAAVAB0AJQAdAHUAHQAYgBCAKIARgBkARQAYgBqAIoAagDKAGoAUABUALQAVAB8AGwAjACsAogAfACUALQAlAB0AE4CSgFCARIB0AFAAGAAQABgAIAAxALMAgAAYACQALAAUACwAFAAcABQAHAAkABoAwgCQABQAH/AUAC0AJQAtABUALQAUABSAGoBigBsAHQAlABEAGQAbACIAKgASABAQBa0qABIAEwAZAB0AJQAdACUAHQAVABEAQIAigBIAIwAfACUAHQAlAB0AJQAdABUAFIAcgBSAGoCygEIAcwASgBaAFIAUAGUAHQBFABaAIoAagBKAVIEggCiAIIIAACIAYwAdACUAHQBUABSAHIAUgByAFIAcgCSAMIAYgICAkADxADkAEQAlANQAHAAQABgAQABCACoAEgAaABIAGgASABoAMgBCgECAGIEgAFIAEwAVAC0AFQAbABMAGwATABsAEwAbABIAGgAyABoAEgAaABIAGgASABoAEgAaABIAGgAQgCiAEIBwABgAEAAYAOAAIIAQABgBEAAxABUALQAVACAQBY09ABUAHQAVAB0AFQAdACUAHQA1AB0AFQAdABUAHQAVAB0AFQAdABUAHQAVABsAEwAbAFMAEQClAECAYAAxAEMAEgAqABIAGgAiABoAEgAqABIAGgAyABoAMgAaABIAGgAyABoAEgAaABAAJAAcABQAtIAYAFAAH/CQADEAGQCgAHIAMwAbAB0AFQAdABUAHQA1AB0ANQAtABUAHQAVAB0AFQAfABMAGwBjABKAFoBkgFCAGADAABCAMQAqAJIAowAdABUALQBFAB0AFQAdACUAHQAVAB0AJQAdABcAKwATABsAEwAbABMAGwAjABsAIwBwACIAGgAYAXAAFAAsABAQBW1EACwAJAAcAHQAHAAUABwAFAAcACoAEgAaACIAGgBiACKAEIAYgCCAGIAwgDAAdAAQABgBEAAhACMAGwATABsAEwAbABMAGwATABsAIwAbABMAdABkgDAAEQBwABCAcAAkACAAKAEQAEQAGACQACIAKAAQABwAtAAYABAAGAAQABwAFAMABUMhZEDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUdU1QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAICAIA="),c=>c.charCodeAt(0));
+const FONT=Uint8Array.from("00000000000000040404040400040a0a0a000000000a0a1f0a1f0a0a040f140e051e04181902040813030c12140815120d0c04080000000002040808080402080402020204080004150e1504000004041f040400000000000c04080000001f00000000000000000c0c000102040810000e11131519110e040c040404040e0e11010204081f1f02040201110e02060a121f02021f101e0101110e0608101e11110e1f1102040808080e11110e11110e0e11110f01020c000c0c000c0c00000c0c000c04080204081008040200001f001f0000080402010204080e1101020400040e11010d15150e040a11111f11111e11111e11111e0e11101010110e1c12111111121c1f10101e10101f1f10101e1010100e11101711110f1111111f1111110e04040404040e0702020202120c111214181412111010101010101f111b1515111111111119151311110e11111111110e1e11111e1010100e11111115120d1e11111e1412110f10100e01011e1f0404040404041111111111110e11111111110a041111111515150a11110a040a111111110a040404041f01020408101f0e08080808080e001008040201000e02020202020e040a11000000000000000000001f0000000000000000000e010f110f10101e1111111e00000f1010110e01010f1111110f00000e111f100e0609081c080808000f11110f010e10101e1111111104000c0404040e0200060202120c101012141814120c04040404040e00001a1515151500001e1111111100000e1111110e001e11111e1010000f11110f01010000161910101000000f100e011e08081c080809060000111111130d00001111110a040000111115150a0000110a040a11001111110f010e00001f0204081f02040408040402040404000404040804040204040800000d12000000".match(/../g).map(h=>parseInt(h,16)));
+const GAME="zaxxon";
+
+function loadCMD(d){
+  const mem=new Map(); let entry=null,i=0;
+  while(i<d.length){
+    const t=d[i],n=d[i+1];
+    if(t===1){const body=(n>=3)?(n-2):(n+254);const addr=d[i+2]|(d[i+3]<<8);
+      for(let k=0;k<body;k++)mem.set((addr+k)&0xFFFF,d[i+4+k]); i+=4+body;}
+    else if(t===2){entry=d[i+2]|(d[i+3]<<8);break;}
+    else if(t===0||t>0x1f)break;
+    else i+=2+n;
+  }
+  return {mem,entry};
+}
+// the TRS-80 key matrix: row -> the eight keys on it
+const KEYROW={0:['@','A','B','C','D','E','F','G'],1:['H','I','J','K','L','M','N','O'],
+ 2:['P','Q','R','S','T','U','V','W'],3:['X','Y','Z','[','\\',']','^','_'],
+ 4:['0','1','2','3','4','5','6','7'],5:['8','9',':',';',',','-','.','/'],
+ 6:['ENTER','CLEAR','BREAK','UP','DOWN','LEFT','RIGHT','SPACE'],7:['SHIFT','','','','','','','']};
+const KEYPOS={};
+for(const r in KEYROW)KEYROW[r].forEach((k,b)=>{if(k)KEYPOS[k]=[+r,b];});
+
+// ---- the machine -------------------------------------------------------
+// Nothing from the TRS-80 ROM is included. The games call four ROM entries and
+// five TRSDOS vectors; all nine are answered here, in our own code.
+const DOS={0x4420:'INIT',0x4424:'OPEN',0x4428:'CLOSE',0x4436:'READ',0x4439:'WRITE'};
+class Machine{
+  constructor(){
+    this.ram=new Uint8Array(65536); this.keys=new Set(); this.spk=[]; this.level=0;
+    this.open=new Map(); this.rndState=0x2545F491; this.rndVal=0;
+    this.files=this.loadScores();
+    const self=this;
+    this.cpu=new Z80({
+      read(a){ if(a>=0x3800&&a<0x3900){let v=0;for(let r=0;r<8;r++)if(a&(1<<r))v|=self.row(r);return v;}
+               return self.ram[a]; },
+      write(a,v){ if(a>=0x3000) self.ram[a]=v; },
+      in(){ return 0xFF; },
+      out(p,hi,v){ if((p&0xFF)===0xFF){const L=(v&3)===1?1:((v&3)===2?-1:0);
+        if(L!==self.level){self.level=L;self.spk.push([self.cpu.T,L]);}} }
+    });
+    const raw=this.cpu.step.bind(this.cpu);
+    this.cpu.step=()=>{ const t=this.trap(this.cpu.PC); return t?t:raw(); };
+    const {mem,entry}=loadCMD(ROM);
+    for(const [a,v] of mem) this.ram[a]=v;
+    this.cpu.PC=entry; this.cpu.SP=0x4495;
+  }
+  row(r){let v=0;for(const k of this.keys){const p=KEYPOS[k];if(p&&p[0]===r)v|=1<<p[1];}return v;}
+
+  // high scores live in this browser, standing in for the game's /HIS file
+  loadScores(){
+    const m=new Map();
+    try{ const raw=localStorage.getItem('trs80-his-'+GAME);
+      if(raw){ const o=JSON.parse(raw);
+        for(const k in o) m.set(k,o[k].map(r=>Uint8Array.from(r))); } }catch(e){}
+    return m;
+  }
+  saveScores(){
+    try{ const o={};
+      for(const [k,v] of this.files) o[k]=v.map(r=>Array.from(r));
+      localStorage.setItem('trs80-his-'+GAME,JSON.stringify(o)); }catch(e){}
+  }
+  dcbName(d){ let s='';
+    for(let i=0;i<32;i++){const c=this.ram[(d+i)&0xFFFF];
+      if(c===0x0D||c===0x03||c===0||c<32||c>126)break; s+=String.fromCharCode(c);}
+    return s.trim().toUpperCase(); }
+  rnd(n){ this.rndState=(this.rndState*1103515245+12345+((this.cpu.R&0x7F)|this.cpu.R7))>>>0;
+          return n>0?1+((this.rndState>>>16)%n):0; }
+  trap(pc){
+    const c=this.cpu;
+    const ret=(t)=>{ c.PC=c.pop(); c.T+=t; return t; };
+    // --- the four ROM entries the games use ---
+    if(pc===0x0060){                                                    // delay: DEC BC / LD A,B / OR C / JR NZ / RET
+      const n=c.BC||0x10000;                                            // BC=0 means a full 65536 pass
+      c.BC=0; c.A=0; c.F|=0x40;
+      return ret(26*n+10);                                              // charge what the real loop costs
+    }
+    if(pc===0x002B||pc===0x0049){                                       // get a character
+      const k=this.romKey(); c.A=k; c.F = k?(c.F&~0x40):(c.F|0x40); return ret(40); }
+    if(pc===0x01D3){ this.ram[0x40AB]=(c.R&0x7F)|c.R7; return ret(20); } // seed
+    if(pc===0x14C9){ this.rndVal=this.rnd(this.ram[0x4121]|(this.ram[0x4122]<<8)); return ret(60); }
+    if(pc===0x0A7F){ c.HL=this.rndVal|0; c.A=c.HL&0xFF; return ret(40); }
+    // --- the five TRSDOS vectors ---
+    const op=DOS[pc]; if(!op) return 0;
+    const dcb=c.DE, hl=c.HL;
+    const done=(err)=>{ if(err){c.A=err;c.F=(c.F&~0x40)|0x02;} else {c.A=0;c.F|=0x40;} return ret(30); };
+    if(op==='OPEN'||op==='INIT'){
+      const name=this.dcbName(dcb); if(!name) return done(0x18);
+      let f=this.files.get(name);
+      if(op==='OPEN'&&!f) return done(0x18);
+      if(!f){ f=[]; this.files.set(name,f); }
+      this.open.set(dcb,{name,buf:hl,pos:0}); return done(0);
+    }
+    const h=this.open.get(dcb); if(!h) return done(0x18);
+    const f=this.files.get(h.name);
+    if(op==='READ'){ if(h.pos>=f.length) return done(0x1C);
+      const r=f[h.pos++]; for(let i=0;i<256;i++) this.ram[(h.buf+i)&0xFFFF]=r[i]; return done(0); }
+    if(op==='WRITE'){ const r=new Uint8Array(256);
+      for(let i=0;i<256;i++) r[i]=this.ram[(h.buf+i)&0xFFFF];
+      f[h.pos++]=r; this.saveScores(); return done(0); }
+    if(op==='CLOSE'){ this.open.delete(dcb); this.saveScores(); return done(0); }
+    return done(0);
+  }
+  romKey(){
+    const A={ENTER:0x0D,CLEAR:0x1F,BREAK:0x01,SPACE:0x20,LEFT:0x08,RIGHT:0x09,DOWN:0x0A,UP:0x0B};
+    for(const k of this.keys){ if(A[k]!==undefined) return A[k];
+      if(k.length===1) return k.charCodeAt(0); }
+    return 0;
+  }
+  run(t){const end=this.cpu.T+t;let g=0;
+    while(this.cpu.T<end&&g++<4000000){this.cpu.step();if(this.cpu.halted)break;}}
+}
+
+const MAP={"game":"zaxxon","binary":"zaxxon.cmd","snapshot_at":"8000","entry":"8000","relocated":false,"count":3551,"first":73,"deltas":"FwEBAQL/v0MEDv/KOwMDAwMDAwMBAwMDAwEDAwEDAgMCAwMEAwMDAQMDAwIDAwMCAgICAwICAwICAwMCAgMDAgMDAwIDBAMDAQIDAwIDBAMDAgMBAQEDAwMCAwICAwMDAwICAwIDAwMDAwICAwICAwIDAwMCAgMCAgEDAwMBAgMBAwMCAQMDAgMDAQICAwICAgIBAwMBAwIDAwEDAwECAQMCAwEDAgMBAwECAQIBAQEDAgMCAwMBAQMDAwMBAgMBAwMDAwIDAQMDAQMBAgMBAQMBAgEDAQEDAgEDAQMCAwIDAgMDAwMBAwMDAwMCAwMBAwMCAgIDAwEDAgIBAQEBAQEBAQEBAQIDAgMCAgMCAQICAQICAQICAQIDAgMDAgMDAwIDAwIBAwMDAgMBAgECAQECAwMCAgEBAgEBAgMCAgECAQMBAgEDAwMCAwMDAgEDAgMBAQEBAQECAwECAQMDAwIDAwMCAwMBAwECAwEDAwEDAwMEAwIBAgIDAQIDAgMCAgQDAwMCAQMBAQIDAwIBAQEDAQMCAgMDAgIDAwIDAgMDAgMCAwMEAwMCAQECAwMBAQIBAgEBAgEBAwEBAgEDAgECAwEDAgICAwQCAgIDAgICAgEBAQEDAwIBAwICAQEBAgECAQEBAwEBAQMCAgIDBAICAgICAgICAQEBAQQBAgECAQECAwMBAQEDAQIBAgEBAwIBAgEDBAQDAgICAgMEAwIBAQEBAQIBAgIBAgIDAQEBAwIDAQIBAgIBAQEBAQEBAgMDAQEDAgIDAgMDAwIDAgMEAwIDBAIDAQIDAQMDAgIBAwECAgECAQIBAwECAQEDAgMCAgMCBAMDAgICAgIDAwMBAwEEBAQDAgMCAgICAgICAgICAgICAgMDAgIBAQEBAwECAQMDAgIDAwIDAwEDAQEBAQEDBAIDAQICAwEBAgEDAQIBAwIDAwQCAgMEAgIEAgIEAgIEAgIEAgICAgQCAgICAgQDAQIDAQIDAwIDAwMCAwMDBAMCAgIBAgEDAwMCBAIDAQEBAgEBAwEBAQMCAwEBAQEDAgECAQECBAIDAQEDAgEDAQMCAQEBAwEBAQEBAQMCAgECAgICAwEDAgECAgMDAgEBAQMBAgMDAwEBAQECAwICAwIBAQMDAwEDAwEDAgEDAgEDAwQBAQEDAQICAQEBAQEBAgEEAgIBAQMCAQEDAQEDBAIBAQEDAwMBAwEBAQEBAgIDAgMDAgIDAQICAwIDAgMCAgIDAgMCAgECAgMCAgECAgECAgMCAQQDAQEBAwEDAwECAwMCAwMBAwECAwMBAgIDAQICAQEBBAIDAQMBAwEDAgMDAwMBAgIDAQEBBAIDAwEDAwECAgMBAQEEAwQCAwMDAwECAgMBAQECAQEEAwMDAQICAwIBAQEBAQEBAgEBAQQDAwMEAwQBAQEBAgIDAgMDAwEDAgIDAgIDAgIDAgMBAQMCAgMCAgMCAgMCAgMDAwEBAQICBAEBAQEBAQIDBAMDAgMCAwMBAwEBAQEBAQEDAQEBAwMCAwECAgEBAQEDAwECAgEBAQMCAQMBAQMCAwMCAQMCAgEDAgEEAgEDAgMBAQMBAgEBAwIBAQEDAgICAgECAQIBAQEBAgEDAQEBAQIBAQIDAQEDAgEBAQMBAgEBAwEBAgIDAgEBAgMBAwMBAgMCAgICAgEDAgICAgICAgIDAQIBAwMBAgIDAgIDAwEDAwEDAgMCAwEDAwECAgMCAQMDAQMDAQMDAQIDAgIDAgICAgICAgIDAwECAQMDAQMCAwIBAwECAQMDAQMEAgMBAgEDAQQDBAMEAgMBAwMEAwMDAgIDAwIDAQMBAwMDAQMBAwMDAwIDAQEBAgEDAQEBAQMBAwEBAQEBAgEBAwECAQMDAgIDAgMDAgICBAMDAgMDAwECAQIBAgEBAwEDAwICAQECAgMBAQIDAgICAwMDAQMDAQMDAwEBAwEBAgECAgECAgIDAQECAwIDAwEBAwMCAgMDAwIDAgEDAwMBAgMDAwMCAgMDAQECAwIDAgMBAwIDAwMDAwMDAwMDAwMBAwMCAwECAwMBAQQCAwMBAgMCAgIDAgMDBAMBAwMDAQIDAQIDAQMBAgEDAQMBAgEDAQMBAQMCAQMBAwECAQMDAwMDAwMCAQEBAgIDAwEDAQIBAwMDAgMBAwMDAwMBAwMCAwMBAwEBAgEBAQIBAgEBAQEBAQEBAwMEAwEDAwECAwICAgICAQMCAgICAQMCAwECAwECAQMEAwMDAQMDAwQCAgMCAgMDBAMCAQEDAwEDAQEDAQEEAwIBBAMCAQMBAgMDAwIDAwMCAwMBAwMCAwIDAQMDAQMBAwIDBAMDAwMDAQICAwQDAwMDAwEDAwMCAwMDAwMDAwEBBAMCAwMBAgMBAgIBAwMBAgMCAwMBAwEDAgMDAQMDAgMCAwIDBAEDAgIDAQIDAwQDAQIDAQICAQMCAwMCAwEDAQIDAQECAwEBAgMBAgMCAwMBAQECAwEBAQEBAwIDAQEBAwEDAQECAgMEAgEDAgMBAgMCAgMCAwMCAgMDAwMEAwMCAgMDAQIDAwMCAwMBAgMDAwIEAQIDAgMCAQMBAQEBBAIDAgMCAQMCAwECAwICAgICAgIBAgECAQIDAgEDAgECBAMBAgMCAwIDAQEBAwMBAgQDBAMDAwECAwMDAwMCAQEDAQQDBAMBAwMCAwQDAgIDAQIBAgIBAgICAwEDAwQCAQMBAwIDAgIDAwIDAwICAwECAwMDAgIDAwMDAwwDAQIDAwMCAgMDBAMBAgQDAwQDAQMDAwMBAwIDAwMCAQEDAQQCAwEBAwEDAgMDBAIDAwEDBAQCAgMDAQIDAgICAgIBAwMEAwMEBAQDAgECAQECAQECAgIDAgMCAwMBAgMBAwIDAwQEBAQEAwEDAgMEAgEDAgMDAgMBAwECAQMBAwEDAwIDAgMDAwIDAwMDAgIEAgICAwQCBAIDAwMCAwIDAwMDAwICAgMCAwIEAwMDAwIDAwQDAgMEAwMDAwMDAgQEAgMEAgIBAwMDAgIDAwMCAwMDAgMCAwICAgQDAwEBAgICAwICAgMCAgMCAgIDAgIDAgICAwECAwEDAwIDBAIDBAMEAgICAQIDBAMEAwIDAwMBAwEDAgMCAwMCAgMDAgICAwQDAQMDAwMDAQMCAQMCAwIDBAMBAwICAwMDAgEDAgEEBAQEAwECAgMDAQMDAwIDAwICAgEDAgEEAgMCBAICAQIDBAEEAwIBAwMBAwMCAwIDAwEEAQQDAgMEAwIBAgIBAQQDAgMBAQICBQQCAgIBAQECAgECAgIDAQEBAgEBAgMBAwEDAwIDAQEBAQMCAwEBAQECAgECAQIBAQMCAwEBAQMCAQIBAgEBAgECAQIBAgEDAQIDAgMCAwIDAQICAgICAgIBAwICAgMBAwMBAQEBAgEBAgMBAQEBAQMBAwEBAgIDAwEDAwMCAgMDAgMDAwECAwMDAwMDAwMDAwEDAwIDAgMCAwMCAwMBAQIDAwEDAgMCAwMEAwIBAgICAwMCAwIDAgMDAgMCAwMDAgMBAwECAgEDAgMBAwIDAgMCAwMDAQQDAQECAwICAwMDAQIDAwMBAgEDAwMDAgIDAgEDAwECAwMDAQMBAgIDAgICAgMBAwMDAQMDAQQEAwMDAQIDAwEDAgIDAwEDAQQCAwEEAwEBBAECBAMDAwQBAwMCAQQBAwMBAwMBAQMDAQIBAQMDBAMCAgQEBAQBAwMDAwEDAgMCAwIDAwIBAwECAQMCAwIDAQMDAQMDAwIDAwECAgMCAgMDAgICAgMBAwMBAwEDAwEDAQIBAwMCAwECAQMDAQMDAwIDAwEDAwECAwMCAwEDAgMBAwMDAgMDAQICAwEDAQEDAwMCAwIDAgMBAwICAQMCAwMBAwEDAQMBAQMCAwEDAgMDAgEBAgECAgECAgIDAQQCAwMDAwEDAQIBAgIBAgICAwECAwIBAQMDAQECAQMBAgECAgECAgIDAQIDAgEBAwMBAQICAwMDAQMCAQIDAgMBAwIBBAMDAwECAQICAQICAgMBAQMCAQIDAQMCAQIBAQEBAwMDAQICAgEDAgMDAwMCAwECAQICAgICAgICAgIBAQECAwIBAgICAgICAQEBAgEDAQEBAQEBAQEBAQEBAQEBAQEDAQEBAQMBAwMCAwID/3gFAwMCAwMDAwMDAQMDAwICIwMCAQMCAwIBAgQCAwQEAgIDAgECAwMCAQIDAwMCAwMCAwP/jAEBAgICAgIBAQEBAQIBAQECAgEBAQEBAgEBAwMEAgEDAwMBAgEDAwIBAgEBAQIDAQMBAQEBAwIDAQIBAgMDAwIDAwMDAwIDAgMDAQMBAgIDAQECAQIBAQECAQECAgEBAwMDAwMCAwECAwMBAgMBAgEBAwICAQEBAwEDAQEDAQEBAgICAQEDAQEDAQECAgIBAQMBAQEBAv89AQEDAwECAQMBAwEBAwMBAwMCAwIDAwIBAwEBAQECAgIBAgICAQMBAQEBAgIBAwEBAgIDAgMCAQEBAv9aAQMBAwQDAQIBAwEDAgICAwMDAgICAwMDAQMCAgT/WSIBAwMDAQMDAgIDAwMDAgMCAwEDAQMEAwIDAwIDAQMDAgICAgMCAwICAgICAgICAQMCAgIDAQIBAwIDAwMBAQIBAgMBAQMDAgEDAQIDAQEBAgIDAwIBAgMDAgMDAwIDAwMCAwMDAgMDAwIDAwMCAwMDAgMDAQMDAQIBAwEDAQMCAwICAwIDAwMDAgMDAwMDAwIC","execMask":"////////A/8/gP///wfg/+D//////////////////////////////4H//wAcgP+A//////////////////////////////////////////3/////////////////////////////////////////////AeD/wMH//x8AAAAAAAAAAP//wx/g3////////////////////////////////////////////////////////////////////g8AAACAAwDg///PDwAAP//D//////////////8BAAAAAACA//////////////////////////////////////////////////////8HgB8AAPD/////AAAAAAAAAAAAAAD8/P////z3//////9/DgAAAAAAAMA//wAAAP///////////v///////////////5///wMAAAAAAAAAADwAAP8BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADA////////gD/g/////////8EPAAAAAAAAAAAAwP////3vP/D/////P/j/H+D/v/////////////////////9/"};
+const ANN={"labels":{},"headers":{},"comments":{}};
+const ALIAS={"f":"SPACE"};
+// ---- what the instruction at the PC is about to do ---------------------
+// Two parts: what the opcode means in general, and what it will do with the
+// values actually in the registers right now, including whether a conditional
+// branch will be taken. Machine-specific addresses and ports are named,
+// because on a TRS-80 the screen and the keyboard are just memory.
+const WHY=(function(){
+const h2=v=>v.toString(16).toUpperCase().padStart(2,'0')+'H';
+const h4=v=>v.toString(16).toUpperCase().padStart(4,'0')+'H';
+const bin=v=>v.toString(2).padStart(8,'0');
+const R8=/^(A|B|C|D|E|H|L|IXH|IXL|IYH|IYL)$/, R16=/^(AF|BC|DE|HL|IX|IY|SP)$/;
+
+// the neighbourhoods of a TRS-80's 64K
+function region(a){
+  if(a>=0x3C00&&a<0x4000){ const o=a-0x3C00;
+    return 'the screen, row '+(o>>6)+' column '+(o&63); }
+  if(a>=0x3800&&a<0x3900){ const rows=[];
+    for(let r=0;r<8;r++) if(a&(1<<r)) rows.push(r);
+    return 'the keyboard matrix'+(rows.length?', row'+(rows.length>1?'s ':' ')+rows.join('+'):''); }
+  if(a>=0x4529&&a<=0x497E) return 'the off-screen play buffer';
+  if(a<0x3000) return 'ROM space, which this page answers in JavaScript instead';
+  return null;
+}
+const PORT={0x00:'the joystick (active low, so an idle stick reads FFH)',
+            0xFF:'the cassette port, whose two low bits drive the speaker',
+            0xEC:'the Model III video mode register',
+            0x0C:'a port only Armored Patrol and Tank Zone use'};
+
+function mk(cpu,ram,nameAt){
+  const F=cpu.F;
+  const flag=n=>({C:F&1,N:F&2,PV:F&4,H:F&0x10,Z:F&0x40,S:F&0x80})[n]?true:false;
+  function val(o){
+    if(!o) return null;
+    if(R8.test(o))  return {v:cpu[o],w:8,d:o};
+    if(R16.test(o)) return {v:cpu[o],w:16,d:o};
+    if(o==='(HL)')  return {v:ram[cpu.HL],w:8,at:cpu.HL,d:'the byte at HL'};
+    if(o==='(BC)')  return {v:ram[cpu.BC],w:8,at:cpu.BC,d:'the byte at BC'};
+    if(o==='(DE)')  return {v:ram[cpu.DE],w:8,at:cpu.DE,d:'the byte at DE'};
+    let m=o.match(/^\((IX|IY)([+-]\d+)\)$/);
+    if(m){ const a=(cpu[m[1]]+ +m[2])&0xFFFF;
+           return {v:ram[a],w:8,at:a,d:m[1]+m[2]+', which is '+h4(a)}; }
+    m=o.match(/^\((.+)\)$/);
+    if(m){ const a=addr(m[1]); if(a!==null)
+           return {v:ram[a],w:8,at:a,d:'memory at '+label(a)}; }
+    const n=konst(o); if(n!==null)
+      return {v:n,w:n>0xFF?16:8,imm:true,d:'the constant '+(n>0xFF?h4(n):h2(n))};
+    return null;
+  }
+  function konst(s){
+    if(/^[0-9A-F]+H$/.test(s)) return parseInt(s.replace(/H$/,''),16);
+    if(/^\d+$/.test(s)) return +s;
+    return null;
+  }
+  function addr(s){
+    const k=konst(s); if(k!==null) return k;
+    const a=nameAt(s); return a===null?null:a;
+  }
+  function label(a){ const n=nameAt(null,a); return n?n+' ('+h4(a)+')':h4(a); }
+  function place(a){ const r=region(a); return label(a)+(r?', '+r:''); }
+  function cond(cc){
+    switch(cc){ case 'NZ':return !flag('Z'); case 'Z':return flag('Z');
+      case 'NC':return !flag('C'); case 'C':return flag('C');
+      case 'PO':return !flag('PV'); case 'PE':return flag('PV');
+      case 'P': return !flag('S'); case 'M': return flag('S'); }
+    return null;
+  }
+  const why=cc=>({NZ:'the last result was not zero',Z:'the last result was zero',
+    NC:'the last operation did not carry',C:'the last operation carried',
+    PO:'parity is odd',PE:'parity is even',
+    P:'the last result was positive',M:'the last result was negative'})[cc];
+  return {val,konst,addr,label,place,cond,why,flag};
+}
+
+const MEAN={
+ NOP:'Do nothing for four cycles. Often a placeholder left where code was patched out.',
+ HALT:'Stop the processor until an interrupt arrives. With interrupts disabled, as they are in every one of these games, this stops the machine dead.',
+ LD:'Copy a value. The Z80 has no separate load and store: one instruction moves between registers, memory and constants, and it never touches the flags.',
+ PUSH:'Push a register pair onto the stack, which grows downwards, so SP drops by two.',
+ POP:'Pull two bytes off the stack into a register pair and raise SP by two.',
+ CALL:'Push the address of the following instruction onto the stack, then jump. A later RET pops it back.',
+ RET:'Pop a return address off the stack into PC.',
+ JP:'Jump to an absolute address. Three bytes.',
+ JR:'Jump relative, by a signed byte, so the target has to be within 127 bytes. One byte shorter than JP, and faster when it does not branch.',
+ DJNZ:'Decrement B and jump if B is not yet zero. A whole counted loop in one instruction, which is why B is the loop counter by convention.',
+ RST:'A one-byte call to a fixed low address. Cheap, because the address is baked into the opcode.',
+ ADD:'Add, ignoring the carry flag.',
+ ADC:'Add, including the carry flag, which is how you chain arithmetic wider than eight bits.',
+ SUB:'Subtract, ignoring the borrow.',
+ SBC:'Subtract, including the borrow.',
+ AND:'Bitwise AND. Keeps only the bits set in both, so it is the usual way to mask bits off.',
+ OR:'Bitwise OR. Sets every bit set in either. Also the idiomatic test against zero, since OR A leaves A alone but sets the flags.',
+ XOR:'Bitwise exclusive-OR. Flips the bits set in the operand.',
+ CP:'Compare: subtract, set the flags, throw the result away. A is left untouched.',
+ INC:'Add one.',
+ DEC:'Subtract one.',
+ NEG:'Negate A, two’s complement.',
+ CPL:'Flip every bit of A.',
+ SCF:'Set the carry flag.',
+ CCF:'Invert the carry flag.',
+ DAA:'Fix up A after adding or subtracting two packed binary-coded-decimal digits.',
+ EX:'Exchange two registers.',
+ EXX:'Swap BC, DE and HL with their shadow copies in one instruction. A whole spare register set, four cycles.',
+ BIT:'Test one bit and set the zero flag from it. Nothing else changes.',
+ SET:'Set one bit.',
+ RES:'Clear one bit.',
+ RLC:'Rotate left; the top bit comes round into the bottom and into carry.',
+ RRC:'Rotate right; the bottom bit comes round into the top and into carry.',
+ RL:'Rotate left through carry: carry goes into the bottom, the old top bit becomes carry.',
+ RR:'Rotate right through carry.',
+ SLA:'Shift left, zero into the bottom. A doubling.',
+ SRA:'Shift right, keeping the sign bit. A halving that still works on negative numbers.',
+ SRL:'Shift right, zero into the top. An unsigned halving.',
+ SLL:'Shift left with a one into the bottom. Undocumented, but the hardware does it anyway.',
+ RLCA:'Rotate A left, top bit round to the bottom and into carry. Faster and shorter than the RLC A form.',
+ RRCA:'Rotate A right, bottom bit round to the top and into carry.',
+ RLA:'Rotate A left through carry.',
+ RRA:'Rotate A right through carry.',
+ LDI:'Copy one byte from (HL) to (DE), step both forward, count BC down.',
+ LDD:'Copy one byte from (HL) to (DE), step both backward, count BC down.',
+ LDIR:'Block copy: move BC bytes from (HL) to (DE), forwards, until BC is zero. The fastest memory move the Z80 has, about 21 cycles a byte, and this is how these games get a frame onto the screen.',
+ LDDR:'Block copy backwards, for when source and destination overlap and the destination is higher.',
+ CPI:'Compare A with (HL), step HL forward, count BC down.',
+ CPIR:'Search forwards from (HL) for the byte in A, up to BC bytes.',
+ CPD:'Compare A with (HL), stepping HL backward.',
+ CPDR:'Search backwards for the byte in A.',
+ INI:'Read a port into (HL).',
+ INIR:'Read B bytes from a port into memory.',
+ IND:'Read a port into (HL), stepping backwards.',
+ INDR:'Read B bytes from a port, backwards.',
+ OUTI:'Write (HL) to a port.',
+ OTIR:'Write B bytes from memory to a port.',
+ OUTD:'Write (HL) to a port, stepping backwards.',
+ OTDR:'Write B bytes to a port, backwards.',
+ IN:'Read a byte from an I/O port.',
+ OUT:'Write a byte to an I/O port.',
+ DI:'Disable interrupts. Every one of these games does this at startup and never undoes it.',
+ EI:'Enable interrupts.',
+ IM:'Choose the interrupt mode.',
+ RETI:'Return from an interrupt.',
+ RETN:'Return from a non-maskable interrupt.',
+ RRD:'Rotate one BCD digit right between A and (HL).',
+ RLD:'Rotate one BCD digit left between A and (HL).',
+ DEFB:'Not an instruction. These bytes are data: a table, a sprite, a string.',
+ DEFM:'Not an instruction. Text stored inside the program.'
+};
+const FLAGS={
+ LD:'no flags change, except for LD A,I and LD A,R',
+ INC:'S, Z, H and P/V follow the result; carry is left alone',
+ DEC:'S, Z, H and P/V follow the result and N is set; carry is left alone',
+ ADD:'every flag follows the result', ADC:'every flag follows the result',
+ SUB:'every flag follows the result and N is set',
+ SBC:'every flag follows the result and N is set',
+ CP:'every flag follows the comparison and N is set; A is unchanged',
+ AND:'H set, C and N cleared, P/V is parity',
+ OR:'H, C and N cleared, P/V is parity',
+ XOR:'H, C and N cleared, P/V is parity',
+ BIT:'Z is set when the bit is zero; H set, N cleared',
+ PUSH:'no flags change', POP:'no flags change, unless you pop AF',
+ JP:'no flags change', JR:'no flags change', CALL:'no flags change',
+ RET:'no flags change', DJNZ:'no flags change', NOP:'no flags change',
+ OUT:'no flags change', DI:'no flags change', EI:'no flags change',
+ LDIR:'P/V is cleared once BC reaches zero; S and Z are left alone',
+ SET:'no flags change', RES:'no flags change'
+};
+
+function explain(pc,text,bytes,cpu,ram,nameAt,lastCost){
+  const [mn,ops]=text.split('\t');
+  const E=mk(cpu,ram,nameAt);
+  const parts=(ops||'').split(',');
+  const V=o=>E.val((o||'').trim());
+  const show=x=>x===null?'?':(x.w===16?h4(x.v):h2(x.v));
+  let now='';
+
+  if(mn==='XOR'&&(ops||'').trim()==='A'){
+    now='A is '+h2(cpu.A)+'. Anything exclusive-ORed with itself is zero, so A becomes 00H. '
+      +'One byte and four cycles, where LD A,0 would need two bytes and seven.';
+  } else if(mn==='OR'&&(ops||'').trim()==='A'){
+    now='A is '+h2(cpu.A)+'. ORing A with itself leaves it alone but sets the flags, so this is a '
+      +'test: Z will be '+(cpu.A===0?'set, because A is zero':'clear, because A is not zero')+'.';
+  } else if(mn==='LD'){
+    const d=V(parts[0]), s=V(parts.slice(1).join(','));
+    if(s&&d) now = s.imm ? ('Puts '+show(s)+' into '+d.d+'.')
+                         : ('Copies '+show(s)+' from '+s.d+' into '+d.d+'.');
+    else if(s) now='Copies '+show(s)+' from '+s.d+'.';
+    else if(d) now=d.d+' is currently '+show(d)+'.';
+    if(d&&d.at!==undefined) now+=' The destination is '+E.place(d.at)+'.';
+    else if(s&&s.at!==undefined) now+=' The source is '+E.place(s.at)+'.';
+  } else if(/^(ADD|ADC|SUB|SBC|AND|OR|XOR|CP)$/.test(mn)){
+    const first=(parts[0]||'').trim();
+    const accum=first==='A'||parts.length===1;
+    const s=V(parts.length>1?parts.slice(1).join(',').trim():first);
+    if(s&&accum){
+      const x=cpu.A, y=s.v; let r=null;
+      if(mn==='ADD')r=(x+y)&0xFF; else if(mn==='ADC')r=(x+y+(E.flag('C')?1:0))&0xFF;
+      else if(mn==='SUB')r=(x-y)&0xFF; else if(mn==='SBC')r=(x-y-(E.flag('C')?1:0))&0xFF;
+      else if(mn==='AND')r=x&y; else if(mn==='OR')r=x|y; else if(mn==='XOR')r=x^y;
+      now = s.imm ? ('A is '+h2(x)+'. ')
+                  : ('A is '+h2(x)+' and '+s.d+' is '+show(s)+'. ');
+      now+= mn==='CP'
+        ? ('The comparison '+(x===y?'is equal, so Z will be set'
+            :(x<y?'borrows, so carry will be set':'leaves A the larger, so neither Z nor carry'))
+           +'. A stays '+h2(x)+'.')
+        : ('A becomes '+h2(r)+'.');
+      if(s.at!==undefined) now+=' The operand came from '+E.place(s.at)+'.';
+    } else if(s&&!accum){
+      const t=V(first);
+      now=(t?first+' is '+show(t)+' and ':'')+s.d+' is '+show(s)+'.';
+    }
+  } else if(mn==='INC'||mn==='DEC'){
+    const d=V(parts[0]); const k=mn==='INC'?1:-1;
+    if(d){ const r=d.w===16?((d.v+k)&0xFFFF):((d.v+k)&0xFF);
+      now=d.d+' is '+show(d)+', so it becomes '+(d.w===16?h4(r):h2(r))+'.';
+      if(d.at!==undefined) now+=' That is '+E.place(d.at)+'.';
+      if(d.w===8&&r===0) now+=' The result is zero, so Z will be set.'; }
+  } else if(mn==='DJNZ'){
+    const t=E.addr((parts[0]||'').trim());
+    const b=(cpu.B-1)&0xFF;
+    now='B is '+h2(cpu.B)+' and becomes '+h2(b)+'. '
+      +(b? 'Not zero, so it jumps back to '+(t===null?'the target':E.label(t))+': '
+           +b+' more pass'+(b===1?'':'es')+' to go.'
+         : 'Zero, so it falls through and the loop is over.');
+  } else if(mn==='JR'||mn==='JP'||mn==='CALL'||mn==='RET'){
+    const ccFirst=/^(NZ|Z|NC|C|PO|PE|P|M)$/.test((parts[0]||'').trim());
+    const cc=ccFirst?(parts[0]||'').trim():null;
+    const tgtStr=(parts[cc?1:0]||'').trim();
+    const tgt=(mn==='RET'||!tgtStr)?null:E.addr(tgtStr);
+    if(cc){
+      const t=E.cond(cc);
+      now='The condition is '+cc+', meaning '+E.why(cc)+'. Right now that is '+(t?'true':'false')
+        +', so it '+(t?'will ':'will not ')
+        +(mn==='CALL'?'call':mn==='RET'?'return':'jump')
+        +(tgt!==null&&t?' to '+E.label(tgt):'')+'.';
+      if(!t) now+=' Execution falls through to '+h4((pc+bytes.length)&0xFFFF)+'.';
+    } else if(mn==='RET'){
+      const r=ram[cpu.SP]|(ram[(cpu.SP+1)&0xFFFF]<<8);
+      now='Pops '+h4(r)+' off the stack at SP='+h4(cpu.SP)+' and carries on from there. '
+        +'SP becomes '+h4((cpu.SP+2)&0xFFFF)+'.';
+    } else if(mn==='CALL'){
+      now='Pushes the return address '+h4((pc+bytes.length)&0xFFFF)+' and jumps to '
+        +(tgt===null?tgtStr:E.label(tgt))+'. SP drops from '+h4(cpu.SP)+' to '+h4((cpu.SP-2)&0xFFFF)+'.';
+    } else {
+      now='Jumps to '+(tgt===null?tgtStr:E.label(tgt))+'.';
+    }
+  } else if(mn==='PUSH'){
+    const d=V(parts[0]);
+    if(d) now='Writes '+show(d)+' to '+h4((cpu.SP-2)&0xFFFF)+', and SP becomes '
+      +h4((cpu.SP-2)&0xFFFF)+'.';
+  } else if(mn==='POP'){
+    const r=ram[cpu.SP]|(ram[(cpu.SP+1)&0xFFFF]<<8);
+    now='Takes '+h4(r)+' from '+h4(cpu.SP)+' into '+(parts[0]||'')+'; SP becomes '
+      +h4((cpu.SP+2)&0xFFFF)+'.';
+  } else if(mn==='BIT'){
+    const b=+parts[0], d=V(parts[1]);
+    if(d) now=d.d+' is '+h2(d.v)+' ('+bin(d.v)+'), so bit '+b+' is '+((d.v>>b)&1)
+      +' and Z will be '+(((d.v>>b)&1)?'clear':'set')+'.';
+  } else if(mn==='SET'||mn==='RES'){
+    const b=+parts[0], d=V(parts[1]);
+    if(d){ const r=mn==='SET'?(d.v|(1<<b)):(d.v&~(1<<b));
+      now=d.d+' is '+h2(d.v)+' ('+bin(d.v)+') and becomes '+h2(r)+' ('+bin(r)+').';
+      if(d.at!==undefined) now+=' At '+E.place(d.at)+'.'; }
+  } else if(/^(LDIR|LDDR|LDI|LDD)$/.test(mn)){
+    const n=cpu.BC||0x10000;
+    now='HL is '+h4(cpu.HL)+', DE is '+h4(cpu.DE)+', BC is '+h4(cpu.BC)+'. ';
+    now+= (mn==='LDIR'||mn==='LDDR')
+      ? 'Moves '+n+' byte'+(n===1?'':'s')+' from '+E.label(cpu.HL)+' to '+E.label(cpu.DE)
+        +' and will not stop until it is done, roughly '+(21*n).toLocaleString()+' cycles.'
+      : 'Moves one byte from '+E.label(cpu.HL)+' to '+E.label(cpu.DE)+'.';
+    const r=region(cpu.DE); if(r) now+=' The destination is '+r+'.';
+  } else if(/^(CPIR|CPDR|CPI|CPD)$/.test(mn)){
+    now='Looking for '+h2(cpu.A)+' from '+h4(cpu.HL)+', with BC='+h4(cpu.BC)+' bytes to go.';
+  } else if(mn==='OUT'){
+    const p=E.konst((parts[0]||'').replace(/[()]/g,''));
+    now='Writes A, currently '+h2(cpu.A)+', to port '+(p===null?(parts[0]||''):h2(p))+'.';
+    if(p!==null&&PORT[p]) now+=' That is '+PORT[p]+'.';
+    if(p===0xFF) now+=' The speaker is driven by toggling those bits, so the spacing of these writes is the pitch.';
+  } else if(mn==='IN'){
+    const p=E.konst((parts[1]||parts[0]||'').replace(/[()]/g,''));
+    now='Reads port '+(p===null?'(C)':h2(p))+'.';
+    if(p!==null&&PORT[p]) now+=' That is '+PORT[p]+'.';
+    if(p===0x00) now+=' A bit reads 0 when its direction is pressed.';
+  } else if(mn==='RST'){
+    const t=E.konst((parts[0]||'').trim());
+    if(t!==null) now='Pushes '+h4((pc+1)&0xFFFF)+' and jumps to '+h4(t)+'.';
+  } else if(mn==='EX'){
+    now='Swaps '+(parts[0]||'')+' and '+(parts[1]||'')+'.';
+    if((parts[0]||'')==='DE') now+=' DE is '+h4(cpu.DE)+' and HL is '+h4(cpu.HL)+'.';
+  } else if(mn==='EXX'){
+    now='BC, DE and HL are '+h4(cpu.BC)+', '+h4(cpu.DE)+' and '+h4(cpu.HL)
+      +'. After this they hold whatever the shadow set held.';
+  } else if(/^(RLC|RRC|RL|RR|SLA|SRA|SRL|SLL)$/.test(mn)){
+    const d=V(parts[0]);
+    if(d) now=d.d+' is '+h2(d.v)+' ('+bin(d.v)+').';
+  } else if(/^(RLCA|RRCA|RLA|RRA|CPL|NEG|DAA)$/.test(mn)){
+    now='A is '+h2(cpu.A)+' ('+bin(cpu.A)+').';
+  } else if(mn==='SCF'||mn==='CCF'){
+    now='Carry is currently '+(E.flag('C')?'1':'0')+'.';
+  }
+  if(now) now=now.charAt(0).toUpperCase()+now.slice(1);
+  return {mn:mn,ops:ops||'',mean:MEAN[mn]||null,now:now,fl:FLAGS[mn]||null,lastCost:lastCost};
+}
+return {explain:explain};
+})();
+// ---- the code map ------------------------------------------------------
+// Instruction start addresses, delta encoded, plus one bit each for whether
+// that instruction was ever seen to execute. See listing.js.
+const STARTS=(()=>{
+  const dl=Uint8Array.from(atob(MAP.deltas),c=>c.charCodeAt(0));
+  const out=[MAP.first]; let a=MAP.first;
+  for(let i=0;i<dl.length;i++){ let d=dl[i];
+    if(d===255){ d=dl[i+1]|(dl[i+2]<<8); i+=2; }
+    a+=d; out.push(a); }
+  return out;
+})();
+const EXECBITS=Uint8Array.from(atob(MAP.execMask),c=>c.charCodeAt(0));
+const wasRun=i=>!!(EXECBITS[i>>3]&(1<<(i&7)));
+
+const hx4=n=>n.toString(16).toUpperCase().padStart(4,'0');
+const hx2=n=>n.toString(16).toUpperCase().padStart(2,'0');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ---- boot: run the real relocator, then disassemble what it made -------
+let m=new Machine();
+const SNAP = MAP.snapshot_at ? parseInt(MAP.snapshot_at,16) : null;
+function relocate(mm){
+  if(SNAP===null) return true;
+  for(let g=0; g<4000000; g++){ if(mm.cpu.PC===SNAP) return true; mm.cpu.step(); }
+  return false;
+}
+const relocated=relocate(m);
+const rd=a=>m.ram[a&0xFFFF];
+
+// ---- labels ------------------------------------------------------------
+const LAB=new Map(), ORIG=new Set();
+for(const k in ANN.labels){ const a=parseInt(k,16);
+  LAB.set(a,ANN.labels[k].name); if(ANN.labels[k].orig) ORIG.add(a); }
+const sym=a=>LAB.get(a)||null;
+// first pass: find every branch target so the unnamed ones can be numbered
+const CALLED=new Set(), JUMPED=new Set(), DREF=new Set();
+for(const a of STARTS){ let d; try{ d=DIS.decode(rd,a); }catch(e){ continue; }
+  if(d.target!=null){ (d.kind==='call'?CALLED:JUMPED).add(d.target); }
+  const mm=d.text.match(/\b0?([0-9A-F]{4})H\b/g);
+  if(mm) for(const t of mm){ const v=parseInt(t.replace(/^0/,'').replace(/H$/,''),16);
+    if(v!==d.target) DREF.add(v); } }
+for(const t of [...CALLED].sort((a,b)=>a-b)) if(!LAB.has(t)) LAB.set(t,'SUB_'+hx4(t));
+for(const t of [...JUMPED].sort((a,b)=>a-b)) if(!LAB.has(t)) LAB.set(t,'LOC_'+hx4(t));
+const CODESET=new Set(STARTS);
+for(const t of [...DREF].sort((a,b)=>a-b)) if(!LAB.has(t)&&!CODESET.has(t)) LAB.set(t,'DAT_'+hx4(t));
+const NAMES=new Set(LAB.values());
+// name -> address, for the explainer's operand lookups
+const NAMEADDR=new Map(); for(const [a,n] of LAB) if(!NAMEADDR.has(n)) NAMEADDR.set(n,a);
+function nameAt(name,addr){
+  if(name!=null) return NAMEADDR.has(name)?NAMEADDR.get(name):null;
+  return LAB.get(addr)||null;
+}
+const isGen=n=>/^(SUB|LOC|DAT)_[0-9A-F]{4}$/.test(n);
+
+// ---- rows --------------------------------------------------------------
+// One row is one line, always the same height, so the list can be virtualised.
+const ROWS=[], ROWOF=new Map();
+function pushCmt(text,cls){ ROWS.push({t:'cmt',w:text.length,
+  html:'<span class="cm">'+esc(text)+'</span>',cls:cls||''}); }
+let prevEnd=null;
+for(let i=0;i<STARTS.length;i++){
+  const a=STARTS[i];
+  if(prevEnd!==null&&a>prevEnd){
+    const n=a-prevEnd;
+    ROWS.push({t:'gap',w:40,html:'      '+hx4(prevEnd)+'    &middot;&middot;&middot; '+n+
+      ' byte'+(n===1?'':'s')+' of data &middot;&middot;&middot;'});
+  }
+  const H=ANN.headers[hx4(a)];
+  if(H){ ROWS.push({t:'cmt',w:1,html:'&nbsp;'});
+         pushCmt(';'+'─'.repeat(66));
+         pushCmt('; '+H[0]+'   ['+hx4(a)+']');
+         for(let k=1;k<H.length;k++) pushCmt('; '+H[k]);
+         pushCmt(';'+'─'.repeat(66)); }
+  let d; try{ d=DIS.decode(rd,a,sym); }catch(e){ prevEnd=a+1; continue; }
+  const [mn,ops]=d.text.split('\t');
+  const nm=LAB.get(a);
+  const cmt=ANN.comments[hx4(a)];
+  // make any label appearing in the operands clickable
+  let oh=esc(ops||'');
+  oh=oh.replace(/[A-Z][A-Z0-9_]{1,9}/g,t=>NAMES.has(t)?'<a data-j="'+t+'">'+t+'</a>':t);
+  const padOps=(ops||''), gapc=cmt?Math.max(1,23-padOps.length):0;
+  ROWS.push({t:'ins',addr:a,len:d.len,kind:d.kind,target:d.target,cold:!wasRun(i),
+    w:1+9+4+2+12+6+1+padOps.length+(cmt?gapc+2+cmt.length:0),
+    label:nm&&!isGen(nm)?nm:(nm||''),
+    html:'<span class="bpdot"> </span>'
+      +'<span class="'+(nm?('lab'+(isGen(nm)?' gen':'')):'')+'">'+esc((nm||'').slice(0,8)).padEnd(9)+'</span>'
+      +'<span class="ad" data-a="'+a+'">'+hx4(a)+'</span>  '
+      +'<span class="by">'+d.bytes.map(hx2).join(' ').padEnd(12)+'</span>'
+      +'<span class="mn">'+esc(mn).padEnd(6)+'</span> '
+      +'<span class="op">'+oh+'</span>'
+      +(cmt?'<span class="cm">'+' '.repeat(Math.max(1,23-(ops||'').length))+'; '+esc(cmt)+'</span>':'')});
+  ROWOF.set(a,ROWS.length-1);
+  prevEnd=a+d.len;
+  if(i+1<STARTS.length&&STARTS[i+1]<prevEnd) prevEnd=STARTS[i+1];
+}
+// which routine each address sits in: the nearest call target or headered
+// address at or before it
+const ROUTINES=[...new Set([...CALLED,...Object.keys(ANN.headers).map(k=>parseInt(k,16))])]
+  .filter(a=>CODESET.has(a)).sort((x,y)=>x-y);
+function routineOf(pc){
+  let lo=0,hi=ROUTINES.length-1,best=null;
+  while(lo<=hi){ const mid=(lo+hi)>>1;
+    if(ROUTINES[mid]<=pc){ best=ROUTINES[mid]; lo=mid+1; } else hi=mid-1; }
+  return best===null?null:best;
+}
+
+// ---- the list, virtualised --------------------------------------------
+const ROWH=19;
+const list=document.getElementById('list'), space=document.getElementById('space'),
+      rowsEl=document.getElementById('rows');
+space.style.height=(ROWS.length*ROWH)+'px';
+// one fixed width for every row: the longest line in the whole listing
+const MAXW=ROWS.reduce((x,r)=>Math.max(x,r.w||0),60)+3;
+document.documentElement.style.setProperty('--lw',MAXW+'ch');
+const BRK=new Uint8Array(65536);
+let winFirst=-1, winCur=-1;
+function render(force){
+  const first=Math.max(0,Math.floor(list.scrollTop/ROWH)-3);
+  const n=Math.ceil(list.clientHeight/ROWH)+7;
+  const cur=ROWOF.has(m.cpu.PC)?ROWOF.get(m.cpu.PC):-1;
+  const near=i=>i>=first-1&&i<first+n+1;
+  if(!force&&first===winFirst&&cur!==winCur&&!near(cur)&&!near(winCur)) return;
+  if(!force&&first===winFirst&&cur===winCur) return;
+  winFirst=first; winCur=cur;
+  let h='';
+  for(let i=first;i<Math.min(ROWS.length,first+n);i++){
+    const r=ROWS[i];
+    let cls='r '+r.t+(r.cls||'');
+    if(r.t==='ins'){ if(r.cold) cls+=' cold'; if(i===cur) cls+=' cur'; }
+    let html=r.html;
+    if(r.t==='ins'&&BRK[r.addr]) html=html.replace('<span class="bpdot"> </span>','<span class="bp">●</span>');
+    h+='<div class="'+cls+'">'+html+'</div>';
+  }
+  rowsEl.style.transform='translateY('+(first*ROWH)+'px)';
+  rowsEl.innerHTML=h;
+}
+list.addEventListener('scroll',()=>render(false));
+function scrollTo(addr,centre){
+  const i=ROWOF.get(addr); if(i===undefined) return false;
+  list.scrollTop=Math.max(0,i*ROWH-(centre?list.clientHeight/2:60));
+  render(true); return true;
+}
+rowsEl.addEventListener('click',e=>{
+  const a=e.target.closest('.ad');
+  if(a){ const ad=+a.dataset.a; BRK[ad]^=1; render(true); updateStatus(); return; }
+  const j=e.target.closest('a[data-j]');
+  if(j){ for(const [addr,nm] of LAB) if(nm===j.dataset.j){ scrollTo(addr,true); break; } }
+});
+
+// ---- screen ------------------------------------------------------------
+const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
+const CELLW=cv.width/64, CELLH=cv.height/16;
+ctx.imageSmoothingEnabled=false;
+function draw(){
+  ctx.fillStyle='#0a0a08'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#e8e6d9';
+  const v=m.ram;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    const c=v[0x3C00+row*64+col];
+    if(c>=0x80&&c<=0xBF){ for(let b=0;b<6;b++) if(c&(1<<b))
+      ctx.fillRect(Math.round(col*CELLW+(b&1)*(CELLW/2)),Math.round(row*CELLH+(b>>1)*(CELLH/3)),
+                   Math.ceil(CELLW/2),Math.ceil(CELLH/3)); }
+  }
+  const gw=CELLW/6, gh=CELLH/12;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    let c=v[0x3C00+row*64+col];
+    if(c<0x20||c>0x7E) continue;
+    if(c>=0x61&&c<=0x7A) c-=0x20;                 // a Model I folds lowercase
+    const base=(c-0x20)*7;
+    for(let r=0;r<7;r++){ const bits=FONT[base+r]; if(!bits) continue;
+      for(let b=0;b<5;b++) if(bits&(1<<(4-b)))
+        ctx.fillRect(Math.round(col*CELLW+b*gw),Math.round(row*CELLH+(r+2)*gh),
+                     Math.ceil(gw),Math.ceil(gh)); }
+  }
+}
+// ---- sound -------------------------------------------------------------
+let ac=null,nextAt=0;
+function flush(hz){
+  if(!document.getElementById('snd').checked||!m.spk.length){m.spk.length=0;return;}
+  if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();nextAt=ac.currentTime;}
+  const SR=ac.sampleRate, ev=m.spk; m.spk=[];
+  const t0=ev[0][0], t1=m.cpu.T, n=Math.max(1,Math.floor((t1-t0)/hz*SR));
+  if(n>SR) return;
+  const buf=ac.createBuffer(1,n,SR), d=buf.getChannelData(0);
+  let ei=0,lvl=ev[0][1];
+  for(let i=0;i<n;i++){ const T=t0+(i/SR)*hz;
+    while(ei<ev.length&&ev[ei][0]<=T){lvl=ev[ei][1];ei++;} d[i]=lvl*0.12; }
+  const s=ac.createBufferSource(); s.buffer=buf; s.connect(ac.destination);
+  const now=ac.currentTime; if(nextAt<now) nextAt=now+0.01;
+  s.start(nextAt); nextAt+=n/SR;
+}
+// ---- panels ------------------------------------------------------------
+const FLAGN=['C','N','P/V','3','H','5','Z','S'];
+function panels(){
+  const c=m.cpu;
+  const pc=c.PC, rt=routineOf(pc);
+  document.getElementById('where').innerHTML=
+    'PC   <b style="color:var(--orig)">'+hx4(pc)+'</b>'
+    +(rt!==null?'   in <b style="color:var(--orig)">'+esc(LAB.get(rt)||hx4(rt))+'</b>'
+       +(pc>rt?' +'+(pc-rt):''):'')
+    +'<br>T    '+c.T.toLocaleString()
+    +'<br>R    '+hx2((c.R&0x7F)|c.R7)+'   <span style="color:var(--dim)">the refresh register, which is where these games get their random numbers</span>';
+  const pair=(n,v)=>'<div><b>'+n+'</b> '+hx4(v)+'</div>';
+  document.getElementById('regs').innerHTML=
+    pair('AF',c.AF)+pair('BC',c.BC)+pair('DE',c.DE)+pair('HL',c.HL)
+    +pair('IX',c.IX)+pair('IY',c.IY)+pair('SP',c.SP)
+    +'<div><b>A</b> '+hx2(c.A)+'  <b>B</b> '+hx2(c.B)+'</div>';
+  document.getElementById('flags').innerHTML='flags '+FLAGN.map((n,i)=>
+    '<span class="'+((c.F&(1<<i))?'set':'')+'">'+n+'</span>').reverse().join(' ');
+  const st=CS.slice(-10).reverse().map(f=>{
+    const r=routineOf(f.pc);
+    return '<div><span class="ad">'+hx4(f.pc)+'</span> '+(r!==null?esc(LAB.get(r)||''):'')+'</div>';
+  }).join('');
+  document.getElementById('stack').innerHTML=st||'<span style="color:var(--faint)">empty</span>';
+}
+function updateStatus(){
+  let n=0; for(let i=0;i<65536;i++) if(BRK[i]) n++;
+  document.getElementById('status').textContent=
+    STARTS.length.toLocaleString()+' instructions'
+    +(relocated?'':'  (relocator did not finish)')
+    +(n?'   '+n+' breakpoint'+(n===1?'':'s'):'');
+}
+// ---- running -----------------------------------------------------------
+const CS=[];                                // the call stack, kept exactly
+let running=false,last=0,mode={k:'hz',v:1774080},ipsAcc=0,lastCost=0;
+// Follow is a toggle so the listing can be parked somewhere while the game
+// runs: scroll down to a routine that only fires occasionally and watch for
+// the highlight to appear in it.
+let followPC=true;
+const followBtn=document.getElementById('follow');
+followBtn.onclick=()=>{ followPC=!followPC;
+  followBtn.classList.toggle('on',followPC);
+  followBtn.textContent=followPC?'Follow PC':'Frozen';
+  if(followPC) paint(); };
+document.getElementById('findpc').onclick=()=>{ scrollTo(m.cpu.PC,true); };
+function one(){
+  const pc=m.cpu.PC, sp0=m.cpu.SP, op=m.ram[pc];
+  lastCost=m.cpu.step();
+  const sp=m.cpu.SP;
+  // A frame is recorded with the stack slot its return address went into, and
+  // dropped as soon as the stack has unwound past that slot. Counting RETs is
+  // not enough: these games throw return addresses away with POP, and jump by
+  // pushing an address and returning to it, so a push/pop tally drifts. The
+  // stack pointer cannot.
+  if(sp===((sp0-2)&0xFFFF)&&(op===0xCD||(op&0xC7)===0xC4||(op&0xC7)===0xC7))
+    CS.push({pc:pc,sp:sp});
+  while(CS.length&&CS[CS.length-1].sp<m.cpu.SP) CS.pop();
+  if(m.cpu.halted){ pause(); return false; }
+  if(BRK[m.cpu.PC]){ pause(); return false; }
+  return true;
+}
+function runT(t){ const end=m.cpu.T+t; let g=0;
+  while(m.cpu.T<end){ if(g++>8000000) return; if(!one()) return; } }
+function runN(n){ for(let i=0;i<n;i++) if(!one()) return; }
+// the explanation is only worth drawing when it can be read: paused, or slow
+function whyPanel(){
+  const el=document.getElementById('why');
+  if(running&&mode.k==='hz'&&mode.v>17740){
+    el.innerHTML='<span class="wfl">Running. Pause, or pick a slower speed, '
+      +'and this explains the instruction it is about to execute.</span>';
+    return;
+  }
+  let d=null; try{ d=DIS.decode(rd,m.cpu.PC); }catch(e){}
+  if(!d){ el.innerHTML='<span class="wfl">The byte here does not decode as an instruction.</span>'; return; }
+  const w=WHY.explain(m.cpu.PC,d.text,d.bytes,m.cpu,m.ram,nameAt,lastCost);
+  el.innerHTML='<div class="wmn">'+esc(w.mn+(w.ops?'   '+w.ops:''))+'</div>'
+    +(w.mean?'<div class="wmean">'+esc(w.mean)+'</div>':'')
+    +(w.now?'<div class="wnow">'+esc(w.now)+'</div>':'')
+    +(w.fl?'<div class="wfl">Flags: '+esc(w.fl)+'.</div>':'')
+    +(lastCost?'<div class="wfl">The instruction before this one took '+lastCost+' T-states.</div>':'');
+}
+function paint(){ draw(); panels(); whyPanel(); render(false);
+  if(followPC&&ROWOF.has(m.cpu.PC)){
+    const i=ROWOF.get(m.cpu.PC), top=list.scrollTop, h=list.clientHeight;
+    if(i*ROWH<top+40||i*ROWH>top+h-60) list.scrollTop=Math.max(0,i*ROWH-h/2);
+  }
+  render(false);
+}
+function frame(ts){
+  if(!running) return;
+  if(!last) last=ts;
+  let dt=(ts-last)/1000; last=ts; if(dt>0.25) dt=0.25;
+  if(mode.k==='hz'){ runT(Math.floor(dt*mode.v)); flush(mode.v); }
+  else { ipsAcc+=dt*mode.v; const n=Math.floor(ipsAcc); ipsAcc-=n; runN(n); m.spk.length=0; }
+  paint();
+  if(running) requestAnimationFrame(frame);
+}
+const runBtn=document.getElementById('run');
+function pause(){ running=false; runBtn.textContent='Start'; runBtn.classList.remove('on'); }
+runBtn.onclick=()=>{ running=!running;
+  runBtn.textContent=running?'Pause':'Start'; runBtn.classList.toggle('on',running);
+  if(running){ last=0; if(ac&&ac.state==='suspended') ac.resume(); requestAnimationFrame(frame); }
+  else paint(); };
+document.getElementById('step').onclick=()=>{ pause(); one(); paint(); };
+document.getElementById('over').onclick=()=>{
+  pause();
+  let d=null; try{ d=DIS.decode(rd,m.cpu.PC); }catch(e){}
+  if(!d||d.kind!=='call'){ one(); paint(); return; }
+  const ret=(m.cpu.PC+d.len)&0xFFFF, sp0=m.cpu.SP;
+  if(!one()){ paint(); return; }
+  for(let g=0;g<20000000;g++){
+    if(m.cpu.PC===ret&&m.cpu.SP===sp0) break;
+    if(!one()) break;
+  }
+  paint();
+};
+document.getElementById('reset').onclick=()=>{
+  pause(); m=new Machine(); relocate(m); CS.length=0; paint(); };
+document.getElementById('speed').onchange=e=>{
+  const [k,v]=e.target.value.split(':'); mode={k,v:+v}; ipsAcc=0; };
+document.getElementById('clrbp').onclick=()=>{ BRK.fill(0); render(true); updateStatus(); };
+document.getElementById('goto').addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  const s=e.target.value.trim().toUpperCase();
+  let a=/^[0-9A-F]{1,4}$/.test(s)?parseInt(s,16):null;
+  if(a===null) for(const [addr,nm] of LAB) if(nm===s){ a=addr; break; }
+  if(a!==null&&!scrollTo(a,true)) document.getElementById('goto').value='not in the listing';
+  e.stopPropagation();
+});
+// ---- keys, so the game is playable while you watch it ------------------
+const DEF={UP:'ArrowUp',DOWN:'ArrowDown',LEFT:'ArrowLeft',RIGHT:'ArrowRight',
+  SPACE:' ',ENTER:'Enter',CLEAR:'Home',BREAK:'Escape',SHIFT:'Shift'};
+for(const k in KEYPOS) if(k.length===1) DEF[k]=DEF[k]||k;
+function toTRS(ev){
+  const w=ev.key;
+  if(!ev.shiftKey&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&w.length===1){
+    const al=ALIAS[w.toLowerCase()]; if(al) return al; }
+  for(const t in DEF){ const b=DEF[t];
+    if(b===w) return t;
+    if(b.length===1&&w.length===1&&b.toUpperCase()===w.toUpperCase()) return t; }
+  if(w==='Control') return 'CLEAR';
+  return null;
+}
+const SENT={};
+addEventListener('keydown',e=>{
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const k=toTRS(e); if(k){ SENT[e.key]=k; m.keys.add(k); e.preventDefault(); } });
+addEventListener('keyup',e=>{
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const k=SENT[e.key]||toTRS(e); if(k){ delete SENT[e.key]; m.keys.delete(k); e.preventDefault(); } });
+addEventListener('blur',()=>{ m.keys.clear(); for(const k in SENT) delete SENT[k]; });
+
+updateStatus(); render(true); paint();
+if(ROWOF.has(m.cpu.PC)) scrollTo(m.cpu.PC,true);
+
+</script><script>
+(function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
+</script>
+</body></html>
