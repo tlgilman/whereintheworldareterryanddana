@@ -533,8 +533,9 @@ class Machine{
     while(this.cpu.T<end&&g++<4000000){this.cpu.step();if(this.cpu.halted)break;}}
 }
 
-const CONTROLS=[["Arrow keys","Move"],["Space","Fire"],["Enter","Smart bomb"],["Home or Left Ctrl","Hyperspace"]];
+const CONTROLS=[["Arrow keys","Move"],["Space or F","Fire"],["Enter or S","Smart bomb"],["Home, Left Ctrl or D","Hyperspace"],["Shift+S","Pause, Enter resumes"]];
 const BINDABLE=["UP","DOWN","LEFT","RIGHT","SPACE","ENTER","CLEAR"];
+const ALIAS={"f":"SPACE","s":"ENTER","d":"CLEAR"};
 // ---- screen ------------------------------------------------------------
 const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
 const CELLW=cv.width/64, CELLH=cv.height/16, PHOS='#e8e6d9', BG='#0a0a08';
@@ -588,8 +589,17 @@ for(const k in KEYPOS) if(k.length===1) DEFAULTS[k]=DEFAULTS[k]||k;
 let BIND=Object.assign({},DEFAULTS);
 try{ const s=localStorage.getItem('trs80-keys-'+GAME); if(s) Object.assign(BIND,JSON.parse(s)); }catch(e){}
 function saveBind(){ try{ localStorage.setItem('trs80-keys-'+GAME,JSON.stringify(BIND)); }catch(e){} }
+// ALIAS is the extra keys: a letter mapped onto what a TRS-80 key does, so F
+// fires as well as the space bar. The literal letter is not sent when an alias
+// fires. Holding Shift suspends them, which keeps the original Shift
+// combinations working: Shift+S pauses most of these games, and Shift+Home
+// clears the high scores.
 function toTRS(ev){
   const want=ev.key;
+  if(!ev.shiftKey&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&want.length===1){
+    const a=ALIAS[want.toLowerCase()];
+    if(a) return a;
+  }
   for(const trs in BIND){
     const b=BIND[trs];
     if(b===want) return trs;
@@ -632,11 +642,16 @@ document.getElementById('rebind').onclick=()=>{
   document.getElementById('rebind').textContent = grabbing?'Hide key setup':'Change keys';
   renderControls();
 };
+const SENT={};
 addEventListener('keydown',e=>{
   if(grabbing){ BIND[grabbing]=e.key; saveBind(); grabbing=null; renderControls(); e.preventDefault(); return; }
-  const k=toTRS(e); if(k){ m.keys.add(k); e.preventDefault(); }
+  const k=toTRS(e); if(k){ SENT[e.key]=k; m.keys.add(k); e.preventDefault(); }
 });
-addEventListener('keyup',e=>{ const k=toTRS(e); if(k){ m.keys.delete(k); e.preventDefault(); } });
+addEventListener('keyup',e=>{
+  const k=SENT[e.key]||toTRS(e);
+  if(k){ delete SENT[e.key]; m.keys.delete(k); e.preventDefault(); }
+});
+addEventListener('blur',()=>{ m.keys.clear(); for(const k in SENT) delete SENT[k]; });
 document.querySelectorAll('#pad button').forEach(b=>{
   const k=b.dataset.k;
   const dn=e=>{e.preventDefault();m.keys.add(k);}, up=e=>{e.preventDefault();m.keys.delete(k);};
