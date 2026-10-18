@@ -1,0 +1,1409 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sea Dragon: inside the code</title>
+<style>
+:root{--bg:#0a0a08;--phos:#e8e6d9;--dim:#8b8a80;--faint:#45443e;--rule:#23231f;
+      --hi:#3a3520;--brk:#c0392b;--orig:#d9b44a;--panel:#111110;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--phos);
+     font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:14px 16px 0}
+h1{margin:0 0 2px;font-size:17px;font-weight:600;letter-spacing:.01em}
+.sub{color:var(--dim);font-size:13px;margin:0 0 12px;max-width:64em}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+     padding:8px 16px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+     position:sticky;top:0;background:var(--bg);z-index:5}
+button,select,input[type=text]{font:13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--panel);color:var(--phos);border:1px solid var(--faint);
+  border-radius:4px;padding:5px 9px;cursor:pointer}
+button:hover,select:hover{border-color:var(--dim)}
+button:disabled{opacity:.4;cursor:default}
+button.on{background:var(--hi);border-color:var(--orig)}
+input[type=text]{width:7em;cursor:text}
+label.ck{display:inline-flex;align-items:center;gap:5px;color:var(--dim);font-size:13px;cursor:pointer}
+.sep{width:1px;height:22px;background:var(--rule);margin:0 4px}
+main{display:grid;grid-template-columns:clamp(320px,40vw,560px) minmax(380px,1fr);
+     gap:16px;padding:16px;align-items:start}
+main>section{min-width:0}
+.panel{overflow-wrap:break-word}
+canvas{width:100%;max-width:560px;image-rendering:pixelated;background:#000;
+       border:1px solid var(--rule);border-radius:4px;display:block}
+.panel{margin-top:12px;border:1px solid var(--rule);border-radius:4px;background:var(--panel);
+       padding:10px 12px;font:12.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.panel h2{margin:0 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+          color:var(--dim);font-weight:600}
+.panel+.panel{margin-top:10px}
+.reg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
+.reg b{color:var(--dim);font-weight:400}
+.fl span{color:var(--faint)} .fl span.set{color:var(--orig)}
+#stack div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#listwrap{border:1px solid var(--rule);border-radius:4px;background:var(--panel);overflow:hidden}
+#list{height:72vh;min-height:360px;overflow-y:auto;overflow-x:auto;
+      font:12.5px/19px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#space{position:relative;min-width:var(--lw,120ch)}
+#rows{position:absolute;left:0;top:0;width:var(--lw,120ch);will-change:transform}
+.r{height:19px;white-space:pre;padding:0 10px;cursor:default;width:100%}
+.bpdot,.bp{display:inline-block;width:1ch}
+.r.ins:hover{background:#17170f}
+.r.cur{background:var(--hi)}
+.r.cmt{color:var(--dim)}
+.r.gap{color:var(--faint)}
+.lab{color:var(--orig)}
+.lab.gen{color:var(--dim)}
+.ad{color:var(--dim);cursor:pointer}
+.ad:hover{color:var(--phos);text-decoration:underline}
+.by{color:var(--faint)}
+.mn{color:var(--phos)}
+.op{color:#9fc4d6}
+.op a{color:#9fc4d6;text-decoration:none;border-bottom:1px dotted #55707e;cursor:pointer}
+.op a:hover{color:#cfe6f2}
+.cm{color:var(--dim)}
+.bp{color:var(--brk)}
+.cold{opacity:.55}
+.foot{padding:0 16px 28px;color:var(--dim);font-size:12.5px;max-width:70em}
+.foot code{color:var(--phos)}
+.key{display:flex;flex-wrap:wrap;gap:4px 18px;margin:8px 0 0;padding:0;list-style:none;
+     font:12px ui-monospace,monospace;color:var(--dim)}
+#why{font:13px/1.55 ui-sans-serif,system-ui,-apple-system,sans-serif}
+#why .wmn{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--orig);margin-bottom:5px}
+#why .wmean{color:var(--phos);margin-bottom:7px}
+#why .wnow{color:#9fc4d6;margin-bottom:7px}
+#why .wfl{color:var(--dim);font-size:12px;line-height:1.5}
+.back{display:inline-block;font-size:11.5px;color:var(--dim);text-decoration:none;
+      letter-spacing:.05em;margin:0 20px 10px 0}
+.back:hover{color:var(--orig)}
+@media (max-width:900px){main{grid-template-columns:1fr}#list{height:56vh}}
+@media (min-width:901px){canvas{width:100%}}
+</style></head>
+<body>
+<header>
+<div><a class="back" href="index.html#ours">&larr; TRS-80 Retro Games</a><a class="back"
+ href="seadragon.html">Play Sea Dragon &rarr;</a></div>
+<h1>Sea Dragon (1982): inside the code</h1>
+<p class="sub">The original 1982 machine code, running, with the instruction it is executing
+highlighted on the right. Nothing here is a reconstruction: the page loads the binary, runs the
+relocator, disassembles what that produces, and then runs it. Click an address to set a breakpoint.</p>
+</header>
+<div class="bar">
+<button id="run">Start</button>
+<button id="step">Step</button>
+<button id="over">Step over</button>
+<button id="reset">Reset</button>
+<span class="sep"></span>
+<select id="speed">
+<option value="hz:1774080">1.774 MHz (a Model I)</option>
+<option value="hz:177408">1/10 speed</option>
+<option value="hz:17740">1/100 speed</option>
+<option value="hz:1774">1/1000 speed</option>
+<option value="ips:60">60 instructions a second</option>
+<option value="ips:8">8 instructions a second</option>
+<option value="ips:2">2 instructions a second</option>
+</select>
+<button id="follow" class="on">Follow PC</button>
+<button id="findpc">Find PC</button>
+<label class="ck"><input type="checkbox" id="snd">sound</label>
+<span class="sep"></span>
+<input type="text" id="goto" placeholder="addr/name">
+<button id="clrbp">Clear breakpoints</button>
+<span class="sep"></span>
+<span id="status" style="color:var(--dim);font:12.5px ui-monospace,monospace"></span>
+</div>
+<main>
+<section>
+<canvas id="c" width="512" height="192"></canvas>
+<div class="panel"><h2>Where it is</h2><div id="where"></div></div>
+<div class="panel"><h2>This instruction</h2><div id="why"></div></div>
+<div class="panel"><h2>Registers</h2><div class="reg" id="regs"></div>
+<div class="fl" id="flags" style="margin-top:6px"></div></div>
+<div class="panel"><h2>Call stack</h2><div id="stack"></div></div>
+</section>
+<section>
+<div id="listwrap"><div id="list"><div id="space"><div id="rows"></div></div></div></div>
+<ul class="key">
+<li><span class="lab">gold</span> a name of ours, from the assembler scraps</li>
+<li><span class="lab gen">grey</span> a name we have not worked out yet</li>
+<li><span class="cold">faded</span> never seen to execute</li>
+<li><span class="bp">&bull;</span> breakpoint</li>
+</ul>
+</section>
+</main>
+<div class="foot">
+<p>Written by Terry Gilman and Wayne Westmoreland for the TRS-80, 1982. Names in gold are ours, recovered from assembler buffer scraps the assembler left inside the shipped binary; the grey ones are placeholders for code we have not explained yet. Built from <code>SEADRAG_CMD.bin</code>.</p>
+</div>
+<script>
+const Z80=(function(){
+// Z80 CPU core, written for the Sea Dragon reconstruction.
+// Covers the documented instruction set plus the undocumented IXH/IXL/IYH/IYL
+// halves, and models the R register properly: Sea Dragon uses LD A,R as its
+// random number source, so R has to increment exactly as the hardware does.
+
+const F_C=0x01,F_N=0x02,F_PV=0x04,F_3=0x08,F_H=0x10,F_5=0x20,F_Z=0x40,F_S=0x80;
+
+const PAR=new Uint8Array(256);
+for(let i=0;i<256;i++){let p=0,v=i;while(v){p^=v&1;v>>=1;}PAR[i]=p?0:F_PV;}
+const SZ53=new Uint8Array(256),SZ53P=new Uint8Array(256);
+for(let i=0;i<256;i++){const b=(i&0x80)|(i===0?F_Z:0)|(i&0x28);SZ53[i]=b;SZ53P[i]=b|PAR[i];}
+
+class Z80{
+  constructor(bus){
+    this.bus=bus;
+    this.A=0;this.F=0;this.B=0;this.C=0;this.D=0;this.E=0;this.H=0;this.L=0;
+    this.A2=0;this.F2=0;this.B2=0;this.C2=0;this.D2=0;this.E2=0;this.H2=0;this.L2=0;
+    this.IXH=0;this.IXL=0;this.IYH=0;this.IYL=0;
+    this.SP=0xFFFF;this.PC=0;this.I=0;this.R=0;this.R7=0;
+    this.IFF1=0;this.IFF2=0;this.IM=0;this.halted=false;this.T=0;this.idx=0;
+    this.MEMPTR=0;
+  }
+  // ---- memory / fetch -------------------------------------------------
+  rb(a){return this.bus.read(a&0xFFFF);}
+  wb(a,v){this.bus.write(a&0xFFFF,v&0xFF);}
+  rw(a){return this.rb(a)|(this.rb((a+1)&0xFFFF)<<8);}
+  ww(a,v){this.wb(a,v&0xFF);this.wb((a+1)&0xFFFF,(v>>8)&0xFF);}
+  fetch(){const v=this.rb(this.PC);this.PC=(this.PC+1)&0xFFFF;return v;}
+  fetchw(){const lo=this.fetch();return lo|(this.fetch()<<8);}
+  m1(){this.R=(this.R+1)&0x7F;return this.fetch();}
+  disp(){const d=this.fetch();return d<128?d:d-256;}
+  push(v){this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v>>8);this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v&0xFF);}
+  pop(){const v=this.rw(this.SP);this.SP=(this.SP+2)&0xFFFF;return v;}
+
+  // ---- register file --------------------------------------------------
+  get HL(){return (this.H<<8)|this.L;}  set HL(v){this.H=(v>>8)&0xFF;this.L=v&0xFF;}
+  get BC(){return (this.B<<8)|this.C;}  set BC(v){this.B=(v>>8)&0xFF;this.C=v&0xFF;}
+  get DE(){return (this.D<<8)|this.E;}  set DE(v){this.D=(v>>8)&0xFF;this.E=v&0xFF;}
+  get IX(){return (this.IXH<<8)|this.IXL;} set IX(v){this.IXH=(v>>8)&0xFF;this.IXL=v&0xFF;}
+  get IY(){return (this.IYH<<8)|this.IYL;} set IY(v){this.IYH=(v>>8)&0xFF;this.IYL=v&0xFF;}
+  get AF(){return (this.A<<8)|this.F;}  set AF(v){this.A=(v>>8)&0xFF;this.F=v&0xFF;}
+
+  idxHL(){return this.idx===1?this.IX:this.idx===2?this.IY:this.HL;}
+  setIdxHL(v){if(this.idx===1)this.IX=v;else if(this.idx===2)this.IY=v;else this.HL=v;}
+  addr(d){return (this.idxHL()+(this.idx?d:0))&0xFFFF;}
+
+  rd(i,d){switch(i){
+    case 0:return this.B;case 1:return this.C;case 2:return this.D;case 3:return this.E;
+    case 4:return this.idx===1?this.IXH:this.idx===2?this.IYH:this.H;
+    case 5:return this.idx===1?this.IXL:this.idx===2?this.IYL:this.L;
+    case 6:return this.rb(this.addr(d));
+    default:return this.A;}}
+  wr(i,v,d){v&=0xFF;switch(i){
+    case 0:this.B=v;break;case 1:this.C=v;break;case 2:this.D=v;break;case 3:this.E=v;break;
+    case 4:if(this.idx===1)this.IXH=v;else if(this.idx===2)this.IYH=v;else this.H=v;break;
+    case 5:if(this.idx===1)this.IXL=v;else if(this.idx===2)this.IYL=v;else this.L=v;break;
+    case 6:this.wb(this.addr(d),v);break;
+    default:this.A=v;}}
+  // plain H/L, used for the register side of an (IX+d) memory instruction
+  rdp(i){const s=this.idx;this.idx=0;const v=this.rd(i);this.idx=s;return v;}
+  wrp(i,v){const s=this.idx;this.idx=0;this.wr(i,v);this.idx=s;}
+
+  rp(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.SP;}}
+  setrp(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.SP=v&0xFFFF;}}
+  rp2(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.AF;}}
+  setrp2(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.AF=v;}}
+
+  cc(y){switch(y){
+    case 0:return !(this.F&F_Z);case 1:return !!(this.F&F_Z);
+    case 2:return !(this.F&F_C);case 3:return !!(this.F&F_C);
+    case 4:return !(this.F&F_PV);case 5:return !!(this.F&F_PV);
+    case 6:return !(this.F&F_S);default:return !!(this.F&F_S);}}
+
+  // ---- ALU ------------------------------------------------------------
+  add8(v){const a=this.A,r=a+v;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F))>0x0F?F_H:0);
+    this.A=rr;}
+  adc8(v){const a=this.A,c=this.F&F_C,r=a+v+c;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F)+c)>0x0F?F_H:0);
+    this.A=rr;}
+  sub8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);
+    this.A=rr;}
+  sbc8(v){const a=this.A,c=this.F&F_C,r=a-v-c;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F)-c)<0?F_H:0);
+    this.A=rr;}
+  and8(v){this.A=(this.A&v)&0xFF;this.F=SZ53P[this.A]|F_H;}
+  xor8(v){this.A=(this.A^v)&0xFF;this.F=SZ53P[this.A];}
+  or8(v){this.A=(this.A|v)&0xFF;this.F=SZ53P[this.A];}
+  cp8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=(rr&0x80)|(rr===0?F_Z:0)|(v&0x28)|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);}
+  alu(y,v){switch(y){case 0:this.add8(v);break;case 1:this.adc8(v);break;case 2:this.sub8(v);break;
+    case 3:this.sbc8(v);break;case 4:this.and8(v);break;case 5:this.xor8(v);break;
+    case 6:this.or8(v);break;default:this.cp8(v);}}
+  inc8(v){const r=(v+1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|((r&0x0F)===0?F_H:0)|(r===0x80?F_PV:0);return r;}
+  dec8(v){const r=(v-1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|F_N|((v&0x0F)===0?F_H:0)|(r===0x7F?F_PV:0);return r;}
+  add16(a,b){const r=a+b;
+    this.F=(this.F&(F_S|F_Z|F_PV))|((r>>8)&0x28)|(r>0xFFFF?F_C:0)|(((a&0x0FFF)+(b&0x0FFF))>0x0FFF?F_H:0);
+    return r&0xFFFF;}
+  adc16(b){const a=this.HL,c=this.F&F_C,r=a+b+c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|(r>0xFFFF?F_C:0)
+      |(((a^b^0x8000)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)+(b&0x0FFF)+c)>0x0FFF?F_H:0);
+    this.HL=rr;}
+  sbc16(b){const a=this.HL,c=this.F&F_C,r=a-b-c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|F_N|(r<0?F_C:0)
+      |(((a^b)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)-(b&0x0FFF)-c)<0?F_H:0);
+    this.HL=rr;}
+  daa(){const n=this.F&F_N;let c=this.F&F_C,add=0,a=this.A,h;
+    if((this.F&F_H)||(a&0x0F)>9)add=6;
+    if(c||a>0x99){add|=0x60;c=F_C;}
+    if(n){h=((a&0x0F)<(add&0x0F))?F_H:0;a=(a-add)&0xFF;}
+    else{h=(((a&0x0F)+(add&0x0F))>0x0F)?F_H:0;a=(a+add)&0xFF;}
+    this.F=SZ53P[a]|c|n|h;this.A=a;}
+  // rotates returning value + flags (CB form)
+  rlc(v){const c=(v>>7)&1;const r=((v<<1)|c)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rrc(v){const c=v&1;const r=((v>>1)|(c<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rl(v){const c=(v>>7)&1;const r=((v<<1)|(this.F&F_C))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rr(v){const c=v&1;const r=((v>>1)|((this.F&F_C)<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sla(v){const c=(v>>7)&1;const r=(v<<1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  sra(v){const c=v&1;const r=((v>>1)|(v&0x80))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sll(v){const c=(v>>7)&1;const r=((v<<1)|1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  srl(v){const c=v&1;const r=(v>>1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rot(y,v){switch(y){case 0:return this.rlc(v);case 1:return this.rrc(v);case 2:return this.rl(v);
+    case 3:return this.rr(v);case 4:return this.sla(v);case 5:return this.sra(v);
+    case 6:return this.sll(v);default:return this.srl(v);}}
+
+  // ---- step -----------------------------------------------------------
+  step(){
+    const t0=this.T;
+    this.idx=0;
+    if(this.halted){this.R=(this.R+1)&0x7F;this.T+=4;return 4;}
+    let op=this.m1();
+    while(op===0xDD||op===0xFD){this.idx=(op===0xDD)?1:2;this.T+=4;op=this.m1();}
+    if(op===0xCB){ if(this.idx) this.ddcb(); else this.cb(); }
+    else if(op===0xED){ this.idx=0; this.ed(); }
+    else this.main(op);
+    return this.T-t0;
+  }
+
+  main(op){
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x===1){
+      if(y===6&&z===6){this.halted=true;this.T+=4;return;}
+      if(y===6){const d=this.idx?this.disp():0;this.wr(6,this.rdp(z),d);this.T+=this.idx?19:7;return;}
+      if(z===6){const d=this.idx?this.disp():0;this.wrp(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.wr(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===2){
+      if(z===6){const d=this.idx?this.disp():0;this.alu(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.alu(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===0){
+      switch(z){
+        case 0:
+          if(y===0){this.T+=4;}
+          else if(y===1){const t=this.AF;this.AF=(this.A2<<8)|this.F2;this.A2=(t>>8)&0xFF;this.F2=t&0xFF;this.T+=4;}
+          else if(y===2){const d=this.disp();this.B=(this.B-1)&0xFF;
+            if(this.B){this.PC=(this.PC+d)&0xFFFF;this.T+=13;}else this.T+=8;}
+          else if(y===3){const d=this.disp();this.PC=(this.PC+d)&0xFFFF;this.T+=12;}
+          else{const d=this.disp();if(this.cc(y-4)){this.PC=(this.PC+d)&0xFFFF;this.T+=12;}else this.T+=7;}
+          return;
+        case 1:
+          if(q===0){this.setrp(p,this.fetchw());this.T+=this.idx?14:10;}
+          else{this.setIdxHL(this.add16(this.idxHL(),this.rp(p)));this.T+=this.idx?15:11;}
+          return;
+        case 2:
+          if(q===0){
+            if(p===0){this.wb(this.BC,this.A);this.T+=7;}
+            else if(p===1){this.wb(this.DE,this.A);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.ww(a,this.idxHL());this.T+=16;}
+            else{const a=this.fetchw();this.wb(a,this.A);this.T+=13;}
+          }else{
+            if(p===0){this.A=this.rb(this.BC);this.T+=7;}
+            else if(p===1){this.A=this.rb(this.DE);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.setIdxHL(this.rw(a));this.T+=16;}
+            else{const a=this.fetchw();this.A=this.rb(a);this.T+=13;}
+          }
+          return;
+        case 3:
+          this.setrp(p,(this.rp(p)+(q?-1:1))&0xFFFF);this.T+=6;return;
+        case 4:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.inc8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.inc8(this.rd(y)));this.T+=4;}
+          return;}
+        case 5:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.dec8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.dec8(this.rd(y)));this.T+=4;}
+          return;}
+        case 6:{
+          if(y===6){const d=this.idx?this.disp():0;const n=this.fetch();this.wb(this.addr(d),n);this.T+=this.idx?19:10;}
+          else{this.wr(y,this.fetch());this.T+=7;}
+          return;}
+        default:
+          switch(y){
+            case 0:{const c=(this.A>>7)&1;this.A=((this.A<<1)|c)&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 1:{const c=this.A&1;this.A=((this.A>>1)|(c<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 2:{const c=(this.A>>7)&1;this.A=((this.A<<1)|(this.F&F_C))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 3:{const c=this.A&1;this.A=((this.A>>1)|((this.F&F_C)<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 4:this.daa();break;
+            case 5:this.A=(~this.A)&0xFF;this.F=(this.F&(F_S|F_Z|F_PV|F_C))|F_H|F_N|(this.A&0x28);break;
+            case 6:this.F=(this.F&(F_S|F_Z|F_PV))|F_C|(this.A&0x28);break;
+            default:{const c=this.F&F_C;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(c?F_H:0)|(c?0:F_C)|(this.A&0x28);break;}
+          }
+          this.T+=4;return;
+      }
+    }
+    // x === 3
+    switch(z){
+      case 0: if(this.cc(y)){this.PC=this.pop();this.T+=11;}else this.T+=5; return;
+      case 1:
+        if(q===0){this.setrp2(p,this.pop());this.T+=10;}
+        else{
+          if(p===0){this.PC=this.pop();this.T+=10;}
+          else if(p===1){let t=this.BC;this.BC=(this.B2<<8)|this.C2;this.B2=(t>>8)&0xFF;this.C2=t&0xFF;
+            t=this.DE;this.DE=(this.D2<<8)|this.E2;this.D2=(t>>8)&0xFF;this.E2=t&0xFF;
+            t=this.HL;this.HL=(this.H2<<8)|this.L2;this.H2=(t>>8)&0xFF;this.L2=t&0xFF;this.T+=4;}
+          else if(p===2){this.PC=this.idxHL();this.T+=4;}
+          else{this.SP=this.idxHL();this.T+=6;}
+        }
+        return;
+      case 2:{const a=this.fetchw();if(this.cc(y))this.PC=a;this.T+=10;return;}
+      case 3:
+        if(y===0){this.PC=this.fetchw();this.T+=10;}
+        else if(y===1){/* CB handled in step */}
+        else if(y===2){const port=this.fetch();this.bus.out(port,this.A,this.A);this.T+=11;}
+        else if(y===3){const port=this.fetch();this.A=this.bus.in(port,this.A);this.F=SZ53P[this.A]|(this.F&F_C);this.T+=11;}
+        else if(y===4){const t=this.rw(this.SP);this.ww(this.SP,this.idxHL());this.setIdxHL(t);this.T+=19;}
+        else if(y===5){const t=this.DE;this.DE=this.HL;this.HL=t;this.T+=4;}
+        else if(y===6){this.IFF1=0;this.IFF2=0;this.T+=4;}
+        else{this.IFF1=1;this.IFF2=1;this.T+=4;}
+        return;
+      case 4:{const a=this.fetchw();if(this.cc(y)){this.push(this.PC);this.PC=a;this.T+=17;}else this.T+=10;return;}
+      case 5:
+        if(q===0){this.push(this.rp2(p));this.T+=11;}
+        else if(p===0){const a=this.fetchw();this.push(this.PC);this.PC=a;this.T+=17;}
+        return;
+      case 6:{this.alu(y,this.fetch());this.T+=7;return;}
+      default:{this.push(this.PC);this.PC=y*8;this.T+=11;return;}
+    }
+  }
+
+  cb(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7;
+    if(x===0){const v=this.rot(y,this.rd(z));this.wr(z,v);this.T+=z===6?15:8;return;}
+    if(x===1){const v=this.rd(z);
+      this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80);
+      this.F|= z===6 ? 0 : (v&0x28);
+      this.T+=z===6?12:8;return;}
+    if(x===2){this.wr(z,this.rd(z)&~(1<<y));this.T+=z===6?15:8;return;}
+    this.wr(z,this.rd(z)|(1<<y));this.T+=z===6?15:8;
+  }
+
+  ddcb(){
+    const d=this.disp();const op=this.fetch();this.R=(this.R+1)&0x7F;
+    const x=op>>6,y=(op>>3)&7,z=op&7;const a=this.addr(d);const v=this.rb(a);
+    if(x===1){this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80)|((a>>8)&0x28);this.T+=20;return;}
+    let r;
+    if(x===0)r=this.rot(y,v);
+    else if(x===2)r=v&~(1<<y);
+    else r=v|(1<<y);
+    this.wb(a,r);
+    if(z!==6)this.wrp(z,r);   // undocumented: result also copied to a register
+    this.T+=23;
+  }
+
+  ed(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x!==1&&x!==2){this.T+=8;return;}
+    if(x===1){
+      switch(z){
+        case 0:{const v=this.bus.in(this.C,this.B);if(y!==6)this.wr(y,v);
+          this.F=SZ53P[v]|(this.F&F_C);this.T+=12;return;}
+        case 1:{this.bus.out(this.C,this.B,y===6?0:this.rd(y));this.T+=12;return;}
+        case 2:{if(q===0)this.sbc16(this.rp(p));else this.adc16(this.rp(p));this.T+=15;return;}
+        case 3:{const a=this.fetchw();if(q===0)this.ww(a,this.rp(p));else this.setrp(p,this.rw(a));this.T+=20;return;}
+        case 4:{const a=this.A;this.A=0;this.sub8(a);this.T+=8;return;}
+        case 5:{this.PC=this.pop();this.IFF1=this.IFF2;this.T+=14;return;}
+        case 6:{this.IM=(y===0||y===1||y===4||y===5)?0:(y===2||y===6)?1:2;this.T+=8;return;}
+        default:
+          if(y===0){this.I=this.A;this.T+=9;}
+          else if(y===1){this.R=this.A&0x7F;this.R7=this.A&0x80;this.T+=9;}
+          else if(y===2){this.A=this.I;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===3){this.A=(this.R&0x7F)|this.R7;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===4){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m<<4)|(a&0x0F))&0xFF);this.A=(a&0xF0)|(m>>4);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else if(y===5){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m>>4)|((a&0x0F)<<4))&0xFF);this.A=(a&0xF0)|(m&0x0F);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else this.T+=8;
+          return;
+      }
+    }
+    // x === 2 : block instructions
+    if(z>3||y<4){this.T+=8;return;}
+    const inc=(y&1)?-1:1;
+    const rep=(y&2)!==0;
+    switch(z){
+      case 0:{ // LDI/LDD/LDIR/LDDR
+        const v=this.rb(this.HL);this.wb(this.DE,v);
+        this.DE=(this.DE+inc)&0xFFFF;this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(v+this.A)&0xFF;
+        this.F=(this.F&(F_S|F_Z|F_C))|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 1:{ // CPI/CPD/CPIR/CPDR
+        const v=this.rb(this.HL);const r=(this.A-v)&0xFF;
+        let h=((this.A&0x0F)-(v&0x0F))<0?F_H:0;
+        this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(r-(h?1:0))&0xFF;
+        this.F=(this.F&F_C)|F_N|h|(r&0x80)|(r===0?F_Z:0)|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC&&r!==0){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 2:{ // INI/IND/INIR/INDR
+        const v=this.bus.in(this.C,this.B);this.wb(this.HL,v);
+        this.B=(this.B-1)&0xFF;this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      default:{ // OUTI/OUTD/OTIR/OTDR
+        const v=this.rb(this.HL);this.B=(this.B-1)&0xFF;
+        this.bus.out(this.C,this.B,v);this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+    }
+  }
+}
+
+
+return Z80;})();
+const DIS=(function(){
+// Z80 disassembler for the TRS-80 reconstruction.
+//
+// Decoded from the same bit patterns as z80.js (x/y/z/p/q), including the
+// undocumented IXH/IXL/IYH/IYL halves and the DDCB register copy, so the
+// lengths reported here cannot disagree with the lengths the emulator
+// actually consumes. verify_disasm.js asserts exactly that against a
+// running game: every executed instruction must satisfy pc + len == next pc.
+
+const R    = ['B','C','D','E','H','L','(HL)','A'];
+const RP   = ['BC','DE','HL','SP'];
+const RP2  = ['BC','DE','HL','AF'];
+const CC   = ['NZ','Z','NC','C','PO','PE','P','M'];
+const ALU  = ['ADD\tA,','ADC\tA,','SUB\t','SBC\tA,','AND\t','XOR\t','OR\t','CP\t'];
+const ROT  = ['RLC','RRC','RL','RR','SLA','SRA','SLL','SRL'];
+const ACC  = ['RLCA','RRCA','RLA','RRA','DAA','CPL','SCF','CCF'];
+const BLK  = [['LDI','LDD','LDIR','LDDR'],['CPI','CPD','CPIR','CPDR'],
+              ['INI','IND','INIR','INDR'],['OUTI','OUTD','OTIR','OTDR']];
+
+// EDTASM-style hex: leading zero when it would start with a letter.
+function hex(n,w){ let s=n.toString(16).toUpperCase(); while(s.length<w)s='0'+s;
+                   return (s[0]>='A'?'0':'')+s+'H'; }
+function num(n){ return n<10 ? String(n) : hex(n, n>0xFF?4:2); }
+function sdisp(d){ return (d<0?'-':'+')+Math.abs(d); }
+
+// decode one instruction.
+//   read(addr) -> byte ;  sym(addr) -> label name or null (optional)
+// returns { addr, len, bytes, text, kind, target, cont }
+//   kind : call|jp|jr|djnz|ret|rst|jphl|halt|other
+//   cont : does execution fall through to addr+len
+function decode(read, addr, sym){
+  let pc = addr & 0xFFFF;
+  const bytes = [];
+  const b  = () => { const v = read(pc) & 0xFF; bytes.push(v); pc = (pc+1)&0xFFFF; return v; };
+  const nn = () => { const lo = b(); return lo | (b()<<8); };
+  const d8 = () => { const v = b(); return v<128 ? v : v-256; };
+  const S  = (a) => (sym && sym(a)) || hex(a,4);
+
+  let out = { addr: addr&0xFFFF, kind:'other', target:null, cont:true };
+  const fin = (text) => { out.text = text; out.len = bytes.length; out.bytes = bytes; return out; };
+
+  let idx = 0, op = b();
+  while(op===0xDD || op===0xFD){ idx = (op===0xDD)?1:2; op = b(); }
+  const IR  = idx===1?'IX' :idx===2?'IY' :'HL';
+  const IRH = idx===1?'IXH':idx===2?'IYH':'H';
+  const IRL = idx===1?'IXL':idx===2?'IYL':'L';
+  const rn  = (i) => i===4?IRH : i===5?IRL : R[i];          // honours the prefix
+  const rpn = (i) => i===2 ? IR : RP[i];
+  const rp2n= (i) => i===2 ? IR : RP2[i];
+  const mem = () => { if(!idx) return '(HL)'; const d=d8(); return '('+IR+sdisp(d)+')'; };
+
+  // ---- CB / DDCB ------------------------------------------------------
+  if(op===0xCB){
+    if(idx){                                  // DD CB d op : displacement first
+      const d = d8(), o = b();
+      const x=o>>6, y=(o>>3)&7, z=o&7;
+      const m = '('+IR+sdisp(d)+')';
+      if(x===1) return fin('BIT\t'+y+','+m);
+      const nm = x===0?ROT[y] : x===2?'RES':'SET';
+      const head = x===0 ? nm+'\t'+m : nm+'\t'+y+','+m;
+      return fin(z===6 ? head : head+','+R[z]);   // undocumented register copy
+    }
+    const o=b(), x=o>>6, y=(o>>3)&7, z=o&7;
+    if(x===0) return fin(ROT[y]+'\t'+R[z]);
+    if(x===1) return fin('BIT\t'+y+','+R[z]);
+    return fin((x===2?'RES':'SET')+'\t'+y+','+R[z]);
+  }
+
+  // ---- ED -------------------------------------------------------------
+  if(op===0xED){
+    const o=b(), x=o>>6, y=(o>>3)&7, z=o&7, p=y>>1, q=y&1;
+    if(x===1){
+      switch(z){
+        case 0: return fin('IN\t'+(y===6?'(C)':R[y]+',(C)'));
+        case 1: return fin('OUT\t(C),'+(y===6?'0':R[y]));
+        case 2: return fin((q?'ADC':'SBC')+'\tHL,'+RP[p]);
+        case 3: { const a=nn();
+                  return fin(q ? 'LD\t'+RP[p]+',('+S(a)+')' : 'LD\t('+S(a)+'),'+RP[p]); }
+        case 4: return fin('NEG');
+        case 5: out.kind='ret'; out.cont=false; return fin(y===1?'RETI':'RETN');
+        case 6: return fin('IM\t'+((y===0||y===1||y===4||y===5)?0:(y===2||y===6)?1:2));
+        default:
+          return fin(['LD\tI,A','LD\tR,A','LD\tA,I','LD\tA,R','RRD','RLD','NOP','NOP'][y]);
+      }
+    }
+    if(x===2 && z<=3 && y>=4) return fin(BLK[z][((y&2)?2:0)|(y&1)]);
+    return fin('DEFB\t0EDH,'+hex(o,2));          // not an instruction
+  }
+
+  const x=op>>6, y=(op>>3)&7, z=op&7, p=y>>1, q=y&1;
+
+  // ---- x = 1 : LD r,r' ------------------------------------------------
+  if(x===1){
+    if(y===6 && z===6){ out.kind='halt'; out.cont=false; return fin('HALT'); }
+    if(y===6) return fin('LD\t'+mem()+','+R[z]);     // plain register source
+    if(z===6) return fin('LD\t'+R[y]+','+mem());     // plain register dest
+    return fin('LD\t'+rn(y)+','+rn(z));
+  }
+
+  // ---- x = 2 : ALU A,r ------------------------------------------------
+  if(x===2) return fin(ALU[y]+(z===6?mem():rn(z)));
+
+  // ---- x = 0 ----------------------------------------------------------
+  if(x===0){
+    switch(z){
+      case 0:
+        if(y===0) return fin('NOP');
+        if(y===1) return fin("EX\tAF,AF'");
+        if(y===2){ const d=d8(); out.kind='djnz'; out.target=(pc+d)&0xFFFF;
+                   return fin('DJNZ\t'+S(out.target)); }
+        if(y===3){ const d=d8(); out.kind='jr'; out.cont=false; out.target=(pc+d)&0xFFFF;
+                   return fin('JR\t'+S(out.target)); }
+        { const d=d8(); out.kind='jr'; out.target=(pc+d)&0xFFFF;
+          return fin('JR\t'+CC[y-4]+','+S(out.target)); }
+      case 1:
+        if(q===0){ const a=nn(); return fin('LD\t'+rpn(p)+','+S(a)); }
+        return fin('ADD\t'+IR+','+rpn(p));
+      case 2:
+        if(q===0){
+          if(p===0) return fin('LD\t(BC),A');
+          if(p===1) return fin('LD\t(DE),A');
+          { const a=nn(); return fin('LD\t('+S(a)+'),'+(p===2?IR:'A')); }
+        }
+        if(p===0) return fin('LD\tA,(BC)');
+        if(p===1) return fin('LD\tA,(DE)');
+        { const a=nn(); return fin('LD\t'+(p===2?IR:'A')+',('+S(a)+')'); }
+      case 3: return fin((q?'DEC':'INC')+'\t'+rpn(p));
+      case 4: return fin('INC\t'+(y===6?mem():rn(y)));
+      case 5: return fin('DEC\t'+(y===6?mem():rn(y)));
+      case 6: { const m = y===6 ? mem() : rn(y); const n=b();   // disp precedes n
+                return fin('LD\t'+m+','+num(n)); }
+      default: return fin(ACC[y]);
+    }
+  }
+
+  // ---- x = 3 ----------------------------------------------------------
+  switch(z){
+    case 0: out.kind='ret'; return fin('RET\t'+CC[y]);
+    case 1:
+      if(q===0) return fin('POP\t'+rp2n(p));
+      if(p===0){ out.kind='ret'; out.cont=false; return fin('RET'); }
+      if(p===1) return fin('EXX');
+      if(p===2){ out.kind='jphl'; out.cont=false; return fin('JP\t('+IR+')'); }
+      return fin('LD\tSP,'+IR);
+    case 2: { const a=nn(); out.kind='jp'; out.target=a;
+              return fin('JP\t'+CC[y]+','+S(a)); }
+    case 3:
+      if(y===0){ const a=nn(); out.kind='jp'; out.cont=false; out.target=a;
+                 return fin('JP\t'+S(a)); }
+      if(y===2){ const n=b(); return fin('OUT\t('+num(n)+'),A'); }
+      if(y===3){ const n=b(); return fin('IN\tA,('+num(n)+')'); }
+      if(y===4) return fin('EX\t(SP),'+IR);
+      if(y===5) return fin('EX\tDE,HL');
+      if(y===6) return fin('DI');
+      if(y===7) return fin('EI');
+      return fin('DEFB\t'+hex(op,2));
+    case 4: { const a=nn(); out.kind='call'; out.target=a;
+              return fin('CALL\t'+CC[y]+','+S(a)); }
+    case 5:
+      if(q===0) return fin('PUSH\t'+rp2n(p));
+      if(p===0){ const a=nn(); out.kind='call'; out.target=a;
+                 return fin('CALL\t'+S(a)); }
+      return fin('DEFB\t'+hex(op,2));
+    case 6: { const n=b(); return fin(ALU[y]+num(n)); }
+    default: out.kind='rst'; out.target=y*8; return fin('RST\t'+hex(y*8,2));
+  }
+}
+
+function insLen(read, addr){ return decode(read, addr).len; }
+
+
+return {decode:decode,insLen:insLen,hex:hex,num:num};})();
+const ROM=Uint8Array.from(atob("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02gJaT9pWWljaXFph2mpadxpAACAAAAAv7O/AEsAsLCwsLBFv4CMgL9Fg4ODg4MATACMsIC8gLCMQ4yMgICAjIxDjIOAj4CDjAAAAIAAAAC8jLxHg4ODAAEAv4Ozg79Fj4yMjI8ATACwgICwgICwQ7CzgIOAs7BDsIyAvICMsAAAAIAAAACwsLBHj4yPAAEAvIyMjLxFv7CzsL8AAgCDjICPgIyDQ4OzgLCAs4NDg4CAg4CAgwD8/7CwsEePjI8A/f+wjIyMsEWPsLOwjwD+/7CMk7OjjLBDj7CKgwECAHKFsI9Fg4ODAEYAsLCwRLCDsKiQnJCDsEGPgJ6br6eEgI9Cg4CMjIyAgwBJALCEgIychJSIsECxiYC2vbq5s4CGsIE9go+AibS/r7+ejoCPgT6CjZKgqLiwhKGOggCRALCQsKCwQKCKpJeggKGZg6GSi7qZPJOHkLSOt768v5O4nYqktYQ5gp2Vi669v7+/v7+5l7CThjyDiJayg4OBo6OCjKWTPoKAgoGHj4GHgoEANwDAbEgAxGxPAMhsWgDsbWcAzGx4APJtgQDQbIcA1GyNANhskQDcbJYA4GybAORsoQDobKYA7GytAPBsswD0bMYA+GzXAPxs4wD4bfAAAG31AQIAcwD+bfwABG0FAQhtCQEMbQ0BEG0ZARRtHQEYbSwBHG0+ASBtQwEEbksBCm5ZASRtXgEQbmwBFm56AShtgQEsbY0BMG2ZARxunwE0bboBOG3RAZpu8wEibgkCKG4QAjxtGAKfblICLm5XAjRuYAJAbWUCRG16AkhtggKkbpcCTG2jAjpurAJQbbECVG23AuVuxgJYbcoCXG3PAmBt1gJkbdoCaG3dAupu7QJsbfICcG33AnRt/AJ4bQUDfG0NA+9uIQOAbSgDhG0wA4htNQOMbUcDkG1UA5RtVwP0bmYDQG5qA5htbgOcbXUDoG16A6RthwNGbo0DTG6SA1JumQOobZwBAgB0A6xtoAOwbaQDWG6nA/lutgO0bbwDuG0TBLxtHgT+biMEwG0rBAJvNATEbT4EBm9GBApvSgQOb04EEm9UBBZvXQTIbWEEGm9oBB5vcAQib3UEJm98BCpvhAQub4sEMm+RBF5ulwQ2b50EOm+iBGRupwQ+b7IEam62BHBuugR2br8EfG7EBKluygRCb9IErm7aBLNu7wS4bvcEvW4C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"),c=>c.charCodeAt(0));
+const FONT=Uint8Array.from("00000000000000040404040400040a0a0a000000000a0a1f0a1f0a0a040f140e051e04181902040813030c12140815120d0c04080000000002040808080402080402020204080004150e1504000004041f040400000000000c04080000001f00000000000000000c0c000102040810000e11131519110e040c040404040e0e11010204081f1f02040201110e02060a121f02021f101e0101110e0608101e11110e1f1102040808080e11110e11110e0e11110f01020c000c0c000c0c00000c0c000c04080204081008040200001f001f0000080402010204080e1101020400040e11010d15150e040a11111f11111e11111e11111e0e11101010110e1c12111111121c1f10101e10101f1f10101e1010100e11101711110f1111111f1111110e04040404040e0702020202120c111214181412111010101010101f111b1515111111111119151311110e11111111110e1e11111e1010100e11111115120d1e11111e1412110f10100e01011e1f0404040404041111111111110e11111111110a041111111515150a11110a040a111111110a040404041f01020408101f0e08080808080e001008040201000e02020202020e040a11000000000000000000001f0000000000000000000e010f110f10101e1111111e00000f1010110e01010f1111110f00000e111f100e0609081c080808000f11110f010e10101e1111111104000c0404040e0200060202120c101012141814120c04040404040e00001a1515151500001e1111111100000e1111110e001e11111e1010000f11110f01010000161910101000000f100e011e08081c080809060000111111130d00001111110a040000111115150a0000110a040a11001111110f010e00001f0204081f02040408040402040404000404040804040204040800000d12000000".match(/../g).map(h=>parseInt(h,16)));
+const GAME="seadragon";
+
+function loadCMD(d){
+  const mem=new Map(); let entry=null,i=0;
+  while(i<d.length){
+    const t=d[i],n=d[i+1];
+    if(t===1){const body=(n>=3)?(n-2):(n+254);const addr=d[i+2]|(d[i+3]<<8);
+      for(let k=0;k<body;k++)mem.set((addr+k)&0xFFFF,d[i+4+k]); i+=4+body;}
+    else if(t===2){entry=d[i+2]|(d[i+3]<<8);break;}
+    else if(t===0||t>0x1f)break;
+    else i+=2+n;
+  }
+  return {mem,entry};
+}
+// the TRS-80 key matrix: row -> the eight keys on it
+const KEYROW={0:['@','A','B','C','D','E','F','G'],1:['H','I','J','K','L','M','N','O'],
+ 2:['P','Q','R','S','T','U','V','W'],3:['X','Y','Z','[','\\',']','^','_'],
+ 4:['0','1','2','3','4','5','6','7'],5:['8','9',':',';',',','-','.','/'],
+ 6:['ENTER','CLEAR','BREAK','UP','DOWN','LEFT','RIGHT','SPACE'],7:['SHIFT','','','','','','','']};
+const KEYPOS={};
+for(const r in KEYROW)KEYROW[r].forEach((k,b)=>{if(k)KEYPOS[k]=[+r,b];});
+
+// ---- the machine -------------------------------------------------------
+// Nothing from the TRS-80 ROM is included. The games call four ROM entries and
+// five TRSDOS vectors; all nine are answered here, in our own code.
+const DOS={0x4420:'INIT',0x4424:'OPEN',0x4428:'CLOSE',0x4436:'READ',0x4439:'WRITE'};
+class Machine{
+  constructor(){
+    this.ram=new Uint8Array(65536); this.keys=new Set(); this.spk=[]; this.level=0;
+    this.open=new Map(); this.rndState=0x2545F491; this.rndVal=0;
+    this.files=this.loadScores();
+    const self=this;
+    this.cpu=new Z80({
+      read(a){ if(a>=0x3800&&a<0x3900){let v=0;for(let r=0;r<8;r++)if(a&(1<<r))v|=self.row(r);return v;}
+               return self.ram[a]; },
+      write(a,v){ if(a>=0x3000) self.ram[a]=v; },
+      in(){ return 0xFF; },
+      out(p,hi,v){ if((p&0xFF)===0xFF){const L=(v&3)===1?1:((v&3)===2?-1:0);
+        if(L!==self.level){self.level=L;self.spk.push([self.cpu.T,L]);}} }
+    });
+    const raw=this.cpu.step.bind(this.cpu);
+    this.cpu.step=()=>{ const t=this.trap(this.cpu.PC); return t?t:raw(); };
+    const {mem,entry}=loadCMD(ROM);
+    for(const [a,v] of mem) this.ram[a]=v;
+    this.cpu.PC=entry; this.cpu.SP=0x4495;
+  }
+  row(r){let v=0;for(const k of this.keys){const p=KEYPOS[k];if(p&&p[0]===r)v|=1<<p[1];}return v;}
+
+  // high scores live in this browser, standing in for the game's /HIS file
+  loadScores(){
+    const m=new Map();
+    try{ const raw=localStorage.getItem('trs80-his-'+GAME);
+      if(raw){ const o=JSON.parse(raw);
+        for(const k in o) m.set(k,o[k].map(r=>Uint8Array.from(r))); } }catch(e){}
+    return m;
+  }
+  saveScores(){
+    try{ const o={};
+      for(const [k,v] of this.files) o[k]=v.map(r=>Array.from(r));
+      localStorage.setItem('trs80-his-'+GAME,JSON.stringify(o)); }catch(e){}
+  }
+  dcbName(d){ let s='';
+    for(let i=0;i<32;i++){const c=this.ram[(d+i)&0xFFFF];
+      if(c===0x0D||c===0x03||c===0||c<32||c>126)break; s+=String.fromCharCode(c);}
+    return s.trim().toUpperCase(); }
+  rnd(n){ this.rndState=(this.rndState*1103515245+12345+((this.cpu.R&0x7F)|this.cpu.R7))>>>0;
+          return n>0?1+((this.rndState>>>16)%n):0; }
+  trap(pc){
+    const c=this.cpu;
+    const ret=(t)=>{ c.PC=c.pop(); c.T+=t; return t; };
+    // --- the four ROM entries the games use ---
+    if(pc===0x0060){                                                    // delay: DEC BC / LD A,B / OR C / JR NZ / RET
+      const n=c.BC||0x10000;                                            // BC=0 means a full 65536 pass
+      c.BC=0; c.A=0; c.F|=0x40;
+      return ret(26*n+10);                                              // charge what the real loop costs
+    }
+    if(pc===0x002B||pc===0x0049){                                       // get a character
+      const k=this.romKey(); c.A=k; c.F = k?(c.F&~0x40):(c.F|0x40); return ret(40); }
+    if(pc===0x01D3){ this.ram[0x40AB]=(c.R&0x7F)|c.R7; return ret(20); } // seed
+    if(pc===0x14C9){ this.rndVal=this.rnd(this.ram[0x4121]|(this.ram[0x4122]<<8)); return ret(60); }
+    if(pc===0x0A7F){ c.HL=this.rndVal|0; c.A=c.HL&0xFF; return ret(40); }
+    // --- the five TRSDOS vectors ---
+    const op=DOS[pc]; if(!op) return 0;
+    const dcb=c.DE, hl=c.HL;
+    const done=(err)=>{ if(err){c.A=err;c.F=(c.F&~0x40)|0x02;} else {c.A=0;c.F|=0x40;} return ret(30); };
+    if(op==='OPEN'||op==='INIT'){
+      const name=this.dcbName(dcb); if(!name) return done(0x18);
+      let f=this.files.get(name);
+      if(op==='OPEN'&&!f) return done(0x18);
+      if(!f){ f=[]; this.files.set(name,f); }
+      this.open.set(dcb,{name,buf:hl,pos:0}); return done(0);
+    }
+    const h=this.open.get(dcb); if(!h) return done(0x18);
+    const f=this.files.get(h.name);
+    if(op==='READ'){ if(h.pos>=f.length) return done(0x1C);
+      const r=f[h.pos++]; for(let i=0;i<256;i++) this.ram[(h.buf+i)&0xFFFF]=r[i]; return done(0); }
+    if(op==='WRITE'){ const r=new Uint8Array(256);
+      for(let i=0;i<256;i++) r[i]=this.ram[(h.buf+i)&0xFFFF];
+      f[h.pos++]=r; this.saveScores(); return done(0); }
+    if(op==='CLOSE'){ this.open.delete(dcb); this.saveScores(); return done(0); }
+    return done(0);
+  }
+  romKey(){
+    const A={ENTER:0x0D,CLEAR:0x1F,BREAK:0x01,SPACE:0x20,LEFT:0x08,RIGHT:0x09,DOWN:0x0A,UP:0x0B};
+    for(const k of this.keys){ if(A[k]!==undefined) return A[k];
+      if(k.length===1) return k.charCodeAt(0); }
+    return 0;
+  }
+  run(t){const end=this.cpu.T+t;let g=0;
+    while(this.cpu.T<end&&g++<4000000){this.cpu.step();if(this.cpu.halted)break;}}
+}
+
+const MAP={"game":"seadragon","binary":"SEADRAG_CMD.bin","snapshot_at":"497F","entry":"89ABH","count":2925,"first":96,"deltas":"AQEBAv8aSQEDAQMDAQMDAwMDAwICAwMEBAIBAgICAgIDAwMCAgECBAMEAwQDAwIDAgMDAwMCAgMDAwMDAwIBAwIDAQMCAwMEAQQDAQMCAwEDAQMBAwEDAQQDAwEDBAMBAgMDAQEDAgEBAQEBAgIBAwEBAQMDAQMBAQMDAwIDAwMCAwEDAgMDAgEBAwEDAwQCAQICAwMEAwMCAQMDAwICAwIBAwEDAwMBAgMCAwMBAwMCAQIDAgMBAgMBAwMBAwMCAgMCAQICAgICAgIBAQEBAQEBAQECAQICAwECAwMDAgMBAQIDAgIDAwICAwMCAwMDAgIBAQECAQMDAwICAQEDAwMDAgMDAgICAwMCAwMDAwICAQMCAQEBAwIDAQEBAQMBAQIDAQIBAgMCAgICAQEDAQIBAgEBAwEBAgECAgEDAgIDAQECAQEBAQICAwMDAQMDAwMDAwEDAwMDAwEDAgMCAwIDAwIDAwMDAgMDAwMCAwMDAwIDAwMCAwEDAQMBAgMDAwEBAgIDAgICAwMDAwMBAgIDAwIDAwMDAwIDAwMDAgMDAgECAQIDAwEDAwMDAwMDAQMDAgMDAgMDAwMBAwMBAwMCAwMDAgMDAQMDAwMCAwECAwMDAQMCAwMDAgMBAQIDAwIDAgMCAwMBAgIDAgMBAwMDAwICAwECAQMDAwICAQECAQIBAgIDAQMDAQMDAwMCAQMCAgIDAwEDAwMBAwMBAgMBAwQCAgMDAQICAQEBAQICAwMBAwMDAgMDAwMCAgMBAwMCAQIBAQEBAQIDAgMDAQEDAwIDAwEBAgMDAQMDAwMDAgIDAQICAQMDAwICAwMDAwMDBAMDAgEDAQEBAQICAgIBAwICAQQCAwMBAQEBAgMDAQEBAQIBAQECAgEDAwEDAgMBAgECAgIDAwEDAgMDAQMDAwECAgIBAwMDAwMCAwMBAwMDAwICAQEBAgEBAgIDAgMCAgQDAgQBAwEDAQEBAQEBAwEDAwQBAgMDAQECAQMBAgECBAIDAwEBAgICAwIBAQEBAgMBAwMBAQMBAQMBAQMBAwEBAwIBAQMBBAMBAwIEAgIBAgMDBAMBAgECAwMDAQMBAwEBAQEBAQECAwEBAwEBAgICAwEBAgEBAQMBAQIBAQEDAQEBAwIDAQIBAgIDAQECAQEBAwEBAgEBAwIDAgEDAgEBBAQCBAQCAQEBBAIDAwQDAQIBAgMDAQEEAgEBAQEBAQECAwEDAQICAQECAQIBAQMBAgIDAQIBAgIEAQECAQIBAQEBAwEBAgEBAQMBAgEBAQMDAQECAQIBAQMCAgICAwEDAQIBAwEDAwICAgIDAQMBAgECAQMCAwIDAQMBAQMDAQMDAQMCAwECAgIBAwECAgMBAwEDAQQDAwECAQEDAgEBAwECAwMCAwQDAQECAQEBAwEBAwMBAgMCAgMCAwIDAQMBAwMBAwMCAwIDAgMBAgEDAQIEAwMBAwQCAwQEAgIEBAMCAwQEAwMCAwIDAQMBAQICAwIDAgMDAgEDAgEBAwECAwQEAwQEAwQDBAMDAQMBBAECAwEDAQIBAQEBAwIDAwEDAQMBAQICAgECAQEBAwEDAgIDBAIDAQIBAwEDAwIDAwICAwECBAQDAgMEAwMBAwEEAQIDAQMCAwMBAwECAQEBAQMCAQIBAQEDAQMCAgMEAgIDAwMBAgMDAQMDAQEDAQMCAgICAQIBAQECAwEBAwMBAgEBAQMBAgICAQEDAQEDAQMDAQIBAwICAgIDAgIDAgMDAwICAgICAwIBAgICAgICAgMEAgMDAQICAgECAwQDAwMBAwQBAQEDAwIDBAIDAQIBAgMBAgMDAwIDAQECAQMDAQIDAwEDAwQCAQMBAwEDAQEBAwEBAgEDAwECAwMDAwICAwMCAwMEAgQDAgECAQMBAQQCAwECAgEDAQMDAwEDAQMBAgEDAwQCBAMCAwMBAwMCBAMDAQICAQMDAgMBAwMCAwMDAQMDAgEDAwEBAwMCAQEDAQMBAwMBAgEDAgMBAgIDBAIBAwMBAgICAQMEBAQBAwEDAwQCAgIDAwEDAwMDAgMBAwMDAgMDAQIBAwMDAQMCAwECAgIBAwQEAwEDAQMBAwIBAgECAQIBAgMBAQEBAgICAwEBAgMBAgEBAwEDAwICAwICAwICAwMBAgMDBAMBAwECAgMDAwEDAQICAgEDAwECAQMDAgMBAgIDAgECAwQDAQICAgECAwEBAwECAQICBAIDAwIDAwMDAgIDBAICAgMDBAIBAwEDAQMDAQIBAQEDAQIDAwMDBAMDAQMDAQMDAwICBAIDAQIDAwEDAwIDAwMBAwMBAwICAQQEAgQCAwECAQIDAQIDAgMCAgQBAwEDAQMBAwMDAwECAwIDAQMEAQIEAgIEAgIEAgMDAQICAwIBAgMBAgEBAgICAQECAQIBAQEBAgMDAgIEAQMCAQMBBAMDAgMCAwIDAgMCAwMBAgICAgIBAQECAgICAgECAQEBAgICAgIBAQICAgIBAQEBAQICAgICAQECAgICAQEBAgECAQEBAgMBAQEDAwIDAwEDAwMCAwEDAgIBAwIDAQICAgQDAwECAgICAwIDAQICAwQBAQEBAQMDAwICAgICAgQDAwQDAwMBAgQBAQEBAQIBAQIDBAICAgIDAQIBAQMBAQMCAwQCAgIDAwMBAwMCAwICAwQEAwMBAwMCAwMCAwQEBAMDAwIBAwEDAwIDBAMBAwQDAwEDAwECAwMBAwMDAgMBAwIDAQMEAwMBAgMDAwEBAwEDAgMDAgMDAwICAwMDAgEDBwMBAwIBAgEBAgICAgMBAwIDAwIDAwMDAwEDAwIDAgMDAQMDAgMCAwIDAgMDAgMBAwMDAQMDAgMCAwMBBAMCAwEDAgIBAQEBAwMBAwMDAQMDAQMDAQMCAwMBAwMDAwIBAwIBBAIBAwEDAQMDAgMBAwIBAQEDAQMDAQMDAgMBAwEDAQMBAwECAgMBAQEDAwMBAwMBAQMCAwEDAQEDAwMBAwQBAwECAQECAwIDAQMEAQIBAQIDAwMBAgMCAwICAwICAwICAwIBAQMDAgMDAQMCAwMBAwIDAwMEBAIDBAQDAgMEBAMCAQMCAwIBAwEBAwIBAQMDAQIBAQECAgIDAQMBAQMDAgMBAwEDAQIBAwMDAQMCAwMBAQEBAgICAwMDAgMCAQEDAgMBBAEDAQIBAQIDAgMBAwQBAQIBAQIDAwMBAgMBAQIBAwMDAQIDAQMEAwMCAwMBAwIDAwEDAgMDAwQEAgMEBAMCAQMCAwMCAgIDAQIDAwIDAwIDAwMDAwIBAgICAQECAQECAQEDAQEBAwIBAgICAgIBAQICAQEBAwIDAQIBAgIBAgECAQMDAwMCAQIBAQIDAQMDAgMCAQMBAwMCAgMDAQMCAQMDAgIDAQECAwMCAwMDAwMCAgMDAQMCAQMDAgIDAwMEAwMDAQIEAQEBBAIDAwECAwIDAwMEAgMDAgMBAQMBAwEBAQICAQECAgMBAwMCAwMDAwMDAwMDAwQCAgEDAwMDAwIDAwMCAQMDAQIDAgMDAwICAwEBAxcDAwICAQECAQEBAQICAgICAQEBAgEBAQEBAQECAgECAQEBAQEBAgICAgEBAQEBAQIBAQECAQICAQIBAQIBAQIBAQEBAQECAgEDAwIBAgECAQIBAQECAgICAQEBAgEBAQEBAQECAwICAgEBAgEBAgEBAQEBAQEBAQEBAgMCAwMCAwMDAwICAwMBAwMDAwMDAwEBAQEBAwIBAQECAQMCAgMDBAMCAwMCAwIDAgIDAgIDAgIDAgMBAQEEAwEBAQEBAQEBAQMBAQEBAQQBAwECAgEDAQMCAwMBAwIBAgICBAEDAgICAgIDAQECAwICAQEDAgMBAQIDAgIBAQICAgEBAQECAgIBAgICAQP/hScDAwMC","execMask":"//////////////////////////////////////////9/////////vf//////////B3/4/////z8AAPD///8//v//fz7+fwcAAAAA8P//////////n38H////3wD+//////8//v//////////////4f//f/D/////////////AB6A////////////GP///z/+/////v///w8AAAAAAOA//wAAAAAAAAAAAOD/AQB+AAAA+AcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8AMAAAAAwAcA8AMAAAAAAAD4AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+/z8AAADw/x/8/wcAAAAAAADADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+AQAAAAAAAAAAAAAAAAAAAAAAwPffHwDA///5PwAA//f/P4D////////////////////////PAwAAAAAAAAAAAAAA+P8f"};
+const ANN={"labels":{"3840":{"name":"KEYROW6","orig":false},"4529":{"name":"BUFFER","orig":true},"5214":{"name":"OBJWALK","orig":false},"6212":{"name":"SOUND","orig":false},"6244":{"name":"BLOCOL","orig":true},"6245":{"name":"LEVEL","orig":true},"6250":{"name":"WATLEV","orig":true},"6251":{"name":"DEFAULT","orig":true},"6253":{"name":"SUBFRAC","orig":false},"6254":{"name":"SUBROW","orig":false},"6255":{"name":"NOINPUT","orig":false},"6257":{"name":"ENDFLG","orig":true},"6263":{"name":"MISCNT","orig":false},"6265":{"name":"OBJPTR","orig":false},"6602":{"name":"BOTROWS","orig":false},"6651":{"name":"CREDITS","orig":false},"7293":{"name":"LOGODRG","orig":false},"7353":{"name":"WEEDA","orig":false},"7376":{"name":"WEEDB","orig":false},"7399":{"name":"TERRAIN","orig":false},"3C00":{"name":"VIDEO","orig":false},"452E":{"name":"BUFVIS","orig":false},"497F":{"name":"START","orig":false},"49A1":{"name":"DRWBOT","orig":false},"4AB8":{"name":"TITANIM","orig":false},"4B1F":{"name":"DRWWAVE","orig":false},"4B5E":{"name":"BLIT9","orig":false},"4D90":{"name":"FRAME","orig":false},"4DA3":{"name":"BLIT15","orig":false},"4EE0":{"name":"TERSET","orig":false},"4F09":{"name":"TERDRAW","orig":false},"4F11":{"name":"COLLOOP","orig":false},"4F16":{"name":"ROWLOOP","orig":false},"4F18":{"name":"CONTINU","orig":true},"4F93":{"name":"ADVANCE","orig":false},"4FA1":{"name":"INCCC","orig":true},"4FAE":{"name":"SEAFLOR","orig":false},"4FB3":{"name":"LINELOP","orig":true},"4FBB":{"name":"FORMAT","orig":true},"4FDD":{"name":"CHANGE","orig":true},"4FEA":{"name":"PRTWAT","orig":true},"50EA":{"name":"DRAWOBJ","orig":false},"514E":{"name":"SPRITE","orig":false},"517A":{"name":"SPRSKIP","orig":false},"518D":{"name":"SUBMOVE","orig":false},"51F9":{"name":"SUBDOWN","orig":false},"5B42":{"name":"FIRE","orig":false},"5B72":{"name":"KEYFIRE","orig":false},"5B9D":{"name":"LNCHMIS","orig":false},"5BC0":{"name":"LNCHTOR","orig":false},"5BCD":{"name":"LAUNCH","orig":false},"5C26":{"name":"PROJUPD","orig":false},"5C44":{"name":"MISMOVE","orig":false},"5C77":{"name":"MISGONE","orig":false},"5D5C":{"name":"TORMOVE","orig":false},"5D88":{"name":"PRJINIT","orig":false},"5DC1":{"name":"PRJNEXT","orig":false},"622A":{"name":"COLCNT","orig":true},"624A":{"name":"TERPTR","orig":true},"624C":{"name":"WATBEG","orig":true},"624E":{"name":"WATEND","orig":true},"625B":{"name":"SUBCOL","orig":false},"625D":{"name":"UPFLG","orig":true},"625E":{"name":"TORDEB","orig":false},"625F":{"name":"MISDEB","orig":false},"628F":{"name":"CHARTAB","orig":false},"629F":{"name":"ROWTAB","orig":false},"62C4":{"name":"STRINGS","orig":false},"631F":{"name":"PROJTAB","orig":false},"65EF":{"name":"WAVE1","orig":false},"65F3":{"name":"WAVE2","orig":false},"6A2E":{"name":"OBJTAB","orig":false},"6CC0":{"name":"OBJDESC","orig":false},"718E":{"name":"TITLPTR","orig":false},"719A":{"name":"LOGOSEA","orig":false},"0060":{"name":"DELAY","orig":false}},"headers":{"5214":["OBJECT TABLE WALK","OBJPTR steps through OBJTAB: 4-byte records of a 16-bit column and a","16-bit descriptor pointer, FF-terminated.  A record fires when its","column reaches COLCNT-5.  164 records, columns 55..1855."],"6212":["SOUND","OUT (0FFH),A - the cassette port, the usual TRS-80 speaker trick."],"497F":["COLD START","Entered from the relocator at 89ABH after the image has been copied","from 5200H down to 497FH.  Sets the stack just below the play buffer,","clears the main flags, then falls into the title screen."],"49A1":["DRAW THE BOTTOM TWO ROWS","64 bytes at BOTROWS.  Bit 7 of each byte selects video row 14 or 15;","the low 7 bits are an offset forward from CHARTAB to the character to","plant.  Self-modifies the LD A,(IY+d) displacement at 49C1H.","This paints the seabed under the title screen."],"4AB8":["TITLE ANIMATION","Draws one frame of a title sprite through SPRITE, using the pointer","table at TITLPTR indexed by (65FCH).  Entries 0-2 are the word SEA at","three fractional-pixel offsets; stepping the buffer pointer by 74 each","time the phase wraps is what makes the logo rise smoothly."],"4B1F":["WAVE LINE","Repeats one of the two 8-byte patterns WAVE1/WAVE2 across all 64","columns, alternating on bit 3 of (65FDH).  Masks with 80H/83H/8FH","before OR-ing so the previous phase is cleared."],"4DA3":["BUFFER -> VIDEO","The only thing that ever writes the play area.  15 rows of 64 bytes","are LDIR'd from BUFVIS to VIDEO, skipping the 10 hidden columns at the","end of each 74-byte buffer row.  No hardware scrolling and no partial","update: the whole window is rebuilt and copied every frame.","Row 15 (3FC0H) is left alone as the status line."],"4F09":["TERRAIN RENDERER","Walks TERPTR and paints 64 columns into the buffer.  Each data byte is","hhhh llll: high nibble 1..15 is the buffer row (+1), low nibble indexes","CHARTAB.  High nibble 0 means a control byte - see FORMAT.","The row index is got with A=byte>>3 then RES 0,A, which yields nibble*2","- the ROWTAB word index - in four bytes."],"4FAE":["SEA FLOOR","The floor is not in the terrain data.  176 (B0H, the bottom pixel row","of a cell) is OR'd across 64 columns of the last buffer row instead."],"4FBB":["FORMAT - terrain control bytes  (author's own label)","low nibble < 4 : BLOCOL = n+1, the number of cells stacked per column","low nibble >= 4: LEVEL = n-3.  LEVEL 1 closes a water span (WATEND),","                 anything else opens one (WATBEG, WATLEV)."],"4FEA":["PRTWAT - draw the water surface  (author's own label)","Walks WATBEG..WATEND two columns at a time OR-ing 8CH (the middle","pixel row).  Sets UPFLG if it meets a solid BFH cell, meaning the sub","cannot surface at that spot.  An empty or negative span falls through","to DECAIR."],"514E":["SPRITE - draw/skip stream blitter","The format every sprite in the game uses:","   byte >= 80H : a graphics character - OR (or XOR) into the buffer","   byte 01-7FH : skip that many buffer positions","   byte 00H    : end of sprite","Clips against 497EH, the last byte of the buffer.  Sets bit 0 of","(IX+3) when it lands on something already set - that is the collision","flag the caller tests."],"518D":["SUB MOVEMENT","SUBCOL is a buffer ADDRESS, clamped 452EH..454DH - so the sub roams","the left 32 columns of the screen and nowhere else, moving a whole","character at a time.  Vertically it moves one graphics pixel - a third","of a character - by decrementing SUBFRAC and borrowing into SUBROW.","Reads the joystick on port 0 first, then keyboard row 3840H:","   bit 3 up   bit 4 down   bit 5 left   bit 6 right"],"5B42":["FIRE","Joystick first (bit 4): launches the torpedo at 5B64H then falls","straight through to LNCHMIS, so one button gives you both.","On the keyboard they are split - SPACE (bit 7) is torpedo only,","ENTER (bit 0) missile only.  TORDEB/MISDEB debounce each."],"5BCD":["LAUNCH","Finds a free slot among the 8 six-byte entries at PROJTAB and stores","the muzzle position.  DE is the column offset ahead of the sub - 8 for","the torpedo, 4 for the missile - and B the type/counter byte."],"5C26":["PROJECTILE UPDATE","(IX+0) odd  -> PRJINIT, the launch frame, counts down","(IX+0) zero -> TORMOVE, torpedo: INC DE, one column right, 4 per frame","(IX+0) even -> MISMOVE, missile: up two pixels per frame, max 2 aloft","               counted in MISCNT"],"0060":["LEVEL II ROM DELAY LOOP   (not our code)","The only ROM routine Sea Dragon calls. Six bytes: spin BC down to zero.","We do not ship the Tandy ROM, so the browser build answers this address","in JavaScript and charges the 26 T-states per pass that the real loop","costs, which is what keeps the game running at 1982 speed."]},"comments":{"4980":"stack sits just under BUFFER","5000":"halve it - the surface steps two columns at a time","5181":"clip at the end of BUFFER","5192":"joystick port","5197":"joystick is active low","5226":"FFH ends the object table","5236":"records are 4 bytes","499F":"Model III video mode port","49A7":"IX = video row 14","49BC":"self-modify the IY displacement below","4AF9":"step the buffer pointer up one row (74)","4C42":"TERPTR = start of the terrain data","4DA5":"BUFVIS = BUFFER+5, the 5-column left margin","4DAB":"64 visible columns","4DB0":"skip the 10 hidden columns","4DE9":"blank the air gauge with 80H","4F19":"A = byte>>3 ...","4F1F":"... then RES 0 -> nibble*2, the ROWTAB index","4F3C":"self-modifying CHARTAB index","4FB3":"176 = bottom pixel row of a cell","501A":"BFH = solid: the surface is blocked here","519C":"bit 5 = LEFT arrow","51A8":"left limit of the sub s travel","51B9":"bit 6 = RIGHT arrow","51C5":"right limit - 32 columns in all","51D2":"bit 3 = UP arrow","51DD":"UPFLG: cannot surface here","51E8":"one graphics pixel, not one character","51F9":"bit 4 = DOWN arrow","5B4F":"invert the joystick byte","5B5F":"joystick fire","5B69":"launch the torpedo ...","5B6F":"... then fall into the missile launch: one button, both weapons","5B7F":"bit 7 = SPACE","5B93":"bit 0 = ENTER","5BA2":"no more than two missiles aloft","5BA7":"missile: 4 columns ahead","5BC2":"torpedo: 8 columns ahead of the sub","5C4C":"missile climbs one pixel ...","5C53":"... borrowing into the character row","5D5C":"torpedo advances one column","5D61":"four columns per frame","5D88":"launch frame: count down then become a torpedo"}};
+const ALIAS={"f":"SPACE","s":"ENTER"};
+// ---- what the instruction at the PC is about to do ---------------------
+// Two parts: what the opcode means in general, and what it will do with the
+// values actually in the registers right now, including whether a conditional
+// branch will be taken. Machine-specific addresses and ports are named,
+// because on a TRS-80 the screen and the keyboard are just memory.
+const WHY=(function(){
+const h2=v=>v.toString(16).toUpperCase().padStart(2,'0')+'H';
+const h4=v=>v.toString(16).toUpperCase().padStart(4,'0')+'H';
+const bin=v=>v.toString(2).padStart(8,'0');
+const R8=/^(A|B|C|D|E|H|L|IXH|IXL|IYH|IYL)$/, R16=/^(AF|BC|DE|HL|IX|IY|SP)$/;
+
+// the neighbourhoods of a TRS-80's 64K
+function region(a){
+  if(a>=0x3C00&&a<0x4000){ const o=a-0x3C00;
+    return 'the screen, row '+(o>>6)+' column '+(o&63); }
+  if(a>=0x3800&&a<0x3900){ const rows=[];
+    for(let r=0;r<8;r++) if(a&(1<<r)) rows.push(r);
+    return 'the keyboard matrix'+(rows.length?', row'+(rows.length>1?'s ':' ')+rows.join('+'):''); }
+  if(a>=0x4529&&a<=0x497E) return 'the off-screen play buffer';
+  if(a<0x3000) return 'ROM space, which this page answers in JavaScript instead';
+  return null;
+}
+const PORT={0x00:'the joystick (active low, so an idle stick reads FFH)',
+            0xFF:'the cassette port, whose two low bits drive the speaker',
+            0xEC:'the Model III video mode register',
+            0x0C:'a port only Armored Patrol and Tank Zone use'};
+
+function mk(cpu,ram,nameAt){
+  const F=cpu.F;
+  const flag=n=>({C:F&1,N:F&2,PV:F&4,H:F&0x10,Z:F&0x40,S:F&0x80})[n]?true:false;
+  function val(o){
+    if(!o) return null;
+    if(R8.test(o))  return {v:cpu[o],w:8,d:o};
+    if(R16.test(o)) return {v:cpu[o],w:16,d:o};
+    if(o==='(HL)')  return {v:ram[cpu.HL],w:8,at:cpu.HL,d:'the byte at HL'};
+    if(o==='(BC)')  return {v:ram[cpu.BC],w:8,at:cpu.BC,d:'the byte at BC'};
+    if(o==='(DE)')  return {v:ram[cpu.DE],w:8,at:cpu.DE,d:'the byte at DE'};
+    let m=o.match(/^\((IX|IY)([+-]\d+)\)$/);
+    if(m){ const a=(cpu[m[1]]+ +m[2])&0xFFFF;
+           return {v:ram[a],w:8,at:a,d:m[1]+m[2]+', which is '+h4(a)}; }
+    m=o.match(/^\((.+)\)$/);
+    if(m){ const a=addr(m[1]); if(a!==null)
+           return {v:ram[a],w:8,at:a,d:'memory at '+label(a)}; }
+    const n=konst(o); if(n!==null)
+      return {v:n,w:n>0xFF?16:8,imm:true,d:'the constant '+(n>0xFF?h4(n):h2(n))};
+    return null;
+  }
+  function konst(s){
+    if(/^[0-9A-F]+H$/.test(s)) return parseInt(s.replace(/H$/,''),16);
+    if(/^\d+$/.test(s)) return +s;
+    return null;
+  }
+  function addr(s){
+    const k=konst(s); if(k!==null) return k;
+    const a=nameAt(s); return a===null?null:a;
+  }
+  function label(a){ const n=nameAt(null,a); return n?n+' ('+h4(a)+')':h4(a); }
+  function place(a){ const r=region(a); return label(a)+(r?', '+r:''); }
+  function cond(cc){
+    switch(cc){ case 'NZ':return !flag('Z'); case 'Z':return flag('Z');
+      case 'NC':return !flag('C'); case 'C':return flag('C');
+      case 'PO':return !flag('PV'); case 'PE':return flag('PV');
+      case 'P': return !flag('S'); case 'M': return flag('S'); }
+    return null;
+  }
+  const why=cc=>({NZ:'the last result was not zero',Z:'the last result was zero',
+    NC:'the last operation did not carry',C:'the last operation carried',
+    PO:'parity is odd',PE:'parity is even',
+    P:'the last result was positive',M:'the last result was negative'})[cc];
+  return {val,konst,addr,label,place,cond,why,flag};
+}
+
+const MEAN={
+ NOP:'Do nothing for four cycles. Often a placeholder left where code was patched out.',
+ HALT:'Stop the processor until an interrupt arrives. With interrupts disabled, as they are in every one of these games, this stops the machine dead.',
+ LD:'Copy a value. The Z80 has no separate load and store: one instruction moves between registers, memory and constants, and it never touches the flags.',
+ PUSH:'Push a register pair onto the stack, which grows downwards, so SP drops by two.',
+ POP:'Pull two bytes off the stack into a register pair and raise SP by two.',
+ CALL:'Push the address of the following instruction onto the stack, then jump. A later RET pops it back.',
+ RET:'Pop a return address off the stack into PC.',
+ JP:'Jump to an absolute address. Three bytes.',
+ JR:'Jump relative, by a signed byte, so the target has to be within 127 bytes. One byte shorter than JP, and faster when it does not branch.',
+ DJNZ:'Decrement B and jump if B is not yet zero. A whole counted loop in one instruction, which is why B is the loop counter by convention.',
+ RST:'A one-byte call to a fixed low address. Cheap, because the address is baked into the opcode.',
+ ADD:'Add, ignoring the carry flag.',
+ ADC:'Add, including the carry flag, which is how you chain arithmetic wider than eight bits.',
+ SUB:'Subtract, ignoring the borrow.',
+ SBC:'Subtract, including the borrow.',
+ AND:'Bitwise AND. Keeps only the bits set in both, so it is the usual way to mask bits off.',
+ OR:'Bitwise OR. Sets every bit set in either. Also the idiomatic test against zero, since OR A leaves A alone but sets the flags.',
+ XOR:'Bitwise exclusive-OR. Flips the bits set in the operand.',
+ CP:'Compare: subtract, set the flags, throw the result away. A is left untouched.',
+ INC:'Add one.',
+ DEC:'Subtract one.',
+ NEG:'Negate A, two’s complement.',
+ CPL:'Flip every bit of A.',
+ SCF:'Set the carry flag.',
+ CCF:'Invert the carry flag.',
+ DAA:'Fix up A after adding or subtracting two packed binary-coded-decimal digits.',
+ EX:'Exchange two registers.',
+ EXX:'Swap BC, DE and HL with their shadow copies in one instruction. A whole spare register set, four cycles.',
+ BIT:'Test one bit and set the zero flag from it. Nothing else changes.',
+ SET:'Set one bit.',
+ RES:'Clear one bit.',
+ RLC:'Rotate left; the top bit comes round into the bottom and into carry.',
+ RRC:'Rotate right; the bottom bit comes round into the top and into carry.',
+ RL:'Rotate left through carry: carry goes into the bottom, the old top bit becomes carry.',
+ RR:'Rotate right through carry.',
+ SLA:'Shift left, zero into the bottom. A doubling.',
+ SRA:'Shift right, keeping the sign bit. A halving that still works on negative numbers.',
+ SRL:'Shift right, zero into the top. An unsigned halving.',
+ SLL:'Shift left with a one into the bottom. Undocumented, but the hardware does it anyway.',
+ RLCA:'Rotate A left, top bit round to the bottom and into carry. Faster and shorter than the RLC A form.',
+ RRCA:'Rotate A right, bottom bit round to the top and into carry.',
+ RLA:'Rotate A left through carry.',
+ RRA:'Rotate A right through carry.',
+ LDI:'Copy one byte from (HL) to (DE), step both forward, count BC down.',
+ LDD:'Copy one byte from (HL) to (DE), step both backward, count BC down.',
+ LDIR:'Block copy: move BC bytes from (HL) to (DE), forwards, until BC is zero. The fastest memory move the Z80 has, about 21 cycles a byte, and this is how these games get a frame onto the screen.',
+ LDDR:'Block copy backwards, for when source and destination overlap and the destination is higher.',
+ CPI:'Compare A with (HL), step HL forward, count BC down.',
+ CPIR:'Search forwards from (HL) for the byte in A, up to BC bytes.',
+ CPD:'Compare A with (HL), stepping HL backward.',
+ CPDR:'Search backwards for the byte in A.',
+ INI:'Read a port into (HL).',
+ INIR:'Read B bytes from a port into memory.',
+ IND:'Read a port into (HL), stepping backwards.',
+ INDR:'Read B bytes from a port, backwards.',
+ OUTI:'Write (HL) to a port.',
+ OTIR:'Write B bytes from memory to a port.',
+ OUTD:'Write (HL) to a port, stepping backwards.',
+ OTDR:'Write B bytes to a port, backwards.',
+ IN:'Read a byte from an I/O port.',
+ OUT:'Write a byte to an I/O port.',
+ DI:'Disable interrupts. Every one of these games does this at startup and never undoes it.',
+ EI:'Enable interrupts.',
+ IM:'Choose the interrupt mode.',
+ RETI:'Return from an interrupt.',
+ RETN:'Return from a non-maskable interrupt.',
+ RRD:'Rotate one BCD digit right between A and (HL).',
+ RLD:'Rotate one BCD digit left between A and (HL).',
+ DEFB:'Not an instruction. These bytes are data: a table, a sprite, a string.',
+ DEFM:'Not an instruction. Text stored inside the program.'
+};
+const FLAGS={
+ LD:'no flags change, except for LD A,I and LD A,R',
+ INC:'S, Z, H and P/V follow the result; carry is left alone',
+ DEC:'S, Z, H and P/V follow the result and N is set; carry is left alone',
+ ADD:'every flag follows the result', ADC:'every flag follows the result',
+ SUB:'every flag follows the result and N is set',
+ SBC:'every flag follows the result and N is set',
+ CP:'every flag follows the comparison and N is set; A is unchanged',
+ AND:'H set, C and N cleared, P/V is parity',
+ OR:'H, C and N cleared, P/V is parity',
+ XOR:'H, C and N cleared, P/V is parity',
+ BIT:'Z is set when the bit is zero; H set, N cleared',
+ PUSH:'no flags change', POP:'no flags change, unless you pop AF',
+ JP:'no flags change', JR:'no flags change', CALL:'no flags change',
+ RET:'no flags change', DJNZ:'no flags change', NOP:'no flags change',
+ OUT:'no flags change', DI:'no flags change', EI:'no flags change',
+ LDIR:'P/V is cleared once BC reaches zero; S and Z are left alone',
+ SET:'no flags change', RES:'no flags change'
+};
+
+function explain(pc,text,bytes,cpu,ram,nameAt,lastCost){
+  const [mn,ops]=text.split('\t');
+  const E=mk(cpu,ram,nameAt);
+  const parts=(ops||'').split(',');
+  const V=o=>E.val((o||'').trim());
+  const show=x=>x===null?'?':(x.w===16?h4(x.v):h2(x.v));
+  let now='';
+
+  if(mn==='XOR'&&(ops||'').trim()==='A'){
+    now='A is '+h2(cpu.A)+'. Anything exclusive-ORed with itself is zero, so A becomes 00H. '
+      +'One byte and four cycles, where LD A,0 would need two bytes and seven.';
+  } else if(mn==='OR'&&(ops||'').trim()==='A'){
+    now='A is '+h2(cpu.A)+'. ORing A with itself leaves it alone but sets the flags, so this is a '
+      +'test: Z will be '+(cpu.A===0?'set, because A is zero':'clear, because A is not zero')+'.';
+  } else if(mn==='LD'){
+    const d=V(parts[0]), s=V(parts.slice(1).join(','));
+    if(s&&d) now = s.imm ? ('Puts '+show(s)+' into '+d.d+'.')
+                         : ('Copies '+show(s)+' from '+s.d+' into '+d.d+'.');
+    else if(s) now='Copies '+show(s)+' from '+s.d+'.';
+    else if(d) now=d.d+' is currently '+show(d)+'.';
+    if(d&&d.at!==undefined) now+=' The destination is '+E.place(d.at)+'.';
+    else if(s&&s.at!==undefined) now+=' The source is '+E.place(s.at)+'.';
+  } else if(/^(ADD|ADC|SUB|SBC|AND|OR|XOR|CP)$/.test(mn)){
+    const first=(parts[0]||'').trim();
+    const accum=first==='A'||parts.length===1;
+    const s=V(parts.length>1?parts.slice(1).join(',').trim():first);
+    if(s&&accum){
+      const x=cpu.A, y=s.v; let r=null;
+      if(mn==='ADD')r=(x+y)&0xFF; else if(mn==='ADC')r=(x+y+(E.flag('C')?1:0))&0xFF;
+      else if(mn==='SUB')r=(x-y)&0xFF; else if(mn==='SBC')r=(x-y-(E.flag('C')?1:0))&0xFF;
+      else if(mn==='AND')r=x&y; else if(mn==='OR')r=x|y; else if(mn==='XOR')r=x^y;
+      now = s.imm ? ('A is '+h2(x)+'. ')
+                  : ('A is '+h2(x)+' and '+s.d+' is '+show(s)+'. ');
+      now+= mn==='CP'
+        ? ('The comparison '+(x===y?'is equal, so Z will be set'
+            :(x<y?'borrows, so carry will be set':'leaves A the larger, so neither Z nor carry'))
+           +'. A stays '+h2(x)+'.')
+        : ('A becomes '+h2(r)+'.');
+      if(s.at!==undefined) now+=' The operand came from '+E.place(s.at)+'.';
+    } else if(s&&!accum){
+      const t=V(first);
+      now=(t?first+' is '+show(t)+' and ':'')+s.d+' is '+show(s)+'.';
+    }
+  } else if(mn==='INC'||mn==='DEC'){
+    const d=V(parts[0]); const k=mn==='INC'?1:-1;
+    if(d){ const r=d.w===16?((d.v+k)&0xFFFF):((d.v+k)&0xFF);
+      now=d.d+' is '+show(d)+', so it becomes '+(d.w===16?h4(r):h2(r))+'.';
+      if(d.at!==undefined) now+=' That is '+E.place(d.at)+'.';
+      if(d.w===8&&r===0) now+=' The result is zero, so Z will be set.'; }
+  } else if(mn==='DJNZ'){
+    const t=E.addr((parts[0]||'').trim());
+    const b=(cpu.B-1)&0xFF;
+    now='B is '+h2(cpu.B)+' and becomes '+h2(b)+'. '
+      +(b? 'Not zero, so it jumps back to '+(t===null?'the target':E.label(t))+': '
+           +b+' more pass'+(b===1?'':'es')+' to go.'
+         : 'Zero, so it falls through and the loop is over.');
+  } else if(mn==='JR'||mn==='JP'||mn==='CALL'||mn==='RET'){
+    const ccFirst=/^(NZ|Z|NC|C|PO|PE|P|M)$/.test((parts[0]||'').trim());
+    const cc=ccFirst?(parts[0]||'').trim():null;
+    const tgtStr=(parts[cc?1:0]||'').trim();
+    const tgt=(mn==='RET'||!tgtStr)?null:E.addr(tgtStr);
+    if(cc){
+      const t=E.cond(cc);
+      now='The condition is '+cc+', meaning '+E.why(cc)+'. Right now that is '+(t?'true':'false')
+        +', so it '+(t?'will ':'will not ')
+        +(mn==='CALL'?'call':mn==='RET'?'return':'jump')
+        +(tgt!==null&&t?' to '+E.label(tgt):'')+'.';
+      if(!t) now+=' Execution falls through to '+h4((pc+bytes.length)&0xFFFF)+'.';
+    } else if(mn==='RET'){
+      const r=ram[cpu.SP]|(ram[(cpu.SP+1)&0xFFFF]<<8);
+      now='Pops '+h4(r)+' off the stack at SP='+h4(cpu.SP)+' and carries on from there. '
+        +'SP becomes '+h4((cpu.SP+2)&0xFFFF)+'.';
+    } else if(mn==='CALL'){
+      now='Pushes the return address '+h4((pc+bytes.length)&0xFFFF)+' and jumps to '
+        +(tgt===null?tgtStr:E.label(tgt))+'. SP drops from '+h4(cpu.SP)+' to '+h4((cpu.SP-2)&0xFFFF)+'.';
+    } else {
+      now='Jumps to '+(tgt===null?tgtStr:E.label(tgt))+'.';
+    }
+  } else if(mn==='PUSH'){
+    const d=V(parts[0]);
+    if(d) now='Writes '+show(d)+' to '+h4((cpu.SP-2)&0xFFFF)+', and SP becomes '
+      +h4((cpu.SP-2)&0xFFFF)+'.';
+  } else if(mn==='POP'){
+    const r=ram[cpu.SP]|(ram[(cpu.SP+1)&0xFFFF]<<8);
+    now='Takes '+h4(r)+' from '+h4(cpu.SP)+' into '+(parts[0]||'')+'; SP becomes '
+      +h4((cpu.SP+2)&0xFFFF)+'.';
+  } else if(mn==='BIT'){
+    const b=+parts[0], d=V(parts[1]);
+    if(d) now=d.d+' is '+h2(d.v)+' ('+bin(d.v)+'), so bit '+b+' is '+((d.v>>b)&1)
+      +' and Z will be '+(((d.v>>b)&1)?'clear':'set')+'.';
+  } else if(mn==='SET'||mn==='RES'){
+    const b=+parts[0], d=V(parts[1]);
+    if(d){ const r=mn==='SET'?(d.v|(1<<b)):(d.v&~(1<<b));
+      now=d.d+' is '+h2(d.v)+' ('+bin(d.v)+') and becomes '+h2(r)+' ('+bin(r)+').';
+      if(d.at!==undefined) now+=' At '+E.place(d.at)+'.'; }
+  } else if(/^(LDIR|LDDR|LDI|LDD)$/.test(mn)){
+    const n=cpu.BC||0x10000;
+    now='HL is '+h4(cpu.HL)+', DE is '+h4(cpu.DE)+', BC is '+h4(cpu.BC)+'. ';
+    now+= (mn==='LDIR'||mn==='LDDR')
+      ? 'Moves '+n+' byte'+(n===1?'':'s')+' from '+E.label(cpu.HL)+' to '+E.label(cpu.DE)
+        +' and will not stop until it is done, roughly '+(21*n).toLocaleString()+' cycles.'
+      : 'Moves one byte from '+E.label(cpu.HL)+' to '+E.label(cpu.DE)+'.';
+    const r=region(cpu.DE); if(r) now+=' The destination is '+r+'.';
+  } else if(/^(CPIR|CPDR|CPI|CPD)$/.test(mn)){
+    now='Looking for '+h2(cpu.A)+' from '+h4(cpu.HL)+', with BC='+h4(cpu.BC)+' bytes to go.';
+  } else if(mn==='OUT'){
+    const p=E.konst((parts[0]||'').replace(/[()]/g,''));
+    now='Writes A, currently '+h2(cpu.A)+', to port '+(p===null?(parts[0]||''):h2(p))+'.';
+    if(p!==null&&PORT[p]) now+=' That is '+PORT[p]+'.';
+    if(p===0xFF) now+=' The speaker is driven by toggling those bits, so the spacing of these writes is the pitch.';
+  } else if(mn==='IN'){
+    const p=E.konst((parts[1]||parts[0]||'').replace(/[()]/g,''));
+    now='Reads port '+(p===null?'(C)':h2(p))+'.';
+    if(p!==null&&PORT[p]) now+=' That is '+PORT[p]+'.';
+    if(p===0x00) now+=' A bit reads 0 when its direction is pressed.';
+  } else if(mn==='RST'){
+    const t=E.konst((parts[0]||'').trim());
+    if(t!==null) now='Pushes '+h4((pc+1)&0xFFFF)+' and jumps to '+h4(t)+'.';
+  } else if(mn==='EX'){
+    now='Swaps '+(parts[0]||'')+' and '+(parts[1]||'')+'.';
+    if((parts[0]||'')==='DE') now+=' DE is '+h4(cpu.DE)+' and HL is '+h4(cpu.HL)+'.';
+  } else if(mn==='EXX'){
+    now='BC, DE and HL are '+h4(cpu.BC)+', '+h4(cpu.DE)+' and '+h4(cpu.HL)
+      +'. After this they hold whatever the shadow set held.';
+  } else if(/^(RLC|RRC|RL|RR|SLA|SRA|SRL|SLL)$/.test(mn)){
+    const d=V(parts[0]);
+    if(d) now=d.d+' is '+h2(d.v)+' ('+bin(d.v)+').';
+  } else if(/^(RLCA|RRCA|RLA|RRA|CPL|NEG|DAA)$/.test(mn)){
+    now='A is '+h2(cpu.A)+' ('+bin(cpu.A)+').';
+  } else if(mn==='SCF'||mn==='CCF'){
+    now='Carry is currently '+(E.flag('C')?'1':'0')+'.';
+  }
+  if(now) now=now.charAt(0).toUpperCase()+now.slice(1);
+  return {mn:mn,ops:ops||'',mean:MEAN[mn]||null,now:now,fl:FLAGS[mn]||null,lastCost:lastCost};
+}
+return {explain:explain};
+})();
+// ---- the code map ------------------------------------------------------
+// Instruction start addresses, delta encoded, plus one bit each for whether
+// that instruction was ever seen to execute. See listing.js.
+const STARTS=(()=>{
+  const dl=Uint8Array.from(atob(MAP.deltas),c=>c.charCodeAt(0));
+  const out=[MAP.first]; let a=MAP.first;
+  for(let i=0;i<dl.length;i++){ let d=dl[i];
+    if(d===255){ d=dl[i+1]|(dl[i+2]<<8); i+=2; }
+    a+=d; out.push(a); }
+  return out;
+})();
+const EXECBITS=Uint8Array.from(atob(MAP.execMask),c=>c.charCodeAt(0));
+const wasRun=i=>!!(EXECBITS[i>>3]&(1<<(i&7)));
+
+const hx4=n=>n.toString(16).toUpperCase().padStart(4,'0');
+const hx2=n=>n.toString(16).toUpperCase().padStart(2,'0');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ---- boot: run the real relocator, then disassemble what it made -------
+let m=new Machine();
+const SNAP = MAP.snapshot_at ? parseInt(MAP.snapshot_at,16) : null;
+function relocate(mm){
+  if(SNAP===null) return true;
+  for(let g=0; g<4000000; g++){ if(mm.cpu.PC===SNAP) return true; mm.cpu.step(); }
+  return false;
+}
+const relocated=relocate(m);
+const rd=a=>m.ram[a&0xFFFF];
+
+// ---- labels ------------------------------------------------------------
+const LAB=new Map(), ORIG=new Set();
+for(const k in ANN.labels){ const a=parseInt(k,16);
+  LAB.set(a,ANN.labels[k].name); if(ANN.labels[k].orig) ORIG.add(a); }
+const sym=a=>LAB.get(a)||null;
+// first pass: find every branch target so the unnamed ones can be numbered
+const CALLED=new Set(), JUMPED=new Set(), DREF=new Set();
+for(const a of STARTS){ let d; try{ d=DIS.decode(rd,a); }catch(e){ continue; }
+  if(d.target!=null){ (d.kind==='call'?CALLED:JUMPED).add(d.target); }
+  const mm=d.text.match(/\b0?([0-9A-F]{4})H\b/g);
+  if(mm) for(const t of mm){ const v=parseInt(t.replace(/^0/,'').replace(/H$/,''),16);
+    if(v!==d.target) DREF.add(v); } }
+for(const t of [...CALLED].sort((a,b)=>a-b)) if(!LAB.has(t)) LAB.set(t,'SUB_'+hx4(t));
+for(const t of [...JUMPED].sort((a,b)=>a-b)) if(!LAB.has(t)) LAB.set(t,'LOC_'+hx4(t));
+const CODESET=new Set(STARTS);
+for(const t of [...DREF].sort((a,b)=>a-b)) if(!LAB.has(t)&&!CODESET.has(t)) LAB.set(t,'DAT_'+hx4(t));
+const NAMES=new Set(LAB.values());
+// name -> address, for the explainer's operand lookups
+const NAMEADDR=new Map(); for(const [a,n] of LAB) if(!NAMEADDR.has(n)) NAMEADDR.set(n,a);
+function nameAt(name,addr){
+  if(name!=null) return NAMEADDR.has(name)?NAMEADDR.get(name):null;
+  return LAB.get(addr)||null;
+}
+const isGen=n=>/^(SUB|LOC|DAT)_[0-9A-F]{4}$/.test(n);
+
+// ---- rows --------------------------------------------------------------
+// One row is one line, always the same height, so the list can be virtualised.
+const ROWS=[], ROWOF=new Map();
+function pushCmt(text,cls){ ROWS.push({t:'cmt',w:text.length,
+  html:'<span class="cm">'+esc(text)+'</span>',cls:cls||''}); }
+let prevEnd=null;
+for(let i=0;i<STARTS.length;i++){
+  const a=STARTS[i];
+  if(prevEnd!==null&&a>prevEnd){
+    const n=a-prevEnd;
+    ROWS.push({t:'gap',w:40,html:'      '+hx4(prevEnd)+'    &middot;&middot;&middot; '+n+
+      ' byte'+(n===1?'':'s')+' of data &middot;&middot;&middot;'});
+  }
+  const H=ANN.headers[hx4(a)];
+  if(H){ ROWS.push({t:'cmt',w:1,html:'&nbsp;'});
+         pushCmt(';'+'─'.repeat(66));
+         pushCmt('; '+H[0]+'   ['+hx4(a)+']');
+         for(let k=1;k<H.length;k++) pushCmt('; '+H[k]);
+         pushCmt(';'+'─'.repeat(66)); }
+  let d; try{ d=DIS.decode(rd,a,sym); }catch(e){ prevEnd=a+1; continue; }
+  const [mn,ops]=d.text.split('\t');
+  const nm=LAB.get(a);
+  const cmt=ANN.comments[hx4(a)];
+  // make any label appearing in the operands clickable
+  let oh=esc(ops||'');
+  oh=oh.replace(/[A-Z][A-Z0-9_]{1,9}/g,t=>NAMES.has(t)?'<a data-j="'+t+'">'+t+'</a>':t);
+  const padOps=(ops||''), gapc=cmt?Math.max(1,23-padOps.length):0;
+  ROWS.push({t:'ins',addr:a,len:d.len,kind:d.kind,target:d.target,cold:!wasRun(i),
+    w:1+9+4+2+12+6+1+padOps.length+(cmt?gapc+2+cmt.length:0),
+    label:nm&&!isGen(nm)?nm:(nm||''),
+    html:'<span class="bpdot"> </span>'
+      +'<span class="'+(nm?('lab'+(isGen(nm)?' gen':'')):'')+'">'+esc((nm||'').slice(0,8)).padEnd(9)+'</span>'
+      +'<span class="ad" data-a="'+a+'">'+hx4(a)+'</span>  '
+      +'<span class="by">'+d.bytes.map(hx2).join(' ').padEnd(12)+'</span>'
+      +'<span class="mn">'+esc(mn).padEnd(6)+'</span> '
+      +'<span class="op">'+oh+'</span>'
+      +(cmt?'<span class="cm">'+' '.repeat(Math.max(1,23-(ops||'').length))+'; '+esc(cmt)+'</span>':'')});
+  ROWOF.set(a,ROWS.length-1);
+  prevEnd=a+d.len;
+  if(i+1<STARTS.length&&STARTS[i+1]<prevEnd) prevEnd=STARTS[i+1];
+}
+// which routine each address sits in: the nearest call target or headered
+// address at or before it
+const ROUTINES=[...new Set([...CALLED,...Object.keys(ANN.headers).map(k=>parseInt(k,16))])]
+  .filter(a=>CODESET.has(a)).sort((x,y)=>x-y);
+function routineOf(pc){
+  let lo=0,hi=ROUTINES.length-1,best=null;
+  while(lo<=hi){ const mid=(lo+hi)>>1;
+    if(ROUTINES[mid]<=pc){ best=ROUTINES[mid]; lo=mid+1; } else hi=mid-1; }
+  return best===null?null:best;
+}
+
+// ---- the list, virtualised --------------------------------------------
+const ROWH=19;
+const list=document.getElementById('list'), space=document.getElementById('space'),
+      rowsEl=document.getElementById('rows');
+space.style.height=(ROWS.length*ROWH)+'px';
+// one fixed width for every row: the longest line in the whole listing
+const MAXW=ROWS.reduce((x,r)=>Math.max(x,r.w||0),60)+3;
+document.documentElement.style.setProperty('--lw',MAXW+'ch');
+const BRK=new Uint8Array(65536);
+let winFirst=-1, winCur=-1;
+function render(force){
+  const first=Math.max(0,Math.floor(list.scrollTop/ROWH)-3);
+  const n=Math.ceil(list.clientHeight/ROWH)+7;
+  const cur=ROWOF.has(m.cpu.PC)?ROWOF.get(m.cpu.PC):-1;
+  const near=i=>i>=first-1&&i<first+n+1;
+  if(!force&&first===winFirst&&cur!==winCur&&!near(cur)&&!near(winCur)) return;
+  if(!force&&first===winFirst&&cur===winCur) return;
+  winFirst=first; winCur=cur;
+  let h='';
+  for(let i=first;i<Math.min(ROWS.length,first+n);i++){
+    const r=ROWS[i];
+    let cls='r '+r.t+(r.cls||'');
+    if(r.t==='ins'){ if(r.cold) cls+=' cold'; if(i===cur) cls+=' cur'; }
+    let html=r.html;
+    if(r.t==='ins'&&BRK[r.addr]) html=html.replace('<span class="bpdot"> </span>','<span class="bp">●</span>');
+    h+='<div class="'+cls+'">'+html+'</div>';
+  }
+  rowsEl.style.transform='translateY('+(first*ROWH)+'px)';
+  rowsEl.innerHTML=h;
+}
+list.addEventListener('scroll',()=>render(false));
+function scrollTo(addr,centre){
+  const i=ROWOF.get(addr); if(i===undefined) return false;
+  list.scrollTop=Math.max(0,i*ROWH-(centre?list.clientHeight/2:60));
+  render(true); return true;
+}
+rowsEl.addEventListener('click',e=>{
+  const a=e.target.closest('.ad');
+  if(a){ const ad=+a.dataset.a; BRK[ad]^=1; render(true); updateStatus(); return; }
+  const j=e.target.closest('a[data-j]');
+  if(j){ for(const [addr,nm] of LAB) if(nm===j.dataset.j){ scrollTo(addr,true); break; } }
+});
+
+// ---- screen ------------------------------------------------------------
+const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
+const CELLW=cv.width/64, CELLH=cv.height/16;
+ctx.imageSmoothingEnabled=false;
+function draw(){
+  ctx.fillStyle='#0a0a08'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#e8e6d9';
+  const v=m.ram;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    const c=v[0x3C00+row*64+col];
+    if(c>=0x80&&c<=0xBF){ for(let b=0;b<6;b++) if(c&(1<<b))
+      ctx.fillRect(Math.round(col*CELLW+(b&1)*(CELLW/2)),Math.round(row*CELLH+(b>>1)*(CELLH/3)),
+                   Math.ceil(CELLW/2),Math.ceil(CELLH/3)); }
+  }
+  const gw=CELLW/6, gh=CELLH/12;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    let c=v[0x3C00+row*64+col];
+    if(c<0x20||c>0x7E) continue;
+    if(c>=0x61&&c<=0x7A) c-=0x20;                 // a Model I folds lowercase
+    const base=(c-0x20)*7;
+    for(let r=0;r<7;r++){ const bits=FONT[base+r]; if(!bits) continue;
+      for(let b=0;b<5;b++) if(bits&(1<<(4-b)))
+        ctx.fillRect(Math.round(col*CELLW+b*gw),Math.round(row*CELLH+(r+2)*gh),
+                     Math.ceil(gw),Math.ceil(gh)); }
+  }
+}
+// ---- sound -------------------------------------------------------------
+let ac=null,nextAt=0;
+function flush(hz){
+  if(!document.getElementById('snd').checked||!m.spk.length){m.spk.length=0;return;}
+  if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();nextAt=ac.currentTime;}
+  const SR=ac.sampleRate, ev=m.spk; m.spk=[];
+  const t0=ev[0][0], t1=m.cpu.T, n=Math.max(1,Math.floor((t1-t0)/hz*SR));
+  if(n>SR) return;
+  const buf=ac.createBuffer(1,n,SR), d=buf.getChannelData(0);
+  let ei=0,lvl=ev[0][1];
+  for(let i=0;i<n;i++){ const T=t0+(i/SR)*hz;
+    while(ei<ev.length&&ev[ei][0]<=T){lvl=ev[ei][1];ei++;} d[i]=lvl*0.12; }
+  const s=ac.createBufferSource(); s.buffer=buf; s.connect(ac.destination);
+  const now=ac.currentTime; if(nextAt<now) nextAt=now+0.01;
+  s.start(nextAt); nextAt+=n/SR;
+}
+// ---- panels ------------------------------------------------------------
+const FLAGN=['C','N','P/V','3','H','5','Z','S'];
+function panels(){
+  const c=m.cpu;
+  const pc=c.PC, rt=routineOf(pc);
+  document.getElementById('where').innerHTML=
+    'PC   <b style="color:var(--orig)">'+hx4(pc)+'</b>'
+    +(rt!==null?'   in <b style="color:var(--orig)">'+esc(LAB.get(rt)||hx4(rt))+'</b>'
+       +(pc>rt?' +'+(pc-rt):''):'')
+    +'<br>T    '+c.T.toLocaleString()
+    +'<br>R    '+hx2((c.R&0x7F)|c.R7)+'   <span style="color:var(--dim)">the refresh register, which is where these games get their random numbers</span>';
+  const pair=(n,v)=>'<div><b>'+n+'</b> '+hx4(v)+'</div>';
+  document.getElementById('regs').innerHTML=
+    pair('AF',c.AF)+pair('BC',c.BC)+pair('DE',c.DE)+pair('HL',c.HL)
+    +pair('IX',c.IX)+pair('IY',c.IY)+pair('SP',c.SP)
+    +'<div><b>A</b> '+hx2(c.A)+'  <b>B</b> '+hx2(c.B)+'</div>';
+  document.getElementById('flags').innerHTML='flags '+FLAGN.map((n,i)=>
+    '<span class="'+((c.F&(1<<i))?'set':'')+'">'+n+'</span>').reverse().join(' ');
+  const st=CS.slice(-10).reverse().map(a=>{
+    const r=routineOf(a);
+    return '<div><span class="ad">'+hx4(a)+'</span> '+(r!==null?esc(LAB.get(r)||''):'')+'</div>';
+  }).join('');
+  document.getElementById('stack').innerHTML=st||'<span style="color:var(--faint)">empty</span>';
+}
+function updateStatus(){
+  let n=0; for(let i=0;i<65536;i++) if(BRK[i]) n++;
+  document.getElementById('status').textContent=
+    STARTS.length.toLocaleString()+' instructions'
+    +(relocated?'':'  (relocator did not finish)')
+    +(n?'   '+n+' breakpoint'+(n===1?'':'s'):'');
+}
+// ---- running -----------------------------------------------------------
+const CS=[];                                // the call stack, kept exactly
+let running=false,last=0,mode={k:'hz',v:1774080},ipsAcc=0,lastCost=0;
+// Follow is a toggle so the listing can be parked somewhere while the game
+// runs: scroll down to a routine that only fires occasionally and watch for
+// the highlight to appear in it.
+let followPC=true;
+const followBtn=document.getElementById('follow');
+followBtn.onclick=()=>{ followPC=!followPC;
+  followBtn.classList.toggle('on',followPC);
+  followBtn.textContent=followPC?'Follow PC':'Frozen';
+  if(followPC) paint(); };
+document.getElementById('findpc').onclick=()=>{ scrollTo(m.cpu.PC,true); };
+function one(){
+  const pc=m.cpu.PC, sp0=m.cpu.SP, op=m.ram[pc];
+  lastCost=m.cpu.step();
+  const sp=m.cpu.SP;
+  if(sp===((sp0-2)&0xFFFF)){ if(op===0xCD||(op&0xC7)===0xC4||(op&0xC7)===0xC7) CS.push(pc); }
+  else if(sp===((sp0+2)&0xFFFF)){ if(op===0xC9||(op&0xC7)===0xC0) CS.pop(); }
+  if(m.cpu.halted){ pause(); return false; }
+  if(BRK[m.cpu.PC]){ pause(); return false; }
+  return true;
+}
+function runT(t){ const end=m.cpu.T+t; let g=0;
+  while(m.cpu.T<end){ if(g++>8000000) return; if(!one()) return; } }
+function runN(n){ for(let i=0;i<n;i++) if(!one()) return; }
+// the explanation is only worth drawing when it can be read: paused, or slow
+function whyPanel(){
+  const el=document.getElementById('why');
+  if(running&&mode.k==='hz'&&mode.v>17740){
+    el.innerHTML='<span class="wfl">Running. Pause, or pick a slower speed, '
+      +'and this explains the instruction it is about to execute.</span>';
+    return;
+  }
+  let d=null; try{ d=DIS.decode(rd,m.cpu.PC); }catch(e){}
+  if(!d){ el.innerHTML='<span class="wfl">The byte here does not decode as an instruction.</span>'; return; }
+  const w=WHY.explain(m.cpu.PC,d.text,d.bytes,m.cpu,m.ram,nameAt,lastCost);
+  el.innerHTML='<div class="wmn">'+esc(w.mn+(w.ops?'   '+w.ops:''))+'</div>'
+    +(w.mean?'<div class="wmean">'+esc(w.mean)+'</div>':'')
+    +(w.now?'<div class="wnow">'+esc(w.now)+'</div>':'')
+    +(w.fl?'<div class="wfl">Flags: '+esc(w.fl)+'.</div>':'')
+    +(lastCost?'<div class="wfl">The instruction before this one took '+lastCost+' T-states.</div>':'');
+}
+function paint(){ draw(); panels(); whyPanel(); render(false);
+  if(followPC&&ROWOF.has(m.cpu.PC)){
+    const i=ROWOF.get(m.cpu.PC), top=list.scrollTop, h=list.clientHeight;
+    if(i*ROWH<top+40||i*ROWH>top+h-60) list.scrollTop=Math.max(0,i*ROWH-h/2);
+  }
+  render(false);
+}
+function frame(ts){
+  if(!running) return;
+  if(!last) last=ts;
+  let dt=(ts-last)/1000; last=ts; if(dt>0.25) dt=0.25;
+  if(mode.k==='hz'){ runT(Math.floor(dt*mode.v)); flush(mode.v); }
+  else { ipsAcc+=dt*mode.v; const n=Math.floor(ipsAcc); ipsAcc-=n; runN(n); m.spk.length=0; }
+  paint();
+  if(running) requestAnimationFrame(frame);
+}
+const runBtn=document.getElementById('run');
+function pause(){ running=false; runBtn.textContent='Start'; runBtn.classList.remove('on'); }
+runBtn.onclick=()=>{ running=!running;
+  runBtn.textContent=running?'Pause':'Start'; runBtn.classList.toggle('on',running);
+  if(running){ last=0; if(ac&&ac.state==='suspended') ac.resume(); requestAnimationFrame(frame); }
+  else paint(); };
+document.getElementById('step').onclick=()=>{ pause(); one(); paint(); };
+document.getElementById('over').onclick=()=>{
+  pause();
+  let d=null; try{ d=DIS.decode(rd,m.cpu.PC); }catch(e){}
+  if(!d||d.kind!=='call'){ one(); paint(); return; }
+  const ret=(m.cpu.PC+d.len)&0xFFFF, sp0=m.cpu.SP;
+  if(!one()){ paint(); return; }
+  for(let g=0;g<20000000;g++){
+    if(m.cpu.PC===ret&&m.cpu.SP===sp0) break;
+    if(!one()) break;
+  }
+  paint();
+};
+document.getElementById('reset').onclick=()=>{
+  pause(); m=new Machine(); relocate(m); CS.length=0; paint(); };
+document.getElementById('speed').onchange=e=>{
+  const [k,v]=e.target.value.split(':'); mode={k,v:+v}; ipsAcc=0; };
+document.getElementById('clrbp').onclick=()=>{ BRK.fill(0); render(true); updateStatus(); };
+document.getElementById('goto').addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  const s=e.target.value.trim().toUpperCase();
+  let a=/^[0-9A-F]{1,4}$/.test(s)?parseInt(s,16):null;
+  if(a===null) for(const [addr,nm] of LAB) if(nm===s){ a=addr; break; }
+  if(a!==null&&!scrollTo(a,true)) document.getElementById('goto').value='not in the listing';
+  e.stopPropagation();
+});
+// ---- keys, so the game is playable while you watch it ------------------
+const DEF={UP:'ArrowUp',DOWN:'ArrowDown',LEFT:'ArrowLeft',RIGHT:'ArrowRight',
+  SPACE:' ',ENTER:'Enter',CLEAR:'Home',BREAK:'Escape',SHIFT:'Shift'};
+for(const k in KEYPOS) if(k.length===1) DEF[k]=DEF[k]||k;
+function toTRS(ev){
+  const w=ev.key;
+  if(!ev.shiftKey&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&w.length===1){
+    const al=ALIAS[w.toLowerCase()]; if(al) return al; }
+  for(const t in DEF){ const b=DEF[t];
+    if(b===w) return t;
+    if(b.length===1&&w.length===1&&b.toUpperCase()===w.toUpperCase()) return t; }
+  if(w==='Control') return 'CLEAR';
+  return null;
+}
+const SENT={};
+addEventListener('keydown',e=>{
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const k=toTRS(e); if(k){ SENT[e.key]=k; m.keys.add(k); e.preventDefault(); } });
+addEventListener('keyup',e=>{
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const k=SENT[e.key]||toTRS(e); if(k){ delete SENT[e.key]; m.keys.delete(k); e.preventDefault(); } });
+addEventListener('blur',()=>{ m.keys.clear(); for(const k in SENT) delete SENT[k]; });
+
+updateStatus(); render(true); paint();
+if(ROWOF.has(m.cpu.PC)) scrollTo(m.cpu.PC,true);
+
+</script><script>
+(function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
+</script>
+</body></html>
