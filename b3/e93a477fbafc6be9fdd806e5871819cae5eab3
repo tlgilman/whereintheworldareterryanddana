@@ -1,0 +1,51 @@
+public/games/01-adventureland.html
+  s_f99eae4185d4ad::t_7ecdaeca63d29e 33,36-38,149,176,221,2284
+public/games/02-pirate-adventure.html
+  s_f99eae4185d4ad::t_91b2dd47cf4ce9 33,36-38,149,176,221,2284
+public/games/03-secret-mission.html
+  s_f99eae4185d4ad::t_96efd15b4dfc73 33,36-38,149,176,221,2284
+public/games/04-voodoo-castle.html
+  s_f99eae4185d4ad::t_84b44a48a41a8c 33,36-38,149,176,221,2284
+public/games/05-the-count.html
+  s_f99eae4185d4ad::t_bd4b73e13a2397 33,36-38,149,176,221,2284
+public/games/06-strange-odyssey.html
+  s_f99eae4185d4ad::t_8013a70d7df694 33,36-38,149,176,221,2284
+public/games/07-mystery-fun-house.html
+  s_f99eae4185d4ad::t_52d215ec39b362 33,36-38,149,176,221,2284
+public/games/08-pyramid-of-doom.html
+  s_f99eae4185d4ad::t_158c6c388292c4 33,36-38,149,176,221,2284
+public/games/09-ghost-town.html
+  s_f99eae4185d4ad::t_5ef2cb2a9365e9 33,36-38,149,176,221,2284
+public/games/10-savage-island-1.html
+  s_f99eae4185d4ad::t_537e12cafdeb0f 33,36-38,149,176,221,2284
+public/games/11-savage-island-2.html
+  s_f99eae4185d4ad::t_4377c5e6a6869f 33,36-38,149,176,221,2284
+public/games/12-golden-voyage.html
+  s_f99eae4185d4ad::t_61f301fc80dd05 33,36-38,149,176,221,2284
+public/games/13-claymorgue-castle.html
+  s_f99eae4185d4ad::t_f315aab7cab5e8 33,36-38,149,176,221,2284
+public/games/14-james-bond.html
+  s_f99eae4185d4ad::t_8e751c9c7243e7 33,36-38,149,176,221,2284
+public/games/15-miners-adventure.html
+  s_f99eae4185d4ad::t_007eadacf6390b 33,36-38,149,176,221,2284
+public/games/16-burglars-adventure.html
+  s_f99eae4185d4ad::t_112b6a22a83011 33,36-38,149,176,221,2284
+public/games/claudeadventureland.html
+  s_f99eae4185d4ad::t_dce049187defae 33,36-38,149,176,221,2284
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3e93a477fbafc6be9fdd806e5871819cae5eab3",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
