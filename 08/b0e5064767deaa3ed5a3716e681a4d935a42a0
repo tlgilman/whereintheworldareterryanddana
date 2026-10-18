@@ -1,0 +1,20 @@
+public/games/defender.html
+  h_5441f656dcd4f2 66
+public/games/index.html
+  h_5441f656dcd4f2 40,43-44,55,61,73,79,85,91,97,195-198
+public/games/robot-king-of-the-hill.html
+  h_5441f656dcd4f2 66
+public/games/tank-zone.html
+  h_5441f656dcd4f2 66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08b0e5064767deaa3ed5a3716e681a4d935a42a0",
+  "prompts": {},
+  "humans": {
+    "h_5441f656dcd4f2": {
+      "author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
