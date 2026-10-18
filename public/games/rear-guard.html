@@ -593,6 +593,13 @@ const DEFAULTS={UP:'ArrowUp',DOWN:'ArrowDown',LEFT:'ArrowLeft',RIGHT:'ArrowRight
 for(const k in KEYPOS) if(k.length===1) DEFAULTS[k]=DEFAULTS[k]||k;
 let BIND=Object.assign({},DEFAULTS);
 try{ const s=localStorage.getItem('trs80-keys-'+GAME); if(s) Object.assign(BIND,JSON.parse(s)); }catch(e){}
+// Repair a saved set in which two TRS keys share one browser key. One of them
+// is then unreachable, which can only be a mistake: an earlier build of this
+// page armed a rebind the moment the panel opened, so the next keystroke
+// silently stole a binding. No default collides, so a collision means damage.
+(function(){ const v=Object.values(BIND);
+  if(new Set(v).size!==v.length){ BIND=Object.assign({},DEFAULTS);
+    try{ localStorage.setItem('trs80-keys-'+GAME,JSON.stringify(BIND)); }catch(e){} } })();
 function saveBind(){ try{ localStorage.setItem('trs80-keys-'+GAME,JSON.stringify(BIND)); }catch(e){} }
 // ALIAS is the extra keys: a letter mapped onto what a TRS-80 key does, so F
 // fires as well as the space bar. The literal letter is not sent when an alias
@@ -614,7 +621,7 @@ function toTRS(ev){
   if(want==='Control') return 'CLEAR';
   return null;
 }
-let grabbing=null;
+let grabbing=null, panelOpen=false;
 function renderControls(){
   const t=document.getElementById('ctrls');
   t.innerHTML='';
@@ -623,7 +630,7 @@ function renderControls(){
     tr.innerHTML='<td class="k">'+label+'</td><td>'+what+'</td>';
     t.appendChild(tr);
   }
-  if(!grabbing) return;
+  if(!panelOpen) return;
   for(const trs of BINDABLE){
     const tr=document.createElement('tr');
     const td1=document.createElement('td'); td1.className='k'; td1.textContent=trs;
@@ -638,18 +645,21 @@ function renderControls(){
   const r=document.createElement('button'); r.textContent='Reset to defaults';
   r.onclick=()=>{ BIND=Object.assign({},DEFAULTS); saveBind(); renderControls(); };
   const dn=document.createElement('button'); dn.textContent='Done'; dn.style.marginLeft='8px';
-  dn.onclick=()=>{ grabbing=null; document.getElementById('rebind').textContent='Change keys'; renderControls(); };
+  dn.onclick=()=>{ grabbing=null; panelOpen=false;
+    document.getElementById('rebind').textContent='Change keys'; renderControls(); };
   td.appendChild(r); td.appendChild(dn); tr.appendChild(td);
   document.getElementById('ctrls').appendChild(tr);
 }
 document.getElementById('rebind').onclick=()=>{
-  grabbing = grabbing===null ? BINDABLE[0] : null;
-  document.getElementById('rebind').textContent = grabbing?'Hide key setup':'Change keys';
+  panelOpen=!panelOpen;
+  if(!panelOpen) grabbing=null;          // opening it must not arm anything
+  document.getElementById('rebind').textContent = panelOpen?'Hide key setup':'Change keys';
   renderControls();
 };
 const SENT={};
 addEventListener('keydown',e=>{
-  if(grabbing){ BIND[grabbing]=e.key; saveBind(); grabbing=null; renderControls(); e.preventDefault(); return; }
+  if(panelOpen&&grabbing){ BIND[grabbing]=e.key; saveBind(); grabbing=null;
+    renderControls(); e.preventDefault(); return; }
   const k=toTRS(e); if(k){ SENT[e.key]=k; m.keys.add(k); e.preventDefault(); }
 });
 addEventListener('keyup',e=>{
