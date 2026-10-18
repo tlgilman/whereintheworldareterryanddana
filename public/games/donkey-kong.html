@@ -570,6 +570,8 @@ class Machine{
     while(this.cpu.T<end&&g++<4000000){this.cpu.step();if(this.cpu.halted)break;}}
 }
 
+const LIVES=null;
+
 const CONTROLS=[["Arrow keys","Move"],["Space or F","Jump"],["Shift+S","Pause, Enter resumes"]];
 const BINDABLE=["UP","DOWN","LEFT","RIGHT","SPACE","ENTER"];
 const ALIAS={"f":"SPACE"};
@@ -705,6 +707,23 @@ document.querySelectorAll('#pad button').forEach(b=>{
   b.addEventListener('touchstart',dn,{passive:false}); b.addEventListener('touchend',up);
   b.addEventListener('mousedown',dn); b.addEventListener('mouseup',up); b.addEventListener('mouseleave',up);
 });
+// ---- a practice mode, off unless you ask for it ------------------------
+// ?subs=N tops the submarine count back up to N whenever it falls below, so a
+// run can be played end to end without starting over. Nothing is patched into
+// the binary: the value is written to the same byte the game itself keeps the
+// count in, and only while the page is asked to. A banner makes it obvious,
+// because a page that quietly cheats is worse than one that does not.
+let SUBS=null;
+try{ const q=new URLSearchParams(location.search).get('subs');
+  if(q!==null&&LIVES){ SUBS=Math.max(1,Math.min(255,parseInt(q,10)||0));
+    addEventListener('DOMContentLoaded',()=>{
+      const b=document.createElement('p'); b.className='note';
+      b.style.cssText='color:var(--gold);border:1px solid #5a5340;border-radius:5px;padding:8px 10px';
+      b.textContent='Practice mode: the submarine count is being held at '+SUBS
+        +(SUBS>9?' (the status line only has room for one character, so it shows a stray symbol)':'')
+        +'. Remove ?subs= from the address to play it straight.';
+      const w=document.getElementById('wrap'); if(w) w.insertBefore(b,w.children[3]||null); }); } }catch(e){}
+
 // ---- loop --------------------------------------------------------------
 let m=new Machine(), running=false, last=0, frames=0, fpsT=0;
 function loop(ts){
@@ -712,7 +731,9 @@ function loop(ts){
   if(!last) last=ts;
   let dt=(ts-last)/1000; last=ts; if(dt>0.1) dt=0.1;
   const hz=+document.getElementById('mach').value;
-  m.run(Math.floor(dt*hz)); draw(m); flush(m,hz);
+  m.run(Math.floor(dt*hz));
+  if(SUBS!==null && m.ram[LIVES]<SUBS) m.ram[LIVES]=SUBS;
+  draw(m); flush(m,hz);
   frames++; if(ts-fpsT>1000){document.getElementById('fps').textContent=frames+' fps';frames=0;fpsT=ts;}
   requestAnimationFrame(loop);
 }
