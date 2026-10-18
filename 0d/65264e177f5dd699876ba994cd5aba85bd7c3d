@@ -1,0 +1,53 @@
+public/games/armored-patrol-code.html
+  s_f99eae4185d4ad::t_235812d1b05a76 680,755-763,1136-1141
+public/games/armored-patrol.html
+  s_f99eae4185d4ad::t_835f434ace880c 458,533-541
+public/games/defender-code.html
+  s_f99eae4185d4ad::t_3ecfcef2df7625 680,755-763,1136-1141
+public/games/defender.html
+  s_f99eae4185d4ad::t_6e4bb762150364 458,533-541
+public/games/donkey-kong-code.html
+  s_f99eae4185d4ad::t_268cc04c6bbd27 680,755-763,1136-1141
+public/games/donkey-kong.html
+  s_f99eae4185d4ad::t_53ff8436f9b8cf 458,533-541
+public/games/eliminator-code.html
+  s_f99eae4185d4ad::t_93f878d00c2826 680,755-763,1136-1141
+public/games/eliminator.html
+  s_f99eae4185d4ad::t_699f74b5332937 458,533-541
+public/games/rear-guard-code.html
+  s_f99eae4185d4ad::t_0bb5cf9c667b96 680,755-763,1136-1141
+public/games/rear-guard.html
+  s_f99eae4185d4ad::t_51c965b7c48465 458,533-541
+public/games/robot-king-of-the-hill-code.html
+  s_f99eae4185d4ad::t_8feed47bcbe557 680,755-763,1136-1141
+public/games/robot-king-of-the-hill.html
+  s_f99eae4185d4ad::t_8ebc6f9f559964 458,533-541
+public/games/seadragon-code.html
+  s_f99eae4185d4ad::t_abc616a3fa399e 680,755-763,770
+public/games/seadragon.html
+  s_f99eae4185d4ad::t_bbbb2e0ff4cfdb 458,533-541
+public/games/tank-zone-code.html
+  s_f99eae4185d4ad::t_bdf4fa5a506286 680,755-763,1136-1141
+public/games/tank-zone.html
+  s_f99eae4185d4ad::t_4c095288b9ed33 458,533-541
+public/games/zaxxon-code.html
+  s_f99eae4185d4ad::t_c1d1ecb9eb2306 680,755-763,1136-1141
+public/games/zaxxon.html
+  s_f99eae4185d4ad::t_d5ca74aa7ce468 458,533-541
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0d65264e177f5dd699876ba994cd5aba85bd7c3d",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
