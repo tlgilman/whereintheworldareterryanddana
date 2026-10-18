@@ -1,0 +1,19 @@
+public/games/seadragon-code.html
+  s_f99eae4185d4ad::t_7a3b4c385d5a37 1130-1135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ea8ae8835dd950d0153147d72f1d9de1f8cc9c3",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
