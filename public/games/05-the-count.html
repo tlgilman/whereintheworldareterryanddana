@@ -30,11 +30,12 @@
        min-width:0;border-radius:0}
   #bottom{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;
           flex:0 0 auto}
-  button,label.btn{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
+  button,label.btn,a.back{background:#222;color:#cfc;border:1px solid #3a4a36;border-radius:4px;
           font:12px "Courier New",monospace;padding:5px 10px;cursor:pointer;
           touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-  button:hover,label.btn:hover{background:#2c352a}
-  button:active,label.btn:active{background:#3c4a38}
+  button:hover,label.btn:hover,a.back:hover{background:#2c352a}
+  button:active,label.btn:active,a.back:active{background:#3c4a38}
+  a.back{text-decoration:none;white-space:nowrap}
   input[type=file]{display:none}
   .hint{color:#6f7a6c;font-size:11px;margin-left:auto}
   #screen.hide{display:none}
@@ -145,7 +146,7 @@
     #room{max-height:42%;min-height:4.2em}
     #bar{margin:6px 0}
     #bottom{gap:5px;margin-top:7px}
-    #bottom button,#bottom label.btn{flex:1 1 auto;padding:9px 8px;font-size:13px;
+    #bottom button,#bottom label.btn,#bottom a.back{flex:1 1 auto;padding:9px 8px;font-size:13px;
                                      text-align:center}
     #pad{display:flex}
     .hint{display:none}
@@ -172,7 +173,7 @@
   @media (max-height:460px){
     #pad{display:none}
     #room{max-height:34%;min-height:2.6em}
-    #bottom button,#bottom label.btn{padding:6px 8px}
+    #bottom button,#bottom label.btn,#bottom a.back{padding:6px 8px}
   }
 </style>
 </head>
@@ -217,6 +218,7 @@
     </div>
   </div>
   <div id="bottom">
+    <a class="back" href="index.html#adventures">&larr; All games</a>
     <button id="bMap">Map</button>
     <button id="bRestart">Restart</button>
     <button id="bSave">Save</button>
@@ -2279,7 +2281,7 @@ if(HAS_DOM){
    Its only job is to answer "am I actually running the build I just made?" —
    a file:// page reopened in the same browser will happily serve a cached
    copy, which looks exactly like a fix that did not work. */
-const BUILD = "2026-10-12.7ecfdd";
+const BUILD = "2026-10-18.11e51b";
 if(HAS_DOM){
   const b = document.getElementById('build');
   if(b) b.textContent = 'build ' + BUILD;
