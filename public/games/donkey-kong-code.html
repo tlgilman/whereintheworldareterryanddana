@@ -673,6 +673,7 @@ for(const r in KEYROW)KEYROW[r].forEach((k,b)=>{if(k)KEYPOS[k]=[+r,b];});
 // ---- the machine -------------------------------------------------------
 // Nothing from the TRS-80 ROM is included. The games call four ROM entries and
 // five TRSDOS vectors; all nine are answered here, in our own code.
+const KBLINE=0x05D9;
 const DOS={0x4420:'INIT',0x4424:'OPEN',0x4428:'CLOSE',0x4436:'READ',0x4439:'WRITE'};
 class Machine{
   constructor(){
@@ -723,6 +724,28 @@ class Machine{
       const n=c.BC||0x10000;                                            // BC=0 means a full 65536 pass
       c.BC=0; c.A=0; c.F|=0x40;
       return ret(26*n+10);                                              // charge what the real loop costs
+    }
+    // 05D9H is the Level II line-input routine, and the high-score name entry
+    // needs it: HL points at a buffer, B is the maximum length, and it comes
+    // back with B holding how many characters were typed. On real hardware it
+    // blocks while you type, so we stay on this address and poll instead of
+    // returning, echoing each character at the cursor the caller planted in
+    // 4020H. Without it, nothing appears as you type and no name is stored.
+    if(pc===0x05D9){
+      if(!this.line) this.line={n:0,max:c.B||18,buf:c.HL,
+        cur:(this.ram[0x4020]|(this.ram[0x4021]<<8))||0x3E17,idle:0};
+      const k=this.romKey();
+      if(k===0x0D||k===0x01){ c.B=k===0x01?0:this.line.n; this.line=null; return ret(60); }
+      if(k===0x08){ if(this.line.n>0){ this.line.n--; this.line.cur--;
+                      this.ram[this.line.cur&0xFFFF]=0x20; } }
+      else if(k>=0x20&&k<0x7F&&this.line.n<this.line.max){
+        this.ram[(this.line.buf+this.line.n)&0xFFFF]=k;
+        this.ram[this.line.cur&0xFFFF]=k;
+        this.line.n++; this.line.cur++;
+      }
+      // never wedge: give up after a minute of nobody typing
+      if(++this.line.idle>1500000){ c.B=this.line.n; this.line=null; return ret(60); }
+      c.T+=44; return 44;                       // stay put and poll again
     }
     if(pc===0x002B||pc===0x0049){                                       // get a character
       const k=this.romKey(); c.A=k; c.F = k?(c.F&~0x40):(c.F|0x40); return ret(40); }
