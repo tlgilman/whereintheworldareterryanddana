@@ -2,208 +2,346 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TRS-80 Retro Games</title>
+<meta name="description" content="Nine arcade games Wayne Westmoreland and Terry Gilman wrote for the TRS-80 between 1981 and 1983, plus sixteen Scott Adams-era text adventures, all playable in a browser.">
 <style>
- body{margin:0;padding:34px 20px 70px;background:#0d0f0c;color:#c8f5c0;
-      font-family:"Courier New",ui-monospace,monospace}
- .w{max-width:1000px;margin:0 auto}
- h1{font-size:24px;letter-spacing:.08em;margin:0 0 4px}
- p.sub{color:#6d8a66;font-size:13px;margin:0 0 30px;line-height:1.6}
- .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
- a.g{display:block;text-decoration:none;background:#141810;border:1px solid #2a3a27;
-     border-radius:5px;padding:13px 15px;transition:.12s}
- a.g:hover{border-color:#e8c35a;background:#19200f}
- .t{color:#e8c35a;font-size:14px;font-weight:bold;letter-spacing:.04em}
- .s{color:#8fae87;font-size:11px;margin:3px 0 7px}
- .b{color:#93a88d;font-size:12px;line-height:1.45}
- h2.sec{font-size:12px;letter-spacing:.24em;color:#6d8a66;font-weight:normal;
-        margin:34px 0 13px;border-bottom:1px solid #2a3a27;padding-bottom:7px}
- h2.sec:first-of-type{margin-top:26px}
- a.g .c{color:#8fae87;font-size:11px;line-height:1.5;margin-top:7px;
-        border-top:1px solid #2a3a27;padding-top:6px}
- a.g .c b{color:#e8c35a;font-weight:normal}
- a.g.feat{border-color:#e8c35a;background:#181d0f}
- a.g.feat .t{font-size:18px;letter-spacing:.1em}
- a.g.feat .s{color:#e8c35a}
- a.g.feat .b{font-size:12.5px;max-width:74ch}
- footer{color:#54684f;font-size:11.5px;margin-top:34px;line-height:1.7;
-        border-top:1px solid #2a3a27;padding-top:14px}
- @media (max-width:600px){
-   body{padding:18px 11px 34px;-webkit-text-size-adjust:100%}
-   h1{font-size:19px}
-   p.sub{margin-bottom:20px}
-   .grid{grid-template-columns:1fr;gap:9px}
-   a.g{padding:15px;-webkit-tap-highlight-color:transparent}
-   a.g:active{border-color:#e8c35a;background:#19200f}
- }
+:root{--bg:#0d0f0c;--ink:#c8f5c0;--dim:#6d8a66;--mid:#8fae87;--body:#93a88d;
+      --gold:#e8c35a;--card:#141810;--line:#2a3a27;--hot:#19200f}
+*{box-sizing:border-box}
+body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+     font-family:"Courier New",ui-monospace,monospace;-webkit-text-size-adjust:100%}
+.w{max-width:1080px;margin:0 auto;padding:26px 20px 70px}
+a{color:inherit}
+.home{display:inline-block;font-size:11.5px;color:var(--dim);text-decoration:none;
+      letter-spacing:.08em;margin-bottom:20px}
+.home:hover{color:var(--gold)}
+h1{font-size:25px;letter-spacing:.09em;margin:0 0 5px}
+p.tag{color:var(--dim);font-size:13px;margin:0 0 26px;line-height:1.6}
+h2.sec{font-size:12px;letter-spacing:.24em;color:var(--dim);font-weight:normal;
+       margin:0 0 4px;border-bottom:1px solid var(--line);padding-bottom:7px}
+p.sub{color:var(--dim);font-size:12.5px;line-height:1.65;margin:10px 0 20px}
+p.sub code{background:#22281d;padding:1px 5px;border-radius:3px;color:#cfcdc0}
+p.sub b{color:var(--mid);font-weight:normal}
+.menu{border:1px solid var(--line);background:#11160e;border-radius:6px;
+      padding:16px 18px 14px;margin:0 0 26px}
+.menu .q{color:var(--ink);font-size:13px;letter-spacing:.06em;margin:0 0 12px}
+.menu .q .cur{display:inline-block;width:8px;height:14px;background:var(--ink);
+              vertical-align:-2px;margin-left:3px;animation:bl 1.05s step-end infinite}
+@keyframes bl{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.menu .q .cur{animation:none}}
+.opt{display:grid;grid-template-columns:28px 1fr auto;gap:0 12px;align-items:baseline;
+     width:100%;text-align:left;background:none;border:1px solid transparent;
+     border-radius:4px;padding:8px 10px;cursor:pointer;font:inherit;color:inherit}
+.opt:hover{border-color:var(--line);background:var(--hot)}
+.opt[aria-current="true"]{border-color:var(--gold);background:var(--hot)}
+.opt:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.opt .k{color:var(--gold);font-size:13px}
+.opt .nm{color:var(--ink);font-size:13px;letter-spacing:.09em}
+.opt .nm small{display:block;color:var(--dim);font-size:10.5px;letter-spacing:.02em;
+               margin-top:3px;text-transform:none}
+.opt .ct{color:var(--mid);font-size:10.5px;white-space:nowrap}
+.hint{color:var(--dim);font-size:10.5px;margin:10px 0 0;padding-left:10px}
+.pane[hidden]{display:none}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.grid.dense{grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:10px}
+a.g{display:block;text-decoration:none;background:var(--card);border:1px solid var(--line);
+    border-radius:6px;overflow:hidden;transition:.13s}
+a.g:hover{border-color:var(--gold);background:var(--hot)}
+a.g:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+a.g .shot{display:block;width:100%;aspect-ratio:8/5;object-fit:cover;background:#0a0a08;
+          border-bottom:1px solid var(--line);image-rendering:pixelated}
+a.g .pad{padding:12px 14px 13px}
+.t{color:var(--gold);font-size:14.5px;font-weight:bold;letter-spacing:.04em}
+.s{color:var(--mid);font-size:10.5px;margin:3px 0 7px;letter-spacing:.03em}
+.b{color:var(--body);font-size:12px;line-height:1.5}
+.c{color:var(--mid);font-size:10.5px;line-height:1.5;margin-top:9px;
+   border-top:1px solid var(--line);padding-top:7px}
+.c b{color:var(--gold);font-weight:normal}
+footer{color:#54684f;font-size:11.5px;margin-top:44px;line-height:1.75;
+       border-top:1px solid var(--line);padding-top:16px}
+@media (max-width:620px){
+  .w{padding:16px 12px 40px} h1{font-size:20px}
+  .grid,.grid.dense{grid-template-columns:1fr}
+  .opt{grid-template-columns:24px 1fr;gap:0 10px}
+  .opt .ct{grid-column:2;margin-top:4px}
+}
 </style></head><body><div class="w">
+<a class="home" href="/">&larr; Where in the world are Terry and Dana</a>
 <h1>TRS-80 RETRO GAMES</h1>
-<p class="sub">Lifted off my own floppies and put back on their feet, in your browser.</p>
+<p class="tag">Lifted off my own floppies and put back on their feet, in your browser.</p>
 
-<h2 class="sec">ARCADE</h2>
-<p class="sub">Nine games Wayne Westmoreland and I wrote for the TRS-80 between 1981 and 1983,
-in the order we wrote them. Not ports: the original machine code is inside each page and a Z80 runs it.</p>
-<div class="grid">
+<div class="menu">
+  <p class="q">WHICH COLLECTION (1-3)?<span class="cur"></span></p>
+  <button class="opt" data-p="ours" aria-current="true">
+    <span class="k">1</span>
+    <span class="nm">OUR GAMES<small>Westmoreland &amp; Gilman, 1981-83</small></span>
+    <span class="ct">9 games</span></button>
+  <button class="opt" data-p="adventures">
+    <span class="k">2</span>
+    <span class="nm">SCOTT ADAMS ERA<small>text adventures, read off the disks</small></span>
+    <span class="ct">16 games</span></button>
+  <button class="opt" data-p="originals">
+    <span class="k">3</span>
+    <span class="nm">ORIGINALS<small>new games in the old style</small></span>
+    <span class="ct">1 game</span></button>
+  <p class="hint">Click one, or just press its number.</p>
+</div>
+
+<section class="pane" id="ours">
+  <h2 class="sec">OUR GAMES</h2>
+  <p class="sub">Nine games Wayne Westmoreland and I wrote for the TRS-80 between 1981 and 1983, in the order we wrote them. Not ports: the original machine code is inside each page and a Z80 runs it.</p>
+  <div class="grid">
     <a class="g" href="tank-zone.html">
-      <div class="t">TANK ZONE 2000</div>
-      <div class="s">1981</div>
-      <div class="b">Battlezone on a TRS-80, under its first name. The pyramids are still pyramids.</div>
-      <div class="c"><b>A and ;</b> forward &middot; <b>Z and .</b> backward &middot; <b>A and .</b> turn right &middot; <b>Z and ;</b> turn left &middot; <b>Space</b> fire</div>
+      <img class="shot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAADwCAIAAACG8CSdAAAEkklEQVR42u3d220bMRBAUX0K239zakBQGeqAWj40fMwBzlfiBGMu5wbIwvbj834BTPFwBIAAAQIEIEBAxgBd1xNucm1ouC0ChAAhQAgQAiRACBAChAAhQCBACBAChACBACFACBACBAKEACFACBAC5DQQIAQIAUKAQIAQIAQIAQIBQoAQIAQIARIgBAgBQoAQIDcJECBAgAAECBAgAAECBAhAgAABAhAgQIAABAgQIECABAgQIECABAgQIECAnBQgQIAAAQgQRK+KoxAgECABAgFCgECABAgECAGC0Ytx57eoPR8BAgESIBAgARIgECABAgESIOdLyp1pW548K1P43DsJEAIkQAIEAiRAAoQACZAAgQAJEJYw5fuaUWvpbpT/QgESIAESIAFCgARIgARIgARIgAQIARIgAeL0lxenrtPcz2L9w5wyoQAJkAAJkAAhQAIkQAIkQAIkQAKEAAmQAAnQ6ZU59ZXZRtGM3PzVOihAAiRAAiRACJAACZAACZAACZAAIUACJEACtOFlXeQmRc5z6teRdD7uHf+dECABEiABEiAESIAESIAESIAESIAQIAESIPLFJfLz8t3gz/siDwESIAESIAFCgARIgARIgARIgAQIARIgARIgcbFXbp0AuQoOXIAEyGMWIAFy6wTIVXBiDkqAPEgBEiC3ToA85oxn6HAOvr0CJEAC5OQFyCN0hk5MgARIgATIyQuQR+gMnZgAZb0Tw796AC+2PDgBEiABQoAEyD12hh6cAAmQACFAAuQeO0MB+hWgwh/TFFSm7Xwyv0QTIKsiQAIkQAIkQAIkQAJkVQRIgARIgARIgASo4/uER2ZiFPkgLDfuoQAJEAIkQAKEAAmQAFkYBEiABAgBEqC+A7LeyM2dD868OwIEAiRAIEACJEAgQAIEAiRAXjYBAgQIkAABAgQIkAAB/w2QYwIECBAgAAECBAhAgAABAhAgQIAABAgQIAABAgQIECABAgQIECABAgQIECAAAQIECECAAAECECBAgAAECBAgAAECBAgQIAECBAgQIAECBAgQIAECBAgQIAABAgQIQIAAAQIQIECAAAQIECAAAQIECBAgAWLslXIUCBAChAAhQCBACBAChACBACFACBAChAAJEAKEACFACJCbhAAhQAgQAgQChAAhQAgQCBAChAAhQODaIEAIEAKEAIEAIUAIEAIElQECiCFAgAABAgQgQECCAPmfeWAWAQIECBAgAAECBAhAgAABAhAgQIAABAgQIAABAgQIQIAAAQIQIECAAAECECBAgOrt+BMyzWxmBMhimBkBshhmNjMCZDHMjABZDDMLEGsHqPAzD9ffBzObGQGyGGZGgCyGmQUIAbIYZkaALIaZBYglA1S4W8MF7IOZk8+MAFkMMwuQAFkMMwsQAmQxzCxAAmQxzCxATA3QjvfGzGZGgCyGmQUIATKzmREgi2FmAUKAzCxALBCgtsvR+SudN9LMZlYrAbIYZhYgBMjMZkaALIaZBQgBMrMAsdtbsOE3qfP+Vb2CMbOZESCLYWYBQoDMLEAIkMUwswAhQGYWIFb0BbT9Zr1cO3vOAAAAAElFTkSuQmCC" alt="TANK ZONE 2000 running" loading="lazy">
+      <div class="pad">
+        <div class="t">TANK ZONE 2000</div>
+        <div class="s">1981</div>
+        <div class="b">Battlezone on a TRS-80, under its first name. The pyramids are still pyramids.</div>
+        <div class="c"><b>A and ;</b> forward &middot; <b>Z and .</b> backward &middot; <b>A and .</b> turn right &middot; <b>Z and ;</b> turn left &middot; <b>Space</b> fire</div>
+      </div>
     </a>
     <a class="g" href="armored-patrol.html">
-      <div class="t">ARMORED PATROL</div>
-      <div class="s">1981</div>
-      <div class="b">The same tank after our publisher asked us for houses instead of pyramids and a robot instead of a saucer.</div>
-      <div class="c"><b>A and ;</b> forward &middot; <b>Z and .</b> backward &middot; <b>A and .</b> turn right &middot; <b>Z and ;</b> turn left &middot; <b>Space</b> fire</div>
+      <img class="shot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAADwCAIAAACG8CSdAAAEUUlEQVR42u3dQW7CMBBA0SwR978cF0AcgxtEiWN7xp4nvVWlSjAZ/1ZNgeP3/QCEOIwAECBAgAAECKgYoPf7BRdZGxq2RYAQIAQIAUKABAgBQoAQIAQIBAgBQoAQIBAgBAgBQoBAgBAgBAgBQoBMAwFCgBAgBAgECAFCgBAgECAECAFCgBAgAUKAECAECAGySYAAAQIEIECAAAEIECBAAAIECBCAAAECBCBAgAABAiRAgAABAiRAgAABAmRSgAABAgQgQAEDsjQgQAIEAiRAgAAJEAiQAAEC1GkuJ5OSJBAgAQIBEiBAgAQIBEiAAAEads/rJEnaBAIkQCBAAgQIkACBAAkQMD1A+U9sr4dx5Znq15yFNnkBEiDHQIAQIAESIJMXIAFyDAQIARIgATL5LQL08OqGLEe2/XN4wn+SmbMACZAACZAACZAACZAACZAACZAACZAACZAACVBEgJJclXGNK3gDqHJlzDnPeAVIgJwQARIgAXIwBEiABEiAnBABEiABEiABEiBbW+b+kQe2eqR6/cYw88ELkAAJkAAJkAAJkAAJkAAJkAcmQAIkQAIkQAK0fnf8t/vQ139MOA8m/zwTSd7b68p3CZAACZAACZAACZDJC5AAOQYCJEACJEACJEAlA5RkXazvfpFi6OQXuhknQAiQAAmQAAkQAiRACJAACZAACZDJC9D052Oh9zsqphRemfxtEiAESIAEyB4LkNEJkAAhQAIkQPZYgARIgAY/H1vrgG153fNXJsnvGQKEAAmQAAmQAAmQAAkQAiRAAoQACZAALfsXeLY5n3KzTZIECAESIAESIAESIAESIARIgARIgARIgARIU0CS6tyGBwESIAECARIgECABEiAQoOAAeV8YGBegmSFLcpYFCARIgECABEiAQIAECARIgAQIBEiAQIAESIBAgAQIBEiABAgEyEsxwEsxvBZMgECABAgESIAECARIgECABEiSkBtvSi9AIEACJEAIkAAJEAiQAIEACZA6ABGlFiBAgAABEiBAgAABAhAgQIAABAgQIAABAgQIQIAAAQIQIECAAAESIECAAAESIECAAAECECBAgAAECBAgAAECBAhAgAABAhAgQIAABAgQIECABAgQIECABIjWlTIKBAgBQoAQIBAgBAgBQoBAgBAgBAgBQoAECAFCgBAgBMgmIUAIEAKEAIEAIUAIEAIEAoQAIUAIEFgbBAgBQoAQIBAgBAgBQoDgZoAA5hAgQIAAAQIQIKBAgPxlHogiQIAAAQIEIECAAAEIECBAAAIECBCAAAECBCBAgAABCBAgQAACBAgQIEAAAgQI0H0+IRMQIECAAAQIECCA3gE6+cxDwwUECBAgAAECBAgQoN7d6c5FAgESIECAAAESIECAgK0DpCmAAAECJECAAAECJEBAU4DawvHwK2oFCBAgQAIEAiRAgAAJEBS7C9a9Mg/b5NqAAAkQIECAAAkQIEDA8v5xvtuUOVjyjwAAAABJRU5ErkJggg==" alt="ARMORED PATROL running" loading="lazy">
+      <div class="pad">
+        <div class="t">ARMORED PATROL</div>
+        <div class="s">1981</div>
+        <div class="b">The same tank after our publisher asked us for houses instead of pyramids and a robot instead of a saucer.</div>
+        <div class="c"><b>A and ;</b> forward &middot; <b>Z and .</b> backward &middot; <b>A and .</b> turn right &middot; <b>Z and ;</b> turn left &middot; <b>Space</b> fire</div>
+      </div>
     </a>
     <a class="g" href="defender.html">
-      <div class="t">DEFENDER</div>
-      <div class="s">1981</div>
-      <div class="b">Williams’ Defender on a TRS-80, before we renamed it.</div>
-      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> smart bomb &middot; <b>Home or Left Ctrl</b> hyperspace</div>
+      <img class="shot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAADwCAIAAACG8CSdAAAFQUlEQVR42u3dS07DMBRA0Q4R+98cG0Asgx2A2vp9faQ7YkASJzmVcG0eP99fklTSwxBIApAkAEkSgCTdCNDn54ckHQ9AkgAkCUAAkgQgSQACkCQASQKQJAFIEoAkCUCSACRJAJIEIEkCkCQASRKAJAFIEoAAJAlAkgAEIEkAkgQgIyUJQJIAJEkAqhypNys5aNw9LTno8RHbcS8ABCAAAQhAAAIQgAAEIAABCEAAAhCAAAQgAN3HzVPPX+3REwaq223iDoAABCAAedEABCAAAQhAAAIQgAAEIAABCEAAauNOydETjhV3qsevq9vdYQqAAAQgAAEIQAACkAAEIAABCEAAAhCABKDGT1vmnNeOpSGjV3uYMgMQgAAEIAABCEAAAhCAAAQgAAEIQAACEIAA9OrTxp3y81m2XscsGIAABCAAAQhAAAIQgAAEIAABCEAAAhCAAKQnlzUMeuziTjVuj54LV/AAyCACCEAAAhCAAAQgABlEAAHISwQgAAEIQADaPnZ//CRuR562wib85kFke00ABCAAAQhAAAIQgAQgAAEIQAACEIAA5CUCUMDX7blDIi8RgAAEIAABCEAAAhBuAAQgAAEIQAACEIA0H6AmW+pwp6FETcaZRAACEIAABCAAAQhAAAIQgAAEIAABCEAAAhCA1v3rzh2nes9G+jdvbg8gAAEIQAACEIAABCAAAQhAAAIQgAAEIAD5u70kAEkCkCQBSBKAJAlAkgAkSQCSBCBJApAkAJ39WnrtabS95MztjRIezZKFDhOf8IkrOQAEIAABCEAAAhCAAAQgAAEIQAACEIAABKCjh++/WU/CXvRxB21yrOMPScnwtqW/dhASTAAQgAAEIAABCEAAAhCAAAQgAAEIQAACEIBixuXUb37zfDKpzZxbLJnHrAUo4R0e9ADEeQogAAEIQAACEIAABCAAAQhAAAIQgAAEIAClA5Twt/SSuaH1izzipntqP11qqV024TtgFgxAAAIQgAAEIAABCEAAAhCAAAQgAAEIQNsA6rbHSu3Qj/76/6n9gOKuq3YGsPY2tV0FdXxYAAQgAAEIQAACEIAABCAAAQhAAAIQgAAEoPnuDFqX0GThxWs7xh/XvMmw9F/f0HZSD0AAAhCAAAQgAAEIQAACEIAABCAAAQhAAPoPoNplFtyZBVDcZ8logHZIFPfmAghAAAIQgAAEIAABCEAAAhCAAAQgAAHoSoCarB4YtPX3VnfeBOiURMuYqH2impAEIAABCEAAAhCAAAQgAAEIQAACEIAABCAA1VWyucnopyRzt/OSy2myA86gm1u7WARAAAIQgAAEIAABCEAAAhCAAAQgAAEIQADqBFDbG9Zt+mkHQG3nYpZ9zJw6jYTrAhCAAAQgAAEIQAACEIAABCAAAQhAAALQlQBlvmCS7glAkgAkCUAAkgQgSQACkCQASQKQJAFIEoAkCUCSACRJAJIEIEkCkCQASRKAJAFIEoAAJAlAkgAEIEkAkgQgIyUJQJIAJEkAkgQgSQKQJABJEoAkAUiSACQJQJIEIEkAkgQgAEkCkCQAAUgSgCQBSJIAJAlAkgQgSQCSJABJApAkAUgSgCQJQJIAJAlAAJIEIEkAApAkAEkCkGGSBCBJAJIkAEkCkCQBSBKAJAlAkgAkSQCSBCBJApAkAEkCEIAkAUgSgAAkCUCSACRJAJIEIEkCkCQASRKAJAFIkgAkCUCSBCBJAJIEIABJApAkAAFIEoAkAQhAkgAkCUCSBCBJAJIkAEkCkCQBSBKAJOkNgCQpJwBJApAkAEkSgCTt7xdpGx3RFy3OGwAAAABJRU5ErkJggg==" alt="DEFENDER running" loading="lazy">
+      <div class="pad">
+        <div class="t">DEFENDER</div>
+        <div class="s">1981</div>
+        <div class="b">Williams’ Defender on a TRS-80, before we renamed it.</div>
+        <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> smart bomb &middot; <b>Home or Left Ctrl</b> hyperspace</div>
+      </div>
     </a>
     <a class="g" href="eliminator.html">
-      <div class="t">THE ELIMINATOR</div>
-      <div class="s">1981</div>
-      <div class="b">The same game after Williams took a percentage, at which point it became the official TRS-80 Defender.</div>
-      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> smart bomb &middot; <b>Home or Left Ctrl</b> hyperspace</div>
+      <img class="shot" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAADwCAIAAACG8CSdAAAD/UlEQVR42u3cyQ3CMBBA0RxR+m+OBhBlUAASIl5mxs6T3pUsTvKRMM5xng+AFIchAAQIECAAAQIECECAAAECECBAgAAECBAgAAECBAhAgIB6AXq/ngApBAgQIECAAAQIuGWA/DIPzCBAgAABAiRAgAABAiRAgAABAgQgQIAAAQgQIEAAAgQIEIAAAQIEIECAAAECJECAAAECJECAAAECZKQAAQIECECAAAECECBAgAAECBAgAAECBAhAgAABAgRIgAABAgRIgAABAgQIQIAAAQIQIECAAAQIECAAAQIECECAAAECBEiAAAECBEiAAAECBMgwAcsH6HvLndp2Ou8s2k55+PB2XoKyBz/8cnfebG37GrX3S4cR8KAJkAAJkAAJkAAJkAAJkAAJkAAJkAAJkAAJkADlBShlWi13Lq9zp503dO5ZRH4qJW0pg9nZ04DvWgESIAESIAESIAESIAESIAESIAESIAESIAESoHssxbhhd6oFqO3jC91sKYWdN0FmLZgACZAACZAACZAACZAACZAACZAACZAACZAArRagPdZbVHtiO9tUf/4o5a5bsUSjJsiGL0wRIAESIAESIAESIAESIAESIAESIAESIAESIAGaHKAbrrfI/ZN+kTs7cppvj1UaAc9wkdALkAAJkAAJkAAJkAAJkAAJkAAJkAAJkAAJkACNCJDuFAxHke0UWVCiRFlfM22HIUACJEACJEACJEACJEACJEACJEACJEACJEACpDtVn/OFApSbm11LNGoeKvJ4BEiABEiABEiABEiABEiABEiABEiABEiABEiAVnsp/ULKBmiP0TAvVueb/scGBUiABEiABEiABEiABEiABEiABEiABEiABEiAolz6cb7+vlKm8P65uvPONPdd6/Wfxs4FCkXeGD98gwIkQAIkQAIkQAIkQAIkQAIkQAIkQAIkQAIkQGbBgMC+CxAgQIAACRAgQIAAAQgQIEAAAgQIEIAAAQIEIECAAAEIECBAgAAJECBAgAAJECBAgAABCBAgQAACBAgQgAABAgQgQIAAAQgQIEAAAgQIECBAAgQIECBAAgQIECBAAAIECBCAAAECBCBAgAABCBAgQAACBAgQIEACBAgQIEACBAgQIEBGChAgQIAABAgQIAABAgQIQIAAAQIQIECAAAQIECBAgAQIECBAgAQIECBAgAAECBAgAAECBAhAgAABAhAgQIAABAgQIECABAgQIECABAgQIECADBMgQIAAAQgQIEAAAgQIEIAAAQIEIECAAAEIECBAgAAJECBAgAAJECBAgAABCBAgQAACBAgQgAABAgQgQIAAAQgQIECAAAkQIECAAAkQUChAADEECBAgQIAABAjY3wedkOu0ayHkJQAAAABJRU5ErkJggg==" alt="THE ELIMINATOR running" loading="lazy">
+      <div class="pad">
+        <div class="t">THE ELIMINATOR</div>
+        <div class="s">1981</div>
+        <div class="b">The same game after Williams took a percentage, at which point it became the official TRS-80 Defender.</div>
+        <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> smart bomb &middot; <b>Home or Left Ctrl</b> hyperspace</div>
+      </div>
     </a>
-    <a class="g" href="seadragon.html" style="border-color:#e8c35a">
-      <div class="t">SEA DRAGON</div>
-      <div class="s">1982</div>
-      <div class="b">This is our own idea, and our favorite. A submarine, 1,858 columns of cavern, and one lungful of air.</div>
-      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> torpedo &middot; <b>Enter</b> missile</div>
+    <a class="g" href="seadragon.html">
+      <img class="shot" src="data:image/png;base64,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" alt="SEA DRAGON running" loading="lazy">
+      <div class="pad">
+        <div class="t">SEA DRAGON</div>
+        <div class="s">1982</div>
+        <div class="b">This is our own idea, and our favorite. A submarine, 1,858 columns of cavern, and one lungful of air.</div>
+        <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> torpedo &middot; <b>Enter</b> missile</div>
+      </div>
     </a>
     <a class="g" href="rear-guard.html">
-      <div class="t">REAR GUARD</div>
-      <div class="s">1982</div>
-      <div class="b">Up and down only. Commissioned by Adventure International, and the one we liked least.</div>
-      <div class="c"><b>Up and Down</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> shields &middot; <b>Home or Left Ctrl</b> smart bomb</div>
+      <img class="shot" src="data:image/png;base64,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" alt="REAR GUARD running" loading="lazy">
+      <div class="pad">
+        <div class="t">REAR GUARD</div>
+        <div class="s">1982</div>
+        <div class="b">Up and down only. Commissioned by Adventure International, and the one we liked least.</div>
+        <div class="c"><b>Up and Down</b> move &middot; <b>Space</b> fire &middot; <b>Enter</b> shields &middot; <b>Home or Left Ctrl</b> smart bomb</div>
+      </div>
     </a>
     <a class="g" href="donkey-kong.html">
-      <div class="t">DONKEY KONG</div>
-      <div class="s">1982</div>
-      <div class="b">We wrote this one for the fun of it. Nintendo never gave permission, so it was never sold.</div>
-      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> jump</div>
+      <img class="shot" src="data:image/png;base64,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" alt="DONKEY KONG running" loading="lazy">
+      <div class="pad">
+        <div class="t">DONKEY KONG</div>
+        <div class="s">1982</div>
+        <div class="b">We wrote this one for the fun of it. Nintendo never gave permission, so it was never sold.</div>
+        <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> jump</div>
+      </div>
     </a>
     <a class="g" href="zaxxon.html">
-      <div class="t">ZAXXON</div>
-      <div class="s">1983</div>
-      <div class="b">Licensed from Sega, with a Tandy distribution deal that manufacturing problems on our end cut short.</div>
-      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire</div>
+      <img class="shot" src="data:image/png;base64,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" alt="ZAXXON running" loading="lazy">
+      <div class="pad">
+        <div class="t">ZAXXON</div>
+        <div class="s">1983</div>
+        <div class="b">Licensed from Sega, with a Tandy distribution deal that manufacturing problems on our end cut short.</div>
+        <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> fire</div>
+      </div>
     </a>
     <a class="g" href="robot-king-of-the-hill.html">
-      <div class="t">ROBOT: KING OF THE HILL</div>
-      <div class="s">1983</div>
-      <div class="b">Our Donkey Kong reskinned, released as Smith & Jones Software. The assembler left the symbol APEPLAC in the code.</div>
-      <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> jump</div>
+      <img class="shot" src="data:image/png;base64,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" alt="ROBOT: KING OF THE HILL running" loading="lazy">
+      <div class="pad">
+        <div class="t">ROBOT: KING OF THE HILL</div>
+        <div class="s">1983</div>
+        <div class="b">Our Donkey Kong reskinned, released as Smith &amp; Jones Software. The assembler left the symbol APEPLAC in the code.</div>
+        <div class="c"><b>Arrow keys</b> move &middot; <b>Space</b> jump</div>
+      </div>
     </a>
-</div>
+  </div>
+</section>
 
-<h2 class="sec">ADVENTURES</h2>
-<p class="sub">Sixteen adventures lifted out of <code>adams1</code> and <code>adams2</code>,
-each running on a JavaScript reimplementation of Scott Adams' 1979 interpreter.<br>
-Every one is a single self-contained file. Two-word commands. Type <b>MAP</b> to see
-where you have been; the game autosaves every turn.</p>
-<div class="grid">
-    <a class="g" href="claudeadventureland.html" style="border-color:#e8c35a">
-      <div class="t">MIDNIGHT CARNIVAL</div>
-      <div class="s">not from the disks - written for you</div>
-      <div class="b">Thirteen prizes, one goose with strong opinions, and a hand-drawn map.</div>
-    </a>
+<section class="pane" id="adventures" hidden>
+  <h2 class="sec">SCOTT ADAMS ERA</h2>
+  <p class="sub">Sixteen adventures lifted out of <code>adams1</code> and <code>adams2</code>, each running on a JavaScript reimplementation of Scott Adams’ 1979 interpreter. Two-word commands. Type <b>MAP</b> to see where you have been; the game autosaves every turn.</p>
+  <div class="grid dense">
     <a class="g" href="01-adventureland.html">
-      <div class="t">ADVENTURELAND</div>
-      <div class="s">Scott Adams Adventure #1</div>
-      <div class="b">Thirteen treasures in a swamp full of bad ideas. The one that started it all.</div>
+      <div class="pad">
+        <div class="t">ADVENTURELAND</div>
+        <div class="s">Scott Adams Adventure #1</div>
+        <div class="b">Thirteen treasures in a swamp full of bad ideas. The one that started it all.</div>
+      </div>
     </a>
     <a class="g" href="02-pirate-adventure.html">
-      <div class="t">PIRATE ADVENTURE</div>
-      <div class="s">Scott Adams Adventure #2</div>
-      <div class="b">A London flat, a pirate, and an island. Co-written with Alexis Adams.</div>
+      <div class="pad">
+        <div class="t">PIRATE ADVENTURE</div>
+        <div class="s">Scott Adams Adventure #2</div>
+        <div class="b">A London flat, a pirate, and an island. Co-written with Alexis Adams.</div>
+      </div>
     </a>
     <a class="g" href="03-secret-mission.html">
-      <div class="t">SECRET MISSION</div>
-      <div class="s">Scott Adams Adventure #3</div>
-      <div class="b">A reactor is about to be sabotaged. Originally sold as Mission Impossible.</div>
+      <div class="pad">
+        <div class="t">SECRET MISSION</div>
+        <div class="s">Scott Adams Adventure #3</div>
+        <div class="b">A reactor is about to be sabotaged. Originally sold as Mission Impossible.</div>
+      </div>
     </a>
     <a class="g" href="04-voodoo-castle.html">
-      <div class="t">VOODOO CASTLE</div>
-      <div class="s">Scott Adams Adventure #4</div>
-      <div class="b">Count Cristo is under a curse. Written by Alexis Adams.</div>
+      <div class="pad">
+        <div class="t">VOODOO CASTLE</div>
+        <div class="s">Scott Adams Adventure #4</div>
+        <div class="b">Count Cristo is under a curse. Written by Alexis Adams.</div>
+      </div>
     </a>
     <a class="g" href="05-the-count.html">
-      <div class="t">THE COUNT</div>
-      <div class="s">Scott Adams Adventure #5</div>
-      <div class="b">You wake in a brass bed in Transylvania. It gets worse. Real-time day/night.</div>
+      <div class="pad">
+        <div class="t">THE COUNT</div>
+        <div class="s">Scott Adams Adventure #5</div>
+        <div class="b">You wake in a brass bed in Transylvania. It gets worse. Real-time day/night.</div>
+      </div>
     </a>
     <a class="g" href="06-strange-odyssey.html">
-      <div class="t">STRANGE ODYSSEY</div>
-      <div class="s">Scott Adams Adventure #6</div>
-      <div class="b">A one-man scoutship, a wrecked alien outpost, and five treasures.</div>
+      <div class="pad">
+        <div class="t">STRANGE ODYSSEY</div>
+        <div class="s">Scott Adams Adventure #6</div>
+        <div class="b">A one-man scoutship, a wrecked alien outpost, and five treasures.</div>
+      </div>
     </a>
     <a class="g" href="07-mystery-fun-house.html">
-      <div class="t">MYSTERY FUN HOUSE</div>
-      <div class="s">Scott Adams Adventure #7</div>
-      <div class="b">Get inside the fun house. That is the easy part.</div>
+      <div class="pad">
+        <div class="t">MYSTERY FUN HOUSE</div>
+        <div class="s">Scott Adams Adventure #7</div>
+        <div class="b">Get inside the fun house. That is the easy part.</div>
+      </div>
     </a>
     <a class="g" href="08-pyramid-of-doom.html">
-      <div class="t">PYRAMID OF DOOM</div>
-      <div class="s">Scott Adams Adventure #8</div>
-      <div class="b">A desert, a buried pyramid, thirteen treasures. By Alvin Files.</div>
+      <div class="pad">
+        <div class="t">PYRAMID OF DOOM</div>
+        <div class="s">Scott Adams Adventure #8</div>
+        <div class="b">A desert, a buried pyramid, thirteen treasures. By Alvin Files.</div>
+      </div>
     </a>
     <a class="g" href="09-ghost-town.html">
-      <div class="t">GHOST TOWN</div>
-      <div class="s">Scott Adams Adventure #9</div>
-      <div class="b">An abandoned western town with thirteen treasures in it.</div>
+      <div class="pad">
+        <div class="t">GHOST TOWN</div>
+        <div class="s">Scott Adams Adventure #9</div>
+        <div class="b">An abandoned western town with thirteen treasures in it.</div>
+      </div>
     </a>
     <a class="g" href="10-savage-island-1.html">
-      <div class="t">SAVAGE ISLAND PART I</div>
-      <div class="s">Scott Adams Adventure #10</div>
-      <div class="b">Notoriously cruel. You will die a lot. Part one of two.</div>
+      <div class="pad">
+        <div class="t">SAVAGE ISLAND PART I</div>
+        <div class="s">Scott Adams Adventure #10</div>
+        <div class="b">Notoriously cruel. You will die a lot. Part one of two.</div>
+      </div>
     </a>
     <a class="g" href="11-savage-island-2.html">
-      <div class="t">SAVAGE ISLAND PART II</div>
-      <div class="s">Scott Adams Adventure #11</div>
-      <div class="b">Continues from part one, and needs its password to make sense.</div>
+      <div class="pad">
+        <div class="t">SAVAGE ISLAND PART II</div>
+        <div class="s">Scott Adams Adventure #11</div>
+        <div class="b">Continues from part one, and needs its password to make sense.</div>
+      </div>
     </a>
     <a class="g" href="12-golden-voyage.html">
-      <div class="t">THE GOLDEN VOYAGE</div>
-      <div class="s">Scott Adams Adventure #12</div>
-      <div class="b">The king has three days to live. A Persian city, and a long way to sail.</div>
+      <div class="pad">
+        <div class="t">THE GOLDEN VOYAGE</div>
+        <div class="s">Scott Adams Adventure #12</div>
+        <div class="b">The king has three days to live. A Persian city, and a long way to sail.</div>
+      </div>
     </a>
     <a class="g" href="13-claymorgue-castle.html">
-      <div class="t">SORCERER OF CLAYMORGUE CASTLE</div>
-      <div class="s">Scott Adams Adventure #13</div>
-      <div class="b">Thirteen stars to recover, and spells that go off when they feel like it.</div>
+      <div class="pad">
+        <div class="t">SORCERER OF CLAYMORGUE CASTLE</div>
+        <div class="s">Scott Adams Adventure #13</div>
+        <div class="b">Thirteen stars to recover, and spells that go off when they feel like it.</div>
+      </div>
     </a>
     <a class="g" href="14-james-bond.html">
-      <div class="t">JAMES BOND ADVENTURE</div>
-      <div class="s">Adventure 13 - SPECTRE headquarters</div>
-      <div class="b">A third-party game built with the same engine. 56 rooms, the largest map here.</div>
+      <div class="pad">
+        <div class="t">JAMES BOND ADVENTURE</div>
+        <div class="s">Adventure 13 - SPECTRE headquarters</div>
+        <div class="b">A third-party game built with the same engine. 56 rooms, the largest map here.</div>
+      </div>
     </a>
     <a class="g" href="15-miners-adventure.html">
-      <div class="t">MINERS ADVENTURE</div>
-      <div class="s">by Bruce G. Hansen</div>
-      <div class="b">Four lost treasures down a coal mine. Written with THE ADVENTURE SYSTEM.</div>
+      <div class="pad">
+        <div class="t">MINERS ADVENTURE</div>
+        <div class="s">by Bruce G. Hansen</div>
+        <div class="b">Four lost treasures down a coal mine. Written with THE ADVENTURE SYSTEM.</div>
+      </div>
     </a>
     <a class="g" href="16-burglars-adventure.html">
-      <div class="t">BURGLARS ADVENTURE</div>
-      <div class="s">by Bruce Hansen</div>
-      <div class="b">Rob a museum. Five treasures, one sleeping guard.</div>
+      <div class="pad">
+        <div class="t">BURGLARS ADVENTURE</div>
+        <div class="s">by Bruce Hansen</div>
+        <div class="b">Rob a museum. Five treasures, one sleeping guard.</div>
+      </div>
     </a>
-</div>
+  </div>
+</section>
+
+<section class="pane" id="originals" hidden>
+  <h2 class="sec">ORIGINALS</h2>
+  <p class="sub">Written rather than recovered: new games in the old style. More to come.</p>
+  <div class="grid dense">
+    <a class="g" href="claudeadventureland.html">
+      <div class="pad">
+        <div class="t">MIDNIGHT CARNIVAL</div>
+        <div class="s">written for me</div>
+        <div class="b">Thirteen prizes, one goose with strong opinions, and a hand-drawn map.</div>
+      </div>
+    </a>
+  </div>
+</section>
+
 <footer>
-The arcade games are mine and Wayne Westmoreland's, written for the TRS-80 between 1981 and 1983
-and recovered from my own disks and one cassette. Wayne has since released them into the public
-domain. Robot: King of the Hill went out under the name Smith &amp; Jones Software; it is our Donkey
-Kong reskinned, after Nintendo declined permission.<br>
-Thirteen of the adventures are the original Adams series, read straight off the disk images -
-the game data is byte-for-byte what the TRS-80 loaded.<br>
-The last three are third-party games written with the same engine: a James Bond adventure, and
-two by Bruce Hansen built with THE ADVENTURE SYSTEM.<br>
-Eight of them are not treasure hunts and finish on an event rather than a score. In those SCORE
-is not a command, or the game answers it in its own words.
+The arcade games are mine and Wayne Westmoreland's, written for the TRS-80 between 1981 and 1983 and
+recovered from my own disks and one cassette. Wayne has since released them into the public domain.
+Robot: King of the Hill went out under the name Smith &amp; Jones Software; it is our Donkey Kong
+reskinned, after Nintendo declined permission.<br>
+Thirteen of the adventures are the original Adams series, read straight off the disk images - the game
+data is byte-for-byte what the TRS-80 loaded. The last three are third-party games written with the same
+engine: a James Bond adventure, and two by Bruce Hansen built with THE ADVENTURE SYSTEM.<br>
+Eight of them are not treasure hunts and finish on an event rather than a score. In those SCORE is not a
+command, or the game answers it in its own words.
 </footer>
-</div><script>
+</div>
+<script>
+// Collections switch in place, and the choice lives in the URL so one can still
+// be linked to or bookmarked.
+var PANES=["ours","adventures","originals"];
+function show(name,push){
+  if(PANES.indexOf(name)<0) name=PANES[0];
+  PANES.forEach(function(p){ document.getElementById(p).hidden = (p!==name); });
+  document.querySelectorAll('.opt').forEach(function(b){
+    b.setAttribute('aria-current', b.dataset.p===name ? 'true':'false'); });
+  if(push && location.hash.slice(1)!==name) history.replaceState(null,'','#'+name);
+}
+document.querySelectorAll('.opt').forEach(function(b){
+  b.addEventListener('click',function(){ show(b.dataset.p,true); });
+});
+addEventListener('keydown',function(e){
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  var i=PANES.map(function(_,n){return String(n+1);}).indexOf(e.key);
+  if(i>=0 && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) show(PANES[i],true);
+});
+addEventListener('hashchange',function(){ show(location.hash.slice(1),false); });
+show(location.hash.slice(1)||PANES[0],false);
+</script>
+<script>
 (function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
 </script>
 </body></html>
