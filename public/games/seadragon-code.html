@@ -677,7 +677,7 @@ const DOS={0x4420:'INIT',0x4424:'OPEN',0x4428:'CLOSE',0x4436:'READ',0x4439:'WRIT
 class Machine{
   constructor(){
     this.ram=new Uint8Array(65536); this.keys=new Set(); this.spk=[]; this.level=0;
-    this.open=new Map(); this.rndState=0x2545F491; this.rndVal=0; this.lastKey=0;
+    this.open=new Map(); this.rndState=0x2545F491; this.rndVal=0;
     this.files=this.loadScores();
     const self=this;
     this.cpu=new Z80({
@@ -752,15 +752,9 @@ class Machine{
   }
   romKey(){
     const A={ENTER:0x0D,CLEAR:0x1F,BREAK:0x01,SPACE:0x20,LEFT:0x08,RIGHT:0x09,DOWN:0x0A,UP:0x0B};
-    let cur=0;
-    for(const k of this.keys){ if(A[k]!==undefined){cur=A[k];break;}
-      if(k.length===1){cur=k.charCodeAt(0);break;} }
-    // A Model I had no auto-repeat: holding a key gives one character and then
-    // nothing until it comes back up. Without this, picking 1 player hands the
-    // same 1 straight to the skill-level prompt on the next screen.
-    if(!cur){ this.lastKey=0; return 0; }
-    if(cur===this.lastKey) return 0;
-    this.lastKey=cur; return cur;
+    for(const k of this.keys){ if(A[k]!==undefined) return A[k];
+      if(k.length===1) return k.charCodeAt(0); }
+    return 0;
   }
   run(t){const end=this.cpu.T+t;let g=0;
     while(this.cpu.T<end&&g++<4000000){this.cpu.step();if(this.cpu.halted)break;}}
