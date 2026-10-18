@@ -1127,6 +1127,12 @@ let prevEnd=null;
 for(let i=0;i<STARTS.length;i++){
   const a=STARTS[i];
   if(prevEnd!==null&&a>prevEnd){
+    for(let g=prevEnd;g<a;g++){ const GH=ANN.headers[hx4(g)]; if(!GH) continue;
+      ROWS.push({t:'cmt',w:1,html:'&nbsp;'});
+      pushCmt(';'+'\u2500'.repeat(66));
+      pushCmt('; '+GH[0]+'   ['+hx4(g)+']');
+      for(let q=1;q<GH.length;q++) pushCmt('; '+GH[q]);
+      pushCmt(';'+'\u2500'.repeat(66)); }
     const n=a-prevEnd;
     ROWS.push({t:'gap',w:40,html:'      '+hx4(prevEnd)+'    &middot;&middot;&middot; '+n+
       ' byte'+(n===1?'':'s')+' of data &middot;&middot;&middot;'});
