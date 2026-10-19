@@ -1,0 +1,19 @@
+public/games/probe.html
+  s_f99eae4185d4ad::t_dc7457456dc317 1-1220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac2a3b89e6a093d758f13d81942339f52c25bf91",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
