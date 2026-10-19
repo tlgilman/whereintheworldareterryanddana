@@ -55,18 +55,38 @@ body.compact #screen{border:0;border-radius:0;box-shadow:none;padding:0;
 /* The button bar is desktop furniture sitting on the picture, so it hides
    behind one corner button and comes back on request. */
 #menutog{display:none}
-body.compact #menutog{display:grid;place-items:center;position:fixed;z-index:6;
-  top:calc(env(safe-area-inset-top,0px) + 4px);
-  left:calc(env(safe-area-inset-left,0px) + 4px);
+#keytog{display:none}
+body.compact #menutog,body.compact #keytog{display:grid;place-items:center;
+  position:fixed;z-index:6;top:calc(env(safe-area-inset-top,0px) + 4px);
   width:36px;height:36px;padding:0;font-size:15px;line-height:1;
   color:var(--gold);background:rgba(10,10,8,.66);border:1px solid #45453c;
   border-radius:8px;cursor:pointer}
+body.compact #menutog{left:calc(env(safe-area-inset-left,0px) + 4px)}
+body.compact #keytog{left:calc(env(safe-area-inset-left,0px) + 46px);font-size:11px}
+body.compact #keytog.on{color:var(--bg);background:var(--gold);border-color:var(--gold)}
 body.compact #bar{display:none;position:fixed;z-index:5;
   top:calc(env(safe-area-inset-top,0px) + 44px);
   left:calc(env(safe-area-inset-left,0px) + 4px);
   margin:0;padding:6px 8px;gap:6px;max-width:calc(100% - 16px);
   background:rgba(10,10,8,.9);border:1px solid #2c2c26;border-radius:8px}
 body.compact.menu #bar{display:flex;flex-wrap:wrap}
+
+/* The keypad for the questions the games ask before they start, and for the
+   high score initials. It replaces the controls rather than sitting on them,
+   because a thumbstick is no use at a prompt. */
+#keys{display:none}
+body.compact.prompt #keys{display:flex;position:fixed;z-index:7;
+  left:env(safe-area-inset-left,0px);right:env(safe-area-inset-right,0px);
+  bottom:env(safe-area-inset-bottom,0px);
+  justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;padding:9px 10px;
+  background:rgba(10,10,8,.86);border-top:1px solid #2c2c26}
+body.compact.prompt #pad{display:none}
+.kbtn{min-width:52px;height:50px;padding:0 12px;font-family:inherit;font-size:15px;
+  letter-spacing:.06em;color:var(--phos);background:#2c2c26;border:1px solid #45453c;
+  border-radius:6px;cursor:pointer;touch-action:none}
+.kbtn.sm{min-width:34px;height:36px;padding:0 6px;font-size:12px}
+.kbtn.on{background:rgba(232,195,90,.45);border-color:var(--gold)}
+#keys.letters{gap:4px;padding:7px 8px}
 body.compact #bar label,body.compact #bar #fps{display:none}
 body.compact #bar button,body.compact #bar a.codebtn{
   font-size:11px;padding:5px 9px;min-height:0;letter-spacing:.04em}
@@ -591,6 +611,10 @@ class Machine{
       c.T+=44; return 44;                       // stay put and poll again
     }
     if(pc===0x002B||pc===0x0049){                                       // get a character
+      // Note that we are at a prompt. Across all nine games these entries are
+      // never called while the screen is animating, so this is an exact signal
+      // rather than a guess, and the touch keypad rides on it.
+      this.romWait=c.T;
       const k=this.romKey(); c.A=k; c.F = k?(c.F&~0x40):(c.F|0x40); return ret(40); }
     if(pc===0x01D3){ this.ram[0x40AB]=(c.R&0x7F)|c.R7; return ret(20); } // seed
     if(pc===0x14C9){ this.rndVal=this.rnd(this.ram[0x4121]|(this.ram[0x4122]<<8)); return ret(60); }
@@ -642,6 +666,7 @@ const BINDABLE=["A","Z",";",".","SPACE","ENTER"];
 const ALIAS={"f":"SPACE"};
 
 const PAD={"kind":"treads","left":["A","Z"],"right":[";","."],"buttons":[["SPACE","FIRE"]]};
+const PROMPT=["ENTER","1","2"];
 // ---- screen ------------------------------------------------------------
 const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
 const CELLW=cv.width/64, CELLH=cv.height/16, PHOS='#e8e6d9', BG='#0a0a08';
@@ -867,6 +892,7 @@ renderControls(); draw(m);
       e.preventDefault();
       try{ el.setPointerCapture(e.pointerId); }catch(err){}
       held.set(e.pointerId,el);
+      dismissKeys();              // reaching for the stick means the questions are answered
       onDown(e);
     });
     if(onMove) el.addEventListener('pointermove',e=>{
@@ -984,6 +1010,77 @@ renderControls(); draw(m);
     const b=$('bar'); if(b) b.appendChild(fsBtn);
   }
 
+  // ---- the prompt keypad -----------------------------------------------
+  // The games ask questions before they start: how many players, which skill
+  // level, and your initials when you make the high score table. None of that
+  // is reachable with a thumbstick, so without this a phone cannot start a
+  // game at all, let alone finish one.
+  //
+  // Knowing when to show it is the awkward part. The ROM character entries at
+  // 002BH and 0049H looked like an exact signal, but measuring the shipped
+  // builds killed that: Sea Dragon never calls them and reads the keyboard
+  // matrix directly instead. So the signal used here is the screen itself. A
+  // game waiting for an answer draws nothing new; a game being played never
+  // stops. Name entry is exact, because that one really does go through the
+  // line-input routine at 05D9H. And the keypad can always be summoned by
+  // hand, so a wrong guess is never a dead end.
+  const keysBox=document.createElement('div');
+  keysBox.id='keys';
+  document.body.appendChild(keysBox);
+  let keyMode='', keyTog=null;
+  // A tap, not a hold: the ROM hands back one character per press and ignores
+  // a key that is still down, exactly as a Model I did.
+  function tap(k){ m.keys.add(k); setTimeout(()=>m.keys.delete(k),140); }
+  function kbtn(key,label,small){
+    const b=document.createElement('button');
+    b.type='button'; b.className='kbtn'+(small?' sm':'');
+    b.textContent=label||key;
+    b.addEventListener('pointerdown',e=>{ e.preventDefault();
+      b.classList.add('on'); tap(key); });
+    const off=()=>b.classList.remove('on');
+    b.addEventListener('pointerup',off);
+    b.addEventListener('pointercancel',off);
+    b.addEventListener('pointerleave',off);
+    return b;
+  }
+  function buildKeys(mode){
+    if(keyMode===mode) return;
+    keyMode=mode; keysBox.innerHTML='';
+    keysBox.classList.toggle('letters',mode==='name');
+    if(mode==='name'){
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(c=>keysBox.appendChild(kbtn(c,c,true)));
+      keysBox.appendChild(kbtn('LEFT','DEL',true));      // the ROM reads 08H as a backspace
+      keysBox.appendChild(kbtn('ENTER','ENTER',true));
+    } else {
+      ((typeof PROMPT!=='undefined'&&PROMPT)||['ENTER','1','2'])
+        .forEach(k=>keysBox.appendChild(kbtn(k)));
+    }
+  }
+  // Two attempts at detecting a prompt automatically both failed against the
+  // real builds, and each failure was quiet in a way that would have shipped:
+  // the ROM character entries are never called by this binary, and the title
+  // screen blinks "<ENTER>" so it is never still either. So this does not try
+  // to read the game's mind. It follows the player instead, which is knowable.
+  //
+  // The keypad is open when the page loads, because answering questions is the
+  // first thing anyone has to do. Touching the stick or a fire button means
+  // play has started, so it folds away. Name entry opens it again by itself,
+  // and that one is exact: it really does go through the line-input routine.
+  let keysOpen=true, wasNaming=false;
+  function refreshKeys(){
+    if(!document.body.classList.contains('compact')){
+      document.body.classList.remove('prompt'); return;
+    }
+    let naming=false;
+    try{ naming=!!(m&&m.line); }catch(e){}
+    if(naming!==wasNaming){ wasNaming=naming; keysOpen=naming; }
+    if(keysOpen) buildKeys(naming?'name':'menu');
+    document.body.classList.toggle('prompt',keysOpen);
+    if(keyTog) keyTog.classList.toggle('on',keysOpen);
+  }
+  function dismissKeys(){ if(keysOpen&&!wasNaming){ keysOpen=false; refreshKeys(); } }
+  setInterval(refreshKeys,250);
+
   // ---- the menu --------------------------------------------------------
   // The button bar is desktop furniture sitting on top of the picture, so on a
   // small screen it collapses behind one corner button. It stays open until the
@@ -998,6 +1095,13 @@ renderControls(); draw(m);
     tog.setAttribute('aria-label','Show the controls menu');
     tog.onclick=()=>setMenu(!document.body.classList.contains('menu'));
     document.body.appendChild(tog);
+    // The keypad usually shows itself, but it can also be summoned, so that
+    // guessing wrong about a prompt is an annoyance rather than a dead end.
+    keyTog=document.createElement('button');
+    keyTog.id='keytog'; keyTog.type='button'; keyTog.textContent='123';
+    keyTog.setAttribute('aria-label','Show or hide the keypad');
+    keyTog.onclick=()=>{ keysOpen=!keysOpen; refreshKeys(); };
+    document.body.appendChild(keyTog);
     setMenu(true);
     const runBtn=$('run');
     if(runBtn){
