@@ -201,6 +201,9 @@ The last panel collects everything into one block to send back.</p>
   <p>Three separate APIs can carry tilt and phones disagree about which one works, so all three are
   listened to at once and reported separately. A phone that fires events full of nothing is a
   different problem from one that fires none, and both are different from a working sensor.</p>
+  <p>If they all come back empty, the lines under <b>why</b> say whether the sensor is switched off
+  or simply absent. Switched off is usually Chrome: <b>&#8942; &rarr; Settings &rarr; Site settings
+  &rarr; Motion sensors</b>, and the padlock beside the address for this site.</p>
   <div class="row"><button id="bTilt">Enable tilt</button>
     <span class="chip" id="cTilt">not tried</span></div>
   <div class="lvwrap">
@@ -1074,11 +1077,40 @@ const SRC={
   abs:{label:'deviceorientationabsolute',  n:0,nulls:0,live:false},
   mot:{label:'devicemotion, from gravity', n:0,nulls:0,live:false}
 };
-const tilt={on:false,beta:null,gamma:null,using:null,
+const tilt={on:false,beta:null,gamma:null,using:null,diag:[],
   minB:999,maxB:-999,minG:999,maxG:-999,noise:0,outcome:null,
   perm:(typeof DeviceOrientationEvent!=='undefined'&&
         typeof DeviceOrientationEvent.requestPermission==='function')?'needed':'not needed'};
 let noiseBuf=[];
+function tiltDiag(s){ tilt.diag.push(s); tiltOut(); }
+// The event APIs fail silently, handing back nulls whatever the reason. The
+// Generic Sensor API and the Permissions API fail loudly, so when the events
+// come back empty these are what can say whether the sensor is switched off
+// or simply not there.
+function sensorDiag(){
+  tilt.diag=[];
+  tiltDiag('secure context: '+(window.isSecureContext?'yes':'NO, sensors need https'));
+  if(typeof Accelerometer==='undefined') tiltDiag('Accelerometer class: not in this browser');
+  else{
+    try{
+      const a=new Accelerometer({frequency:10});
+      a.addEventListener('error',e=>tiltDiag('Accelerometer: '+
+        ((e.error&&e.error.name)||'error')+', '+((e.error&&e.error.message)||'')));
+      a.addEventListener('reading',()=>{
+        tiltDiag('Accelerometer reads x='+a.x.toFixed(2)+' y='+a.y.toFixed(2)+
+          ' z='+a.z.toFixed(2)+'  (the hardware is there)');
+        try{ a.stop(); }catch(e){} });
+      a.start();
+      tiltDiag('Accelerometer class: started');
+    }catch(e){ tiltDiag('Accelerometer class: '+(e.name||'threw')+', '+(e.message||'')); }
+  }
+  if(navigator.permissions&&navigator.permissions.query){
+    for(const n of ['accelerometer','gyroscope'])
+      navigator.permissions.query({name:n})
+        .then(p=>tiltDiag(n+' permission: '+p.state))
+        .catch(()=>tiltDiag(n+' permission: cannot be queried here'));
+  } else tiltDiag('Permissions API: not available');
+}
 function srcState(k){
   const s=SRC[k];
   return s.n===0 ? 'no events at all'
@@ -1107,7 +1139,7 @@ function tiltOut(){
     ['left/right seen',R.tilt.rangeG?R.tilt.rangeG+'°':'--'],
     ['jitter while still',tilt.noise?tilt.noise.toFixed(2)+'°'+
       (tilt.noise<1.5?'   steady enough':'   noisy, needs smoothing'):'--']
-  ]);
+  ].concat(tilt.diag.map((d,i)=>[i?' ':'why',d])));
   report();
 }
 // One display, fed by whichever source first proves it carries real numbers.
@@ -1152,6 +1184,7 @@ function fromGravity(e){
 $('bTilt').onclick=()=>{
   const listen=()=>{
     tilt.on=true;
+    sensorDiag();
     window.addEventListener('deviceorientation',e=>{
       SRC.rel.n++; feed(e.beta,e.gamma,'rel'); });
     window.addEventListener('deviceorientationabsolute',e=>{
@@ -1284,6 +1317,7 @@ function report(){
   if(R.tilt) L.push('tilt      perm='+R.tilt.perm+'  '+R.tilt.sources+
     '  using='+(R.tilt.using||'none')+'  fb['+R.tilt.rangeB+'] lr['+R.tilt.rangeG+
     '] jitter='+R.tilt.noise+'  outcome='+R.tilt.outcome);
+  if(R.tilt&&tilt.diag.length) L.push('          why: '+tilt.diag.join(' | '));
   if(R.audio) L.push('audio     api='+R.audio.api+' born='+R.audio.born+' after='+R.audio.after+
     ' rate='+R.audio.rate+' latency='+R.audio.latency);
   if(R.misc) L.push('misc      wake='+R.misc.wake+' vibrate='+R.misc.vib+
