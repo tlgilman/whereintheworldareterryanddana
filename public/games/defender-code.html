@@ -115,7 +115,10 @@ relocator, disassembles what that produces, and then runs it. Click an address t
 <label class="ck">heat <select id="heatmode">
 <option value="off">off</option>
 <option value="total">total, ever</option>
-<option value="recent">recent, fading</option>
+<option value="recent:0.5">recent, 0.5s fade</option>
+<option value="recent:2">recent, 2s fade</option>
+<option value="recent:6">recent, 6s fade</option>
+<option value="recent:20">recent, 20s fade</option>
 </select></label>
 <button id="heatclear">Reset counts</button>
 <span class="hkey" title="cold to hot"></span>
@@ -1231,7 +1234,7 @@ const HITS=new Float64Array(ROWS.length);    // every execution, ever
 const HEAT=new Float32Array(ROWS.length);    // the decaying view
 const FRAME=new Float64Array(ROWS.length);   // executions since the last paint
 let hitMax=0, heatMode='off', heatEls=null, heatFirst=0;
-const DECAY=0.90;
+let heatHalf=2, heatLast=0;                  // seconds for a line's glow to halve
 // Dark red through amber to gold. Alpha carries most of the range so the text
 // stays readable even at the top of the scale.
 function ramp(v){
@@ -1240,11 +1243,20 @@ function ramp(v){
     +Math.round(70-30*v)+','+(0.10+0.42*v).toFixed(3)+')';
 }
 function decayHeat(){
-  if(heatMode!=='recent'){ FRAME.fill(0); return; }
+  if(heatMode!=='recent'){ FRAME.fill(0); heatLast=0; return; }
+  // Fade by elapsed time rather than per frame. The frame rate moves with the
+  // emulation speed and with how hard the listing is working, so a per-frame
+  // factor makes the fade itself speed up and slow down, which is not a
+  // property of the code being watched. The gap is clamped so coming back from
+  // a long pause does not wipe everything in a single step.
+  const now=(typeof performance!=='undefined'?performance.now():Date.now());
+  const dt=heatLast?Math.min(0.5,(now-heatLast)/1000):1/60;
+  heatLast=now;
+  const k=Math.pow(0.5,dt/heatHalf);
   const ln=Math.log(501);
   for(let i=0;i<HEAT.length;i++){
     const f=FRAME[i];
-    let v=HEAT[i]*DECAY;
+    let v=HEAT[i]*k;
     // One execution lights a line; a tight loop lights it harder, but on a log
     // scale, or a single inner loop would drown out everything else.
     if(f) v+=0.30+0.70*Math.min(1,Math.log(1+f)/ln);
@@ -1266,7 +1278,7 @@ function paintHeat(){
   const mx=document.getElementById('heatmax');
   if(mx) mx.textContent=off?'':(heatMode==='total'
     ? (hitMax?'busiest line '+Math.round(hitMax).toLocaleString()+'x':'')
-    : 'fading');
+    : 'half gone in '+heatHalf+'s');
 }
 const ROUTINES=[...new Set([...CALLED,...Object.keys(ANN.headers).map(k=>parseInt(k,16))])]
   .filter(a=>CODESET.has(a)).sort((x,y)=>x-y);
@@ -1464,8 +1476,12 @@ function frame(ts){
   if(running) requestAnimationFrame(frame);
 }
 const heatSel=document.getElementById('heatmode');
-if(heatSel) heatSel.onchange=()=>{ heatMode=heatSel.value;
+if(heatSel) heatSel.onchange=()=>{
+  const v=heatSel.value.split(':');
+  heatMode=v[0];
+  if(v[1]) heatHalf=+v[1];
   if(heatMode!=='recent') HEAT.fill(0);
+  heatLast=0;
   render(true); };
 const heatClr=document.getElementById('heatclear');
 if(heatClr) heatClr.onclick=()=>{ HITS.fill(0); HEAT.fill(0); FRAME.fill(0);
