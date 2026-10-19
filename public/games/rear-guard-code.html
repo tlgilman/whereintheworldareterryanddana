@@ -62,6 +62,10 @@ canvas{width:100%;max-width:560px;image-rendering:pixelated;background:#000;
 .cm{color:var(--dim)}
 .bp{color:var(--brk)}
 .cold{opacity:.55}
+/* the heat map scale, so the colours mean something */
+.hkey{display:inline-block;width:66px;height:11px;vertical-align:middle;
+  border:1px solid #2c2c26;border-radius:2px;background:linear-gradient(90deg,
+  rgba(90,55,70,.10),rgba(172,133,55,.31),rgba(255,195,40,.52))}
 .foot{padding:0 16px 28px;color:var(--dim);font-size:12.5px;max-width:70em}
 .foot code{color:var(--phos)}
 .key{display:flex;flex-wrap:wrap;gap:4px 18px;margin:8px 0 0;padding:0;list-style:none;
@@ -107,6 +111,15 @@ relocator, disassembles what that produces, and then runs it. Click an address t
 <span class="sep"></span>
 <input type="text" id="goto" placeholder="addr/name">
 <button id="clrbp">Clear breakpoints</button>
+<span class="sep"></span>
+<label class="ck">heat <select id="heatmode">
+<option value="off">off</option>
+<option value="total">total, ever</option>
+<option value="recent">recent, fading</option>
+</select></label>
+<button id="heatclear">Reset counts</button>
+<span class="hkey" title="cold to hot"></span>
+<span id="heatmax" style="color:var(--dim);font:12px ui-monospace,monospace"></span>
 <span class="sep"></span>
 <span id="status" style="color:var(--dim);font:12.5px ui-monospace,monospace"></span>
 </div>
@@ -748,6 +761,10 @@ class Machine{
       c.T+=44; return 44;                       // stay put and poll again
     }
     if(pc===0x002B||pc===0x0049){                                       // get a character
+      // Note that we are at a prompt. Across all nine games these entries are
+      // never called while the screen is animating, so this is an exact signal
+      // rather than a guess, and the touch keypad rides on it.
+      this.romWait=c.T;
       const k=this.romKey(); c.A=k; c.F = k?(c.F&~0x40):(c.F|0x40); return ret(40); }
     if(pc===0x01D3){ this.ram[0x40AB]=(c.R&0x7F)|c.R7; return ret(20); } // seed
     if(pc===0x14C9){ this.rndVal=this.rnd(this.ram[0x4121]|(this.ram[0x4122]<<8)); return ret(60); }
@@ -1199,6 +1216,58 @@ for(let i=0;i<STARTS.length;i++){
 }
 // which routine each address sits in: the nearest call target or headered
 // address at or before it
+// ---- the heat map ------------------------------------------------------
+// Two readings of the same counter. "Total" colours each line by how often it
+// has ever run, which is how you find code that runs rarely or never. "Recent"
+// decays, so it shows only where the processor is now, and a routine that goes
+// quiet fades out instead of staying lit.
+//
+// Indexed by address in a flat array rather than through the Map: this is read
+// once per instruction, and at a million instructions a second a hash lookup
+// there costs more than the emulation does.
+const ROWAT=new Int32Array(65536).fill(-1);
+for(const [a,i] of ROWOF) ROWAT[a]=i;
+const HITS=new Float64Array(ROWS.length);    // every execution, ever
+const HEAT=new Float32Array(ROWS.length);    // the decaying view
+const FRAME=new Float64Array(ROWS.length);   // executions since the last paint
+let hitMax=0, heatMode='off', heatEls=null, heatFirst=0;
+const DECAY=0.90;
+// Dark red through amber to gold. Alpha carries most of the range so the text
+// stays readable even at the top of the scale.
+function ramp(v){
+  v=v<0?0:(v>1?1:v);
+  return 'rgba('+Math.round(90+165*v)+','+Math.round(55+140*Math.pow(v,0.85))+','
+    +Math.round(70-30*v)+','+(0.10+0.42*v).toFixed(3)+')';
+}
+function decayHeat(){
+  if(heatMode!=='recent'){ FRAME.fill(0); return; }
+  const ln=Math.log(501);
+  for(let i=0;i<HEAT.length;i++){
+    const f=FRAME[i];
+    let v=HEAT[i]*DECAY;
+    // One execution lights a line; a tight loop lights it harder, but on a log
+    // scale, or a single inner loop would drown out everything else.
+    if(f) v+=0.30+0.70*Math.min(1,Math.log(1+f)/ln);
+    HEAT[i]=v>1?1:v;
+    FRAME[i]=0;
+  }
+}
+function paintHeat(){
+  if(!heatEls) return;
+  const off=heatMode==='off', lnMax=Math.log(1+hitMax)||1;
+  for(let k=0;k<heatEls.length;k++){
+    const el=heatEls[k], i=heatFirst+k, r=ROWS[i];
+    // The current line keeps its own highlight; an inline colour would hide it.
+    const v=(off||!r||r.t!=='ins'||i===winCur) ? 0
+      : (heatMode==='total' ? (HITS[i]?Math.log(1+HITS[i])/lnMax:0) : HEAT[i]);
+    const bg=v>0.004?ramp(v):'';
+    if(el.style.background!==bg) el.style.background=bg;
+  }
+  const mx=document.getElementById('heatmax');
+  if(mx) mx.textContent=off?'':(heatMode==='total'
+    ? (hitMax?'busiest line '+Math.round(hitMax).toLocaleString()+'x':'')
+    : 'fading');
+}
 const ROUTINES=[...new Set([...CALLED,...Object.keys(ANN.headers).map(k=>parseInt(k,16))])]
   .filter(a=>CODESET.has(a)).sort((x,y)=>x-y);
 function routineOf(pc){
@@ -1237,6 +1306,8 @@ function render(force){
   }
   rowsEl.style.transform='translateY('+(first*ROWH)+'px)';
   rowsEl.innerHTML=h;
+  heatEls=rowsEl.children; heatFirst=first;
+  paintHeat();
 }
 list.addEventListener('scroll',()=>render(false));
 function scrollTo(addr,centre){
@@ -1339,6 +1410,8 @@ followBtn.onclick=()=>{ followPC=!followPC;
 document.getElementById('findpc').onclick=()=>{ scrollTo(m.cpu.PC,true); };
 function one(){
   const pc=m.cpu.PC, sp0=m.cpu.SP, op=m.ram[pc];
+  const ri=ROWAT[pc];
+  if(ri>=0){ const h=++HITS[ri]; if(h>hitMax) hitMax=h; FRAME[ri]++; }
   lastCost=m.cpu.step();
   const sp=m.cpu.SP;
   // A frame is recorded with the stack slot its return address went into, and
@@ -1373,12 +1446,13 @@ function whyPanel(){
     +(w.fl?'<div class="wfl">Flags: '+esc(w.fl)+'.</div>':'')
     +(lastCost?'<div class="wfl">The instruction before this one took '+lastCost+' T-states.</div>':'');
 }
-function paint(){ draw(); panels(); whyPanel(); render(false);
+function paint(){ decayHeat(); draw(); panels(); whyPanel(); render(false);
   if(followPC&&ROWOF.has(m.cpu.PC)){
     const i=ROWOF.get(m.cpu.PC), top=list.scrollTop, h=list.clientHeight;
     if(i*ROWH<top+40||i*ROWH>top+h-60) list.scrollTop=Math.max(0,i*ROWH-h/2);
   }
   render(false);
+  paintHeat();
 }
 function frame(ts){
   if(!running) return;
@@ -1389,6 +1463,13 @@ function frame(ts){
   paint();
   if(running) requestAnimationFrame(frame);
 }
+const heatSel=document.getElementById('heatmode');
+if(heatSel) heatSel.onchange=()=>{ heatMode=heatSel.value;
+  if(heatMode!=='recent') HEAT.fill(0);
+  render(true); };
+const heatClr=document.getElementById('heatclear');
+if(heatClr) heatClr.onclick=()=>{ HITS.fill(0); HEAT.fill(0); FRAME.fill(0);
+  hitMax=0; render(true); };
 const runBtn=document.getElementById('run');
 function pause(){ running=false; runBtn.textContent='Start'; runBtn.classList.remove('on'); }
 runBtn.onclick=()=>{ running=!running;
