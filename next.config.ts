@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
       { source: "/preview/index.html", destination: "/", permanent: false },
     ];
   },
+  // The TRS-80 games are static files in public/games, so they answer only to
+  // their own filenames: Next serves no directory index. /games is the address
+  // people type and link to, so it is rewritten rather than redirected, which
+  // keeps that address in the bar instead of exposing index.html.
+  async rewrites() {
+    return [
+      { source: "/games", destination: "/games/index.html" },
+    ];
+  },
 };
 
 export default nextConfig;
