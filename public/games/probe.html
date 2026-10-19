@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Phone Probe &mdash; TRS-80</title>
+<style>
+/* The games' own palette: phosphor on a dark CRT. Deliberately one theme,
+   because the subject is a 1981 display and a light version would be a lie. */
+:root{
+  --phos:#e8e6d9; --dim:#6b6a60; --bg:#0a0a08; --gold:#e8c35a;
+  --page:#151512; --card:#1b1b17; --edge:#2c2c26; --edge2:#45453c;
+  --ok:#7fb069; --bad:#c76a5a; --wait:#8a8880;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--page);color:var(--phos);
+  font-family:"Courier New",Courier,monospace;-webkit-text-size-adjust:100%}
+#wrap{max-width:860px;margin:0 auto;
+  padding-left:max(14px,env(safe-area-inset-left,0px));
+  padding-right:max(14px,env(safe-area-inset-right,0px));
+  padding-block:14px 40px}
+h1{font-size:15px;letter-spacing:.3em;margin:0 0 3px;text-transform:uppercase;color:var(--gold)}
+.sub{font-size:11.5px;color:var(--dim);margin:0 0 14px;letter-spacing:.04em;line-height:1.6}
+.back{display:inline-block;font-size:11.5px;color:var(--dim);text-decoration:none;
+      letter-spacing:.08em;margin:0 0 13px}
+.back:hover,.back:focus-visible{color:var(--gold)}
+
+/* Each probe is a card. The number is the order to run them in, which is real
+   information here: fullscreen has to come before the orientation lock. */
+section{background:var(--card);border:1px solid var(--edge);border-radius:9px;
+  padding:13px 14px;margin:0 0 13px}
+section>h2{font-size:11px;letter-spacing:.2em;color:var(--gold);font-weight:normal;
+  margin:0 0 10px;text-transform:uppercase;display:flex;gap:9px;align-items:baseline}
+section>h2 .n{color:var(--dim);font-size:10px;letter-spacing:.1em;flex:0 0 auto}
+p{font-size:12px;line-height:1.7;color:#a8a69b;margin:0 0 10px}
+p:last-child{margin-bottom:0}
+p b{color:var(--phos);font-weight:normal}
+code{background:#22221d;padding:1px 5px;border-radius:3px;color:#cfcdc0;font-size:11.5px}
+
+button{font-family:inherit;font-size:12.5px;letter-spacing:.06em;background:var(--edge);
+  color:var(--phos);border:1px solid var(--edge2);border-radius:5px;padding:10px 15px;
+  cursor:pointer;min-height:42px}
+button:hover{background:#3a3a32}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button[disabled]{opacity:.45;cursor:default}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.row:last-child{margin-bottom:0}
+
+/* Readouts. Tabular figures so a live number does not jitter the layout. */
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0;font-size:11.5px}
+dt{color:var(--dim);white-space:nowrap}
+dd{margin:0;color:var(--phos);font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:break-word}
+.chip{display:inline-block;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  border:1px solid currentColor;border-radius:3px;padding:1px 6px;color:var(--wait)}
+.chip.ok{color:var(--ok)} .chip.bad{color:var(--bad)} .chip.gold{color:var(--gold)}
+
+canvas{display:block;max-width:100%;image-rendering:pixelated;background:var(--bg)}
+.scr{background:var(--bg);border:2px solid var(--edge);border-radius:6px;padding:6px;
+  position:relative;overflow:hidden}
+/* The legibility renders must be shown at their true pixel size or they prove
+   nothing, so they scroll sideways rather than being shrunk to fit. */
+.scrx{background:var(--bg);border:2px solid var(--edge);border-radius:6px;padding:6px;
+  overflow-x:auto;overflow-y:hidden}
+.scrx canvas{max-width:none}
+figcaption{font-size:10.5px;color:var(--dim);letter-spacing:.06em;margin:5px 0 0}
+figure{margin:0 0 12px}
+
+/* The control mock. Absolute over the canvas, which is the whole question:
+   can the controls sit on the picture without eating it. */
+#mock{position:relative;touch-action:none;-webkit-user-select:none;user-select:none}
+#mock canvas{width:100%;height:auto}
+.ov{position:absolute;pointer-events:auto;touch-action:none}
+#stick{left:3%;bottom:5%;width:30%;aspect-ratio:1;border-radius:50%;
+  border:2px solid rgba(232,195,90,.5);background:rgba(232,195,90,.09)}
+#knob{position:absolute;left:50%;top:50%;width:42%;aspect-ratio:1;border-radius:50%;
+  background:rgba(232,195,90,.5);transform:translate(-50%,-50%);pointer-events:none}
+.btn2{right:3%;bottom:5%;display:flex;gap:4%;width:42%;justify-content:flex-end}
+.rb{flex:0 0 44%;aspect-ratio:1;border-radius:50%;border:2px solid rgba(232,230,217,.45);
+  background:rgba(232,230,217,.1);display:grid;place-items:center;font-size:10px;
+  letter-spacing:.05em;color:var(--phos)}
+.rb.on{background:rgba(232,195,90,.45);border-color:var(--gold)}
+#stick.on{border-color:var(--gold)}
+
+/* The tilt bubble. A level is the instrument this question belongs to. */
+#level{width:150px;height:150px;border:1px solid var(--edge2);border-radius:50%;
+  position:relative;background:#121210;flex:0 0 auto}
+#level::before,#level::after{content:"";position:absolute;background:var(--edge)}
+#level::before{left:0;right:0;top:50%;height:1px}
+#level::after{top:0;bottom:0;left:50%;width:1px}
+#dz{position:absolute;left:50%;top:50%;width:40%;height:40%;margin:-20% 0 0 -20%;
+  border:1px dashed var(--edge2);border-radius:50%}
+#bub{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;
+  border-radius:50%;background:var(--gold)}
+.lvwrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.dirs{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,30px);
+  gap:3px;font-size:10px}
+.dirs span{border:1px solid var(--edge);border-radius:3px;display:grid;place-items:center;
+  color:var(--dim)}
+.dirs span.on{border-color:var(--gold);color:var(--gold);background:rgba(232,195,90,.14)}
+
+pre{background:#111110;border:1px solid var(--edge);border-radius:6px;padding:11px;
+  font-size:11px;line-height:1.55;color:#c9c7bb;overflow-x:auto;margin:0 0 10px;
+  white-space:pre;-webkit-user-select:all;user-select:all}
+.hint{font-size:11.5px;color:var(--gold);line-height:1.7;border-left:2px solid var(--gold);
+  padding-left:11px;margin:0 0 14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style></head><body><div id="wrap">
+<a class="back" href="index.html#ours">&larr; TRS-80 Retro Games</a>
+<h1>Phone Probe</h1>
+<p class="sub">What this phone can actually do, measured on the phone rather than looked up.
+Nine checks. Nothing here changes any game; the page only asks the browser questions and reports
+the answers.</p>
+
+<p class="hint"><b>How to run it:</b> turn the phone to landscape first, then work down the page
+and press every button. Tests 5 and 6 ask the system for permission, so they need a real tap.
+The last panel collects everything into one block to send back.</p>
+
+<section>
+  <h2><span class="n">01</span> Screen and viewport</h2>
+  <p>The number that decides everything is the width of one character. The screen is 64 characters
+  across, so a character gets the canvas width divided by 64. Below about 6px a 5x7 glyph stops
+  being readable, and the menus, the high score table and the name entry are all text.</p>
+  <dl id="dScreen"></dl>
+</section>
+
+<section>
+  <h2><span class="n">02</span> Is it readable</h2>
+  <p>Drawn with the games' own 5x7 character generator, through the games' own paint routine, then
+  scaled down exactly as the page scales it. This is not a mock-up of the text: it is the text.
+  Judge it with your eyes, that is the measurement. Three sizes, because rotating the phone only
+  helps if the height is not already spent on a title, a button bar and the address bar.</p>
+  <figure><div class="scrx"><canvas id="legA"></canvas></div>
+    <figcaption id="capA"></figcaption></figure>
+  <figure><div class="scrx"><canvas id="legB"></canvas></div>
+    <figcaption id="capB"></figcaption></figure>
+  <figure><div class="scrx"><canvas id="legC"></canvas></div>
+    <figcaption id="capC"></figcaption></figure>
+</section>
+
+<section>
+  <h2><span class="n">03</span> Can it keep up</h2>
+  <p>This runs the real Z80 from the game pages, on a program built from the same things the games
+  do: a 256-byte <code>LDIR</code> block move like the buffer-to-screen blit, 8-bit arithmetic
+  through memory, <code>LD A,R</code> for the random source, and a counted loop. A Model I ran
+  1,774,000 T-states a second, so anything above 1x is fast enough.</p>
+  <div class="row"><button id="bBench">Measure speed</button>
+    <span class="chip" id="cBench">not run</span></div>
+  <dl id="dBench"></dl>
+</section>
+
+<section>
+  <h2><span class="n">04</span> Touch, and controls over the picture</h2>
+  <p>A mock Sea Dragon screen with the proposed overlay on top: thumbstick at the left, two buttons
+  at the right, both semi-transparent and both sitting on the picture rather than below it. Drive
+  it. Hold a direction and tap fire at the same time, which is the normal case, and watch whether
+  the count below reaches 2 and 3.</p>
+  <figure><div id="mock" class="scr">
+    <canvas id="mockc"></canvas>
+    <div class="ov" id="stick"><div id="knob"></div></div>
+    <div class="ov btn2">
+      <div class="rb" id="rb1">FIRE</div><div class="rb" id="rb2">MSL</div>
+    </div>
+  </div><figcaption>Mock screen. The overlay is what is being judged, not the artwork.</figcaption></figure>
+  <dl id="dTouch"></dl>
+</section>
+
+<section>
+  <h2><span class="n">05</span> Fullscreen</h2>
+  <p>Worth real height: losing the address bar is the difference between a readable landscape canvas
+  and a cramped one. Press this, look at the size it reports, then come out again.</p>
+  <div class="row"><button id="bFS">Go fullscreen</button>
+    <button id="bFSx" disabled>Leave fullscreen</button>
+    <span class="chip" id="cFS">not tried</span></div>
+  <dl id="dFS"></dl>
+</section>
+
+<section>
+  <h2><span class="n">06</span> Locking to landscape</h2>
+  <p>Asking the phone to stay in landscape. On some browsers this only works while already
+  fullscreen, which is why it comes after test 5: if it refuses, the name of the refusal tells us
+  whether it is unsupported or just out of order.</p>
+  <div class="row"><button id="bLock">Lock to landscape</button>
+    <button id="bUnlock">Unlock</button>
+    <span class="chip" id="cLock">not tried</span></div>
+  <dl id="dLock"></dl>
+</section>
+
+<section>
+  <h2><span class="n">07</span> Tilt</h2>
+  <p>For Tank Zone, tilting forward, back, left and right instead of working two tread levers with
+  two thumbs. Grant the permission, then hold the phone the way you would play and tilt. The dashed
+  circle is a 12&deg; deadzone: inside it nothing fires. The four boxes light the way the treads
+  would drive.</p>
+  <div class="row"><button id="bTilt">Enable tilt</button>
+    <span class="chip" id="cTilt">not tried</span></div>
+  <div class="lvwrap">
+    <div id="level"><div id="dz"></div><div id="bub"></div></div>
+    <div>
+      <div class="dirs" style="margin-bottom:10px">
+        <span></span><span id="dU">FWD</span><span></span>
+        <span id="dL">LEFT</span><span></span><span id="dR">RIGHT</span>
+        <span></span><span id="dD">BACK</span><span></span>
+      </div>
+      <dl id="dTilt"></dl>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">08</span> Sound</h2>
+  <p>The games drive the cassette port to make sound, and a browser will only start audio from a
+  real tap. This checks that the context actually leaves <code>suspended</code>, and plays a tone
+  so you can hear it.</p>
+  <div class="row"><button id="bAud">Play a tone</button>
+    <span class="chip" id="cAud">not tried</span></div>
+  <dl id="dAud"></dl>
+</section>
+
+<section>
+  <h2><span class="n">09</span> Odds and ends</h2>
+  <p>Keeping the screen awake during a long run, whether a buzz is available for a hit, and whether
+  the page can still be pinch-zoomed by accident while you play.</p>
+  <div class="row"><button id="bWake">Keep screen awake</button>
+    <button id="bVib">Buzz</button>
+    <span class="chip" id="cMisc">not tried</span></div>
+  <dl id="dMisc"></dl>
+</section>
+
+<section>
+  <h2><span class="n">10</span> The report</h2>
+  <p>Everything above, as text. Copy it and send it back, or just screenshot it.</p>
+  <div class="row"><button id="bCopy">Copy the report</button>
+    <span class="chip" id="cCopy">&nbsp;</span></div>
+  <pre id="rep">Run the tests above and this fills in.</pre>
+</section>
+
+</div>
+<script>
+// The games' 5x7 character generator, codes 20H to 7EH, seven bytes each.
+const FONT=Uint8Array.from("00000000000000040404040400040a0a0a000000000a0a1f0a1f0a0a040f140e051e04181902040813030c12140815120d0c04080000000002040808080402080402020204080004150e1504000004041f040400000000000c04080000001f00000000000000000c0c000102040810000e11131519110e040c040404040e0e11010204081f1f02040201110e02060a121f02021f101e0101110e0608101e11110e1f1102040808080e11110e11110e0e11110f01020c000c0c000c0c00000c0c000c04080204081008040200001f001f0000080402010204080e1101020400040e11010d15150e040a11111f11111e11111e11111e0e11101010110e1c12111111121c1f10101e10101f1f10101e1010100e11101711110f1111111f1111110e04040404040e0702020202120c111214181412111010101010101f111b1515111111111119151311110e11111111110e1e11111e1010100e11111115120d1e11111e1412110f10100e01011e1f0404040404041111111111110e11111111110a041111111515150a11110a040a111111110a040404041f01020408101f0e08080808080e001008040201000e02020202020e040a11000000000000000000001f0000000000000000000e010f110f10101e1111111e00000f1010110e01010f1111110f00000e111f100e0609081c080808000f11110f010e10101e1111111104000c0404040e0200060202120c101012141814120c04040404040e00001a1515151500001e1111111100000e1111110e001e11111e1010000f11110f01010000161910101000000f100e011e08081c080809060000111111130d00001111110a040000111115150a0000110a040a11001111110f010e00001f0204081f02040408040402040404000404040804040204040800000d12000000".match(/../g).map(h=>parseInt(h,16)));
+</script>
+<script>
+// Z80 CPU core, written for the Sea Dragon reconstruction.
+// Covers the documented instruction set plus the undocumented IXH/IXL/IYH/IYL
+// halves, and models the R register properly: Sea Dragon uses LD A,R as its
+// random number source, so R has to increment exactly as the hardware does.
+
+const F_C=0x01,F_N=0x02,F_PV=0x04,F_3=0x08,F_H=0x10,F_5=0x20,F_Z=0x40,F_S=0x80;
+
+const PAR=new Uint8Array(256);
+for(let i=0;i<256;i++){let p=0,v=i;while(v){p^=v&1;v>>=1;}PAR[i]=p?0:F_PV;}
+const SZ53=new Uint8Array(256),SZ53P=new Uint8Array(256);
+for(let i=0;i<256;i++){const b=(i&0x80)|(i===0?F_Z:0)|(i&0x28);SZ53[i]=b;SZ53P[i]=b|PAR[i];}
+
+class Z80{
+  constructor(bus){
+    this.bus=bus;
+    this.A=0;this.F=0;this.B=0;this.C=0;this.D=0;this.E=0;this.H=0;this.L=0;
+    this.A2=0;this.F2=0;this.B2=0;this.C2=0;this.D2=0;this.E2=0;this.H2=0;this.L2=0;
+    this.IXH=0;this.IXL=0;this.IYH=0;this.IYL=0;
+    this.SP=0xFFFF;this.PC=0;this.I=0;this.R=0;this.R7=0;
+    this.IFF1=0;this.IFF2=0;this.IM=0;this.halted=false;this.T=0;this.idx=0;
+    this.MEMPTR=0;
+  }
+  // ---- memory / fetch -------------------------------------------------
+  rb(a){return this.bus.read(a&0xFFFF);}
+  wb(a,v){this.bus.write(a&0xFFFF,v&0xFF);}
+  rw(a){return this.rb(a)|(this.rb((a+1)&0xFFFF)<<8);}
+  ww(a,v){this.wb(a,v&0xFF);this.wb((a+1)&0xFFFF,(v>>8)&0xFF);}
+  fetch(){const v=this.rb(this.PC);this.PC=(this.PC+1)&0xFFFF;return v;}
+  fetchw(){const lo=this.fetch();return lo|(this.fetch()<<8);}
+  m1(){this.R=(this.R+1)&0x7F;return this.fetch();}
+  disp(){const d=this.fetch();return d<128?d:d-256;}
+  push(v){this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v>>8);this.SP=(this.SP-1)&0xFFFF;this.wb(this.SP,v&0xFF);}
+  pop(){const v=this.rw(this.SP);this.SP=(this.SP+2)&0xFFFF;return v;}
+
+  // ---- register file --------------------------------------------------
+  get HL(){return (this.H<<8)|this.L;}  set HL(v){this.H=(v>>8)&0xFF;this.L=v&0xFF;}
+  get BC(){return (this.B<<8)|this.C;}  set BC(v){this.B=(v>>8)&0xFF;this.C=v&0xFF;}
+  get DE(){return (this.D<<8)|this.E;}  set DE(v){this.D=(v>>8)&0xFF;this.E=v&0xFF;}
+  get IX(){return (this.IXH<<8)|this.IXL;} set IX(v){this.IXH=(v>>8)&0xFF;this.IXL=v&0xFF;}
+  get IY(){return (this.IYH<<8)|this.IYL;} set IY(v){this.IYH=(v>>8)&0xFF;this.IYL=v&0xFF;}
+  get AF(){return (this.A<<8)|this.F;}  set AF(v){this.A=(v>>8)&0xFF;this.F=v&0xFF;}
+
+  idxHL(){return this.idx===1?this.IX:this.idx===2?this.IY:this.HL;}
+  setIdxHL(v){if(this.idx===1)this.IX=v;else if(this.idx===2)this.IY=v;else this.HL=v;}
+  addr(d){return (this.idxHL()+(this.idx?d:0))&0xFFFF;}
+
+  rd(i,d){switch(i){
+    case 0:return this.B;case 1:return this.C;case 2:return this.D;case 3:return this.E;
+    case 4:return this.idx===1?this.IXH:this.idx===2?this.IYH:this.H;
+    case 5:return this.idx===1?this.IXL:this.idx===2?this.IYL:this.L;
+    case 6:return this.rb(this.addr(d));
+    default:return this.A;}}
+  wr(i,v,d){v&=0xFF;switch(i){
+    case 0:this.B=v;break;case 1:this.C=v;break;case 2:this.D=v;break;case 3:this.E=v;break;
+    case 4:if(this.idx===1)this.IXH=v;else if(this.idx===2)this.IYH=v;else this.H=v;break;
+    case 5:if(this.idx===1)this.IXL=v;else if(this.idx===2)this.IYL=v;else this.L=v;break;
+    case 6:this.wb(this.addr(d),v);break;
+    default:this.A=v;}}
+  // plain H/L, used for the register side of an (IX+d) memory instruction
+  rdp(i){const s=this.idx;this.idx=0;const v=this.rd(i);this.idx=s;return v;}
+  wrp(i,v){const s=this.idx;this.idx=0;this.wr(i,v);this.idx=s;}
+
+  rp(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.SP;}}
+  setrp(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.SP=v&0xFFFF;}}
+  rp2(p){switch(p){case 0:return this.BC;case 1:return this.DE;case 2:return this.idxHL();default:return this.AF;}}
+  setrp2(p,v){switch(p){case 0:this.BC=v;break;case 1:this.DE=v;break;case 2:this.setIdxHL(v);break;default:this.AF=v;}}
+
+  cc(y){switch(y){
+    case 0:return !(this.F&F_Z);case 1:return !!(this.F&F_Z);
+    case 2:return !(this.F&F_C);case 3:return !!(this.F&F_C);
+    case 4:return !(this.F&F_PV);case 5:return !!(this.F&F_PV);
+    case 6:return !(this.F&F_S);default:return !!(this.F&F_S);}}
+
+  // ---- ALU ------------------------------------------------------------
+  add8(v){const a=this.A,r=a+v;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F))>0x0F?F_H:0);
+    this.A=rr;}
+  adc8(v){const a=this.A,c=this.F&F_C,r=a+v+c;const rr=r&0xFF;
+    this.F=SZ53[rr]|(r>0xFF?F_C:0)|(((a^v^0x80)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)+(v&0x0F)+c)>0x0F?F_H:0);
+    this.A=rr;}
+  sub8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);
+    this.A=rr;}
+  sbc8(v){const a=this.A,c=this.F&F_C,r=a-v-c;const rr=r&0xFF;
+    this.F=SZ53[rr]|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F)-c)<0?F_H:0);
+    this.A=rr;}
+  and8(v){this.A=(this.A&v)&0xFF;this.F=SZ53P[this.A]|F_H;}
+  xor8(v){this.A=(this.A^v)&0xFF;this.F=SZ53P[this.A];}
+  or8(v){this.A=(this.A|v)&0xFF;this.F=SZ53P[this.A];}
+  cp8(v){const a=this.A,r=a-v;const rr=r&0xFF;
+    this.F=(rr&0x80)|(rr===0?F_Z:0)|(v&0x28)|F_N|(r<0?F_C:0)|(((a^v)&(a^rr)&0x80)?F_PV:0)|(((a&0x0F)-(v&0x0F))<0?F_H:0);}
+  alu(y,v){switch(y){case 0:this.add8(v);break;case 1:this.adc8(v);break;case 2:this.sub8(v);break;
+    case 3:this.sbc8(v);break;case 4:this.and8(v);break;case 5:this.xor8(v);break;
+    case 6:this.or8(v);break;default:this.cp8(v);}}
+  inc8(v){const r=(v+1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|((r&0x0F)===0?F_H:0)|(r===0x80?F_PV:0);return r;}
+  dec8(v){const r=(v-1)&0xFF;
+    this.F=(this.F&F_C)|SZ53[r]|F_N|((v&0x0F)===0?F_H:0)|(r===0x7F?F_PV:0);return r;}
+  add16(a,b){const r=a+b;
+    this.F=(this.F&(F_S|F_Z|F_PV))|((r>>8)&0x28)|(r>0xFFFF?F_C:0)|(((a&0x0FFF)+(b&0x0FFF))>0x0FFF?F_H:0);
+    return r&0xFFFF;}
+  adc16(b){const a=this.HL,c=this.F&F_C,r=a+b+c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|(r>0xFFFF?F_C:0)
+      |(((a^b^0x8000)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)+(b&0x0FFF)+c)>0x0FFF?F_H:0);
+    this.HL=rr;}
+  sbc16(b){const a=this.HL,c=this.F&F_C,r=a-b-c;const rr=r&0xFFFF;
+    this.F=((rr>>8)&0xA8)|(rr===0?F_Z:0)|F_N|(r<0?F_C:0)
+      |(((a^b)&(a^rr)&0x8000)?F_PV:0)|(((a&0x0FFF)-(b&0x0FFF)-c)<0?F_H:0);
+    this.HL=rr;}
+  daa(){const n=this.F&F_N;let c=this.F&F_C,add=0,a=this.A,h;
+    if((this.F&F_H)||(a&0x0F)>9)add=6;
+    if(c||a>0x99){add|=0x60;c=F_C;}
+    if(n){h=((a&0x0F)<(add&0x0F))?F_H:0;a=(a-add)&0xFF;}
+    else{h=(((a&0x0F)+(add&0x0F))>0x0F)?F_H:0;a=(a+add)&0xFF;}
+    this.F=SZ53P[a]|c|n|h;this.A=a;}
+  // rotates returning value + flags (CB form)
+  rlc(v){const c=(v>>7)&1;const r=((v<<1)|c)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rrc(v){const c=v&1;const r=((v>>1)|(c<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rl(v){const c=(v>>7)&1;const r=((v<<1)|(this.F&F_C))&0xFF;this.F=SZ53P[r]|c;return r;}
+  rr(v){const c=v&1;const r=((v>>1)|((this.F&F_C)<<7))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sla(v){const c=(v>>7)&1;const r=(v<<1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  sra(v){const c=v&1;const r=((v>>1)|(v&0x80))&0xFF;this.F=SZ53P[r]|c;return r;}
+  sll(v){const c=(v>>7)&1;const r=((v<<1)|1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  srl(v){const c=v&1;const r=(v>>1)&0xFF;this.F=SZ53P[r]|c;return r;}
+  rot(y,v){switch(y){case 0:return this.rlc(v);case 1:return this.rrc(v);case 2:return this.rl(v);
+    case 3:return this.rr(v);case 4:return this.sla(v);case 5:return this.sra(v);
+    case 6:return this.sll(v);default:return this.srl(v);}}
+
+  // ---- step -----------------------------------------------------------
+  step(){
+    const t0=this.T;
+    this.idx=0;
+    if(this.halted){this.R=(this.R+1)&0x7F;this.T+=4;return 4;}
+    let op=this.m1();
+    while(op===0xDD||op===0xFD){this.idx=(op===0xDD)?1:2;this.T+=4;op=this.m1();}
+    if(op===0xCB){ if(this.idx) this.ddcb(); else this.cb(); }
+    else if(op===0xED){ this.idx=0; this.ed(); }
+    else this.main(op);
+    return this.T-t0;
+  }
+
+  main(op){
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x===1){
+      if(y===6&&z===6){this.halted=true;this.T+=4;return;}
+      if(y===6){const d=this.idx?this.disp():0;this.wr(6,this.rdp(z),d);this.T+=this.idx?19:7;return;}
+      if(z===6){const d=this.idx?this.disp():0;this.wrp(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.wr(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===2){
+      if(z===6){const d=this.idx?this.disp():0;this.alu(y,this.rd(6,d));this.T+=this.idx?19:7;return;}
+      this.alu(y,this.rd(z));this.T+=4;return;
+    }
+    if(x===0){
+      switch(z){
+        case 0:
+          if(y===0){this.T+=4;}
+          else if(y===1){const t=this.AF;this.AF=(this.A2<<8)|this.F2;this.A2=(t>>8)&0xFF;this.F2=t&0xFF;this.T+=4;}
+          else if(y===2){const d=this.disp();this.B=(this.B-1)&0xFF;
+            if(this.B){this.PC=(this.PC+d)&0xFFFF;this.T+=13;}else this.T+=8;}
+          else if(y===3){const d=this.disp();this.PC=(this.PC+d)&0xFFFF;this.T+=12;}
+          else{const d=this.disp();if(this.cc(y-4)){this.PC=(this.PC+d)&0xFFFF;this.T+=12;}else this.T+=7;}
+          return;
+        case 1:
+          if(q===0){this.setrp(p,this.fetchw());this.T+=this.idx?14:10;}
+          else{this.setIdxHL(this.add16(this.idxHL(),this.rp(p)));this.T+=this.idx?15:11;}
+          return;
+        case 2:
+          if(q===0){
+            if(p===0){this.wb(this.BC,this.A);this.T+=7;}
+            else if(p===1){this.wb(this.DE,this.A);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.ww(a,this.idxHL());this.T+=16;}
+            else{const a=this.fetchw();this.wb(a,this.A);this.T+=13;}
+          }else{
+            if(p===0){this.A=this.rb(this.BC);this.T+=7;}
+            else if(p===1){this.A=this.rb(this.DE);this.T+=7;}
+            else if(p===2){const a=this.fetchw();this.setIdxHL(this.rw(a));this.T+=16;}
+            else{const a=this.fetchw();this.A=this.rb(a);this.T+=13;}
+          }
+          return;
+        case 3:
+          this.setrp(p,(this.rp(p)+(q?-1:1))&0xFFFF);this.T+=6;return;
+        case 4:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.inc8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.inc8(this.rd(y)));this.T+=4;}
+          return;}
+        case 5:{
+          if(y===6){const d=this.idx?this.disp():0;const a=this.addr(d);this.wb(a,this.dec8(this.rb(a)));this.T+=this.idx?23:11;}
+          else{this.wr(y,this.dec8(this.rd(y)));this.T+=4;}
+          return;}
+        case 6:{
+          if(y===6){const d=this.idx?this.disp():0;const n=this.fetch();this.wb(this.addr(d),n);this.T+=this.idx?19:10;}
+          else{this.wr(y,this.fetch());this.T+=7;}
+          return;}
+        default:
+          switch(y){
+            case 0:{const c=(this.A>>7)&1;this.A=((this.A<<1)|c)&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 1:{const c=this.A&1;this.A=((this.A>>1)|(c<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 2:{const c=(this.A>>7)&1;this.A=((this.A<<1)|(this.F&F_C))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 3:{const c=this.A&1;this.A=((this.A>>1)|((this.F&F_C)<<7))&0xFF;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(this.A&0x28)|c;break;}
+            case 4:this.daa();break;
+            case 5:this.A=(~this.A)&0xFF;this.F=(this.F&(F_S|F_Z|F_PV|F_C))|F_H|F_N|(this.A&0x28);break;
+            case 6:this.F=(this.F&(F_S|F_Z|F_PV))|F_C|(this.A&0x28);break;
+            default:{const c=this.F&F_C;
+              this.F=(this.F&(F_S|F_Z|F_PV))|(c?F_H:0)|(c?0:F_C)|(this.A&0x28);break;}
+          }
+          this.T+=4;return;
+      }
+    }
+    // x === 3
+    switch(z){
+      case 0: if(this.cc(y)){this.PC=this.pop();this.T+=11;}else this.T+=5; return;
+      case 1:
+        if(q===0){this.setrp2(p,this.pop());this.T+=10;}
+        else{
+          if(p===0){this.PC=this.pop();this.T+=10;}
+          else if(p===1){let t=this.BC;this.BC=(this.B2<<8)|this.C2;this.B2=(t>>8)&0xFF;this.C2=t&0xFF;
+            t=this.DE;this.DE=(this.D2<<8)|this.E2;this.D2=(t>>8)&0xFF;this.E2=t&0xFF;
+            t=this.HL;this.HL=(this.H2<<8)|this.L2;this.H2=(t>>8)&0xFF;this.L2=t&0xFF;this.T+=4;}
+          else if(p===2){this.PC=this.idxHL();this.T+=4;}
+          else{this.SP=this.idxHL();this.T+=6;}
+        }
+        return;
+      case 2:{const a=this.fetchw();if(this.cc(y))this.PC=a;this.T+=10;return;}
+      case 3:
+        if(y===0){this.PC=this.fetchw();this.T+=10;}
+        else if(y===1){/* CB handled in step */}
+        else if(y===2){const port=this.fetch();this.bus.out(port,this.A,this.A);this.T+=11;}
+        else if(y===3){const port=this.fetch();this.A=this.bus.in(port,this.A);this.F=SZ53P[this.A]|(this.F&F_C);this.T+=11;}
+        else if(y===4){const t=this.rw(this.SP);this.ww(this.SP,this.idxHL());this.setIdxHL(t);this.T+=19;}
+        else if(y===5){const t=this.DE;this.DE=this.HL;this.HL=t;this.T+=4;}
+        else if(y===6){this.IFF1=0;this.IFF2=0;this.T+=4;}
+        else{this.IFF1=1;this.IFF2=1;this.T+=4;}
+        return;
+      case 4:{const a=this.fetchw();if(this.cc(y)){this.push(this.PC);this.PC=a;this.T+=17;}else this.T+=10;return;}
+      case 5:
+        if(q===0){this.push(this.rp2(p));this.T+=11;}
+        else if(p===0){const a=this.fetchw();this.push(this.PC);this.PC=a;this.T+=17;}
+        return;
+      case 6:{this.alu(y,this.fetch());this.T+=7;return;}
+      default:{this.push(this.PC);this.PC=y*8;this.T+=11;return;}
+    }
+  }
+
+  cb(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7;
+    if(x===0){const v=this.rot(y,this.rd(z));this.wr(z,v);this.T+=z===6?15:8;return;}
+    if(x===1){const v=this.rd(z);
+      this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80);
+      this.F|= z===6 ? 0 : (v&0x28);
+      this.T+=z===6?12:8;return;}
+    if(x===2){this.wr(z,this.rd(z)&~(1<<y));this.T+=z===6?15:8;return;}
+    this.wr(z,this.rd(z)|(1<<y));this.T+=z===6?15:8;
+  }
+
+  ddcb(){
+    const d=this.disp();const op=this.fetch();this.R=(this.R+1)&0x7F;
+    const x=op>>6,y=(op>>3)&7,z=op&7;const a=this.addr(d);const v=this.rb(a);
+    if(x===1){this.F=(this.F&F_C)|F_H|((v&(1<<y))?0:(F_Z|F_PV))|(v&(1<<y)&0x80)|((a>>8)&0x28);this.T+=20;return;}
+    let r;
+    if(x===0)r=this.rot(y,v);
+    else if(x===2)r=v&~(1<<y);
+    else r=v|(1<<y);
+    this.wb(a,r);
+    if(z!==6)this.wrp(z,r);   // undocumented: result also copied to a register
+    this.T+=23;
+  }
+
+  ed(){
+    const op=this.m1();
+    const x=op>>6,y=(op>>3)&7,z=op&7,p=y>>1,q=y&1;
+    if(x!==1&&x!==2){this.T+=8;return;}
+    if(x===1){
+      switch(z){
+        case 0:{const v=this.bus.in(this.C,this.B);if(y!==6)this.wr(y,v);
+          this.F=SZ53P[v]|(this.F&F_C);this.T+=12;return;}
+        case 1:{this.bus.out(this.C,this.B,y===6?0:this.rd(y));this.T+=12;return;}
+        case 2:{if(q===0)this.sbc16(this.rp(p));else this.adc16(this.rp(p));this.T+=15;return;}
+        case 3:{const a=this.fetchw();if(q===0)this.ww(a,this.rp(p));else this.setrp(p,this.rw(a));this.T+=20;return;}
+        case 4:{const a=this.A;this.A=0;this.sub8(a);this.T+=8;return;}
+        case 5:{this.PC=this.pop();this.IFF1=this.IFF2;this.T+=14;return;}
+        case 6:{this.IM=(y===0||y===1||y===4||y===5)?0:(y===2||y===6)?1:2;this.T+=8;return;}
+        default:
+          if(y===0){this.I=this.A;this.T+=9;}
+          else if(y===1){this.R=this.A&0x7F;this.R7=this.A&0x80;this.T+=9;}
+          else if(y===2){this.A=this.I;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===3){this.A=(this.R&0x7F)|this.R7;this.F=(this.F&F_C)|SZ53[this.A]|(this.IFF2?F_PV:0);this.T+=9;}
+          else if(y===4){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m<<4)|(a&0x0F))&0xFF);this.A=(a&0xF0)|(m>>4);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else if(y===5){const a=this.A,m=this.rb(this.HL);
+            this.wb(this.HL,((m>>4)|((a&0x0F)<<4))&0xFF);this.A=(a&0xF0)|(m&0x0F);
+            this.F=(this.F&F_C)|SZ53P[this.A];this.T+=18;}
+          else this.T+=8;
+          return;
+      }
+    }
+    // x === 2 : block instructions
+    if(z>3||y<4){this.T+=8;return;}
+    const inc=(y&1)?-1:1;
+    const rep=(y&2)!==0;
+    switch(z){
+      case 0:{ // LDI/LDD/LDIR/LDDR
+        const v=this.rb(this.HL);this.wb(this.DE,v);
+        this.DE=(this.DE+inc)&0xFFFF;this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(v+this.A)&0xFF;
+        this.F=(this.F&(F_S|F_Z|F_C))|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 1:{ // CPI/CPD/CPIR/CPDR
+        const v=this.rb(this.HL);const r=(this.A-v)&0xFF;
+        let h=((this.A&0x0F)-(v&0x0F))<0?F_H:0;
+        this.HL=(this.HL+inc)&0xFFFF;this.BC=(this.BC-1)&0xFFFF;
+        const n=(r-(h?1:0))&0xFF;
+        this.F=(this.F&F_C)|F_N|h|(r&0x80)|(r===0?F_Z:0)|(n&0x08)|((n&0x02)?F_5:0)|(this.BC?F_PV:0);
+        if(rep&&this.BC&&r!==0){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      case 2:{ // INI/IND/INIR/INDR
+        const v=this.bus.in(this.C,this.B);this.wb(this.HL,v);
+        this.B=(this.B-1)&0xFF;this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+      default:{ // OUTI/OUTD/OTIR/OTDR
+        const v=this.rb(this.HL);this.B=(this.B-1)&0xFF;
+        this.bus.out(this.C,this.B,v);this.HL=(this.HL+inc)&0xFFFF;
+        this.F=SZ53[this.B]|F_N;
+        if(rep&&this.B){this.PC=(this.PC-2)&0xFFFF;this.T+=21;}else this.T+=16;
+        return;}
+    }
+  }
+}
+
+
+</script>
+<script>
+'use strict';
+// =====================================================================
+// A capability probe for the TRS-80 pages. Every panel answers one
+// question that the mobile plan would otherwise have to guess at, and
+// every answer comes from this device rather than from documentation.
+// =====================================================================
+const R={};                                  // everything measured, for the report
+const $=id=>document.getElementById(id);
+function dl(el,pairs){
+  el.innerHTML='';
+  for(const [k,v] of pairs){
+    const dt=document.createElement('dt'), dd=document.createElement('dd');
+    dt.textContent=k; dd.textContent=v===undefined||v===null?'--':String(v);
+    el.appendChild(dt); el.appendChild(dd);
+  }
+}
+function chip(el,text,cls){ el.textContent=text; el.className='chip'+(cls?' '+cls:''); }
+function has(o,k){ try{ return typeof o!=='undefined'&&o!==null&&k in o; }catch(e){ return false; } }
+
+// ---- 01 screen -------------------------------------------------------
+// The derived numbers matter more than the raw ones: how wide one character
+// comes out now, and how wide it would come out in a landscape canvas fitted
+// to the height instead of the width.
+function inset(side){
+  const p=document.createElement('div');
+  p.style.cssText='position:fixed;left:0;top:0;height:0;width:0;'+
+    'padding-'+side+':env(safe-area-inset-'+side+',0px)';
+  document.body.appendChild(p);
+  const v=parseFloat(getComputedStyle(p)['padding'+side[0].toUpperCase()+side.slice(1)])||0;
+  p.remove(); return v;
+}
+function measureDvh(){
+  const p=document.createElement('div');
+  p.style.cssText='position:fixed;left:-9999px;top:0;height:100dvh;width:1px';
+  document.body.appendChild(p);
+  const v=p.getBoundingClientRect().height; p.remove(); return v;
+}
+function screenFacts(){
+  const vv=window.visualViewport;
+  // What a game page gives a character right now: the canvas is the wrap width
+  // less the screen frame's padding and border, over 64 columns.
+  const wrapW=$('wrap').clientWidth-
+    (parseFloat(getComputedStyle($('wrap')).paddingLeft)||0)-
+    (parseFloat(getComputedStyle($('wrap')).paddingRight)||0);
+  const canvasW=Math.max(0,wrapW-2*(10+3));          // #screen padding 10, border 3
+  const dvh=measureDvh();
+  // Rotated, the short side becomes the height, whichever way the phone is
+  // held right now. The canvas is 4:3, so height decides the width, and the
+  // long side caps it.
+  const shortSide=Math.min(innerWidth,dvh), longSide=Math.max(innerWidth,dvh);
+  // Two cases worth separating: the page as it stands, which spends height on
+  // a title, a button bar and the browser's own address bar; and the page in
+  // fullscreen with a slim header, which is what the work would buy.
+  const fitNow=Math.min((shortSide-110)*4/3,longSide);
+  const fitFull=Math.min((shortSide-30)*4/3,longSide);
+  R.screen={
+    screen:[screen.width,screen.height].join(' x '),
+    avail:[screen.availWidth,screen.availHeight].join(' x '),
+    inner:[innerWidth,innerHeight].join(' x '),
+    visual:vv?[Math.round(vv.width),Math.round(vv.height)].join(' x '):'none',
+    scale:vv?vv.scale.toFixed(2):'--',
+    dpr:devicePixelRatio,
+    dvh:Math.round(dvh),
+    vhGap:Math.round(dvh-innerHeight),
+    insets:[inset('top'),inset('right'),inset('bottom'),inset('left')].join('/'),
+    orient:(screen.orientation&&screen.orientation.type)||'unknown',
+    angle:(screen.orientation&&screen.orientation.angle),
+    charNow:+(canvasW/64).toFixed(2),
+    canvasFit:Math.round(fitNow)+' x '+Math.round(fitNow*3/4),
+    charFit:+(fitNow/64).toFixed(2),
+    canvasFull:Math.round(fitFull)+' x '+Math.round(fitFull*3/4),
+    charFull:+(fitFull/64).toFixed(2),
+    sideMargin:Math.round((longSide-fitFull)/2),
+    coarse:matchMedia('(pointer:coarse)').matches,
+    touchPoints:navigator.maxTouchPoints,
+    ua:navigator.userAgent
+  };
+  const s=R.screen;
+  dl($('dScreen'),[
+    ['screen',s.screen+'  (available '+s.avail+')'],
+    ['window',s.inner+'    visual '+s.visual+' at '+s.scale+'x'],
+    ['device pixel ratio',s.dpr],
+    ['100dvh',s.dvh+'px   (innerHeight differs by '+s.vhGap+'px)'],
+    ['safe area T/R/B/L',s.insets],
+    ['orientation',s.orient+'  '+s.angle+'°'],
+    ['pointer:coarse',s.coarse?'yes':'no'],
+    ['max touch points',s.touchPoints],
+    ['— one character, now',s.charNow+'px wide'+(s.charNow<6?'   TOO SMALL':'   readable')],
+    ['— rotated, page as it is',s.canvasFit+'  →  '+s.charFit+'px'+
+      (s.charFit<6?'   TOO SMALL':'   readable')],
+    ['— rotated, fullscreen, slim header',s.canvasFull+'  →  '+s.charFull+'px'+
+      (s.charFull<6?'   TOO SMALL':'   readable')],
+    ['— room beside it for controls',s.sideMargin+'px each side']
+  ]);
+  drawLegibility();
+  report();
+}
+
+// ---- 02 legibility ---------------------------------------------------
+// Render through the games' own paint routine into a 768x576 buffer, then let
+// the browser scale it down the way the page does. The artifacting that
+// destroys small text is in the downscale, so reproducing the downscale is
+// the whole point.
+const CELLW=12, CELLH=36;
+function paintChars(ctx,v){
+  ctx.fillStyle='#0a0a08'; ctx.fillRect(0,0,768,576);
+  ctx.fillStyle='#e8e6d9';
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    const c=v[row*64+col];
+    if(c>=0x80&&c<=0xBF)
+      for(let b=0;b<6;b++) if(c&(1<<b))
+        ctx.fillRect(Math.round(col*CELLW+(b&1)*(CELLW/2)),
+                     Math.round(row*CELLH+(b>>1)*(CELLH/3)),
+                     Math.ceil(CELLW/2),Math.ceil(CELLH/3));
+  }
+  const gw=CELLW/6, gh=CELLH/12;
+  for(let row=0;row<16;row++)for(let col=0;col<64;col++){
+    const c=v[row*64+col];
+    if(c<0x20||c>0x7E) continue;
+    const base=(c-0x20)*7;
+    for(let r=0;r<7;r++){ const bits=FONT[base+r]; if(!bits) continue;
+      for(let b=0;b<5;b++) if(bits&(1<<(4-b)))
+        ctx.fillRect(Math.round(col*CELLW+b*gw),Math.round(row*CELLH+(r+2)*gh),
+                     Math.ceil(gw),Math.ceil(gh)); }
+  }
+}
+function blank(){ return new Uint8Array(64*16).fill(0x20); }
+function put(v,row,col,text){ for(let i=0;i<text.length;i++) v[row*64+col+i]=text.charCodeAt(i); }
+// A title screen is the honest test: it is all text, and it is the first thing
+// anyone sees. These are the game's own words.
+function titleScreen(){
+  const v=blank();
+  put(v,1,25,'SEA DRAGON');
+  put(v,3,18,'WESTMORELAND AND GILMAN  1982');
+  put(v,6,23,'HIT <ENTER> TO BEGIN');
+  put(v,9,21,'HIGH SCORES');
+  put(v,11,24,'1.  TLG     48250');
+  put(v,12,24,'2.  WLW     41900');
+  put(v,13,24,'3.  ---      9100');
+  return v;
+}
+// And a play screen, because block graphics survive scaling far better than
+// text does and the contrast between the two is the finding.
+function playScreen(){
+  const v=blank();
+  const rock=0xBF;
+  for(let col=0;col<64;col++){
+    const ceil=1+Math.round(1.6+1.4*Math.sin(col/7)+0.6*Math.sin(col/2.3));
+    const flr=13-Math.round(1.4+1.3*Math.sin(col/5.5+2));
+    for(let r=0;r<=ceil;r++) v[r*64+col]=rock;
+    for(let r=flr;r<14;r++) v[r*64+col]=rock;
+    if(col%2===0) v[0*64+col]=0x95;                 // dotted surface water
+  }
+  for(const [r,c] of [[6,14],[8,27],[5,38],[9,46],[7,55]]) v[r*64+c]=0x8F;   // mines
+  put(v,7,20,'¯¯');
+  for(let i=0;i<11;i++) v[7*64+8+i]=[0x83,0x8F,0xBF,0xBF,0xBF,0xBF,0xBF,0xBF,0x8F,0x83,0x81][i];
+  put(v,15,1,'SCORE 12450');
+  put(v,15,20,'AIR');
+  for(let i=0;i<22;i++) v[15*64+24+i]=0xBF;
+  put(v,15,52,'SUBS 3');
+  return v;
+}
+let legBuf=null, legBuf2=null;
+function buffer(v){
+  const c=document.createElement('canvas'); c.width=768; c.height=576;
+  const x=c.getContext('2d',{alpha:false}); x.imageSmoothingEnabled=false;
+  paintChars(x,v); return c;
+}
+function blit(cv,src,cssW){
+  const d=Math.min(devicePixelRatio||1,3);
+  cv.style.width=Math.round(cssW)+'px'; cv.style.height=Math.round(cssW*3/4)+'px';
+  cv.width=Math.round(cssW*d); cv.height=Math.round(cssW*3/4*d);
+  const x=cv.getContext('2d',{alpha:false});
+  x.imageSmoothingEnabled=false;
+  x.drawImage(src,0,0,cv.width,cv.height);
+}
+function drawLegibility(){
+  if(!legBuf){ legBuf=buffer(titleScreen()); legBuf2=buffer(playScreen()); }
+  const s=R.screen;
+  // No fitting to the page: each one is drawn at the size it would really be,
+  // and scrolls sideways if that is wider than the phone is right now.
+  const note=w=>w>$('wrap').clientWidth-40?'  (scroll it sideways)':'';
+  blit($('legA'),legBuf,s.charNow*64);
+  $('capA').textContent='The page as it stands, in this orientation: '+
+    s.charNow.toFixed(2)+'px per character.'+note(s.charNow*64);
+  blit($('legB'),legBuf,s.charFit*64);
+  $('capB').textContent='Rotated, with the title and button bar still there: '+
+    s.charFit.toFixed(2)+'px per character.'+note(s.charFit*64);
+  blit($('legC'),legBuf,s.charFull*64);
+  $('capC').textContent='Rotated, fullscreen, slim header: '+s.charFull.toFixed(2)+
+    'px per character. This is what the work buys.'+note(s.charFull*64);
+}
+
+// ---- 03 speed --------------------------------------------------------
+// A representative program rather than a synthetic loop, run on the real CPU
+// out of the game pages, so the number is in the same units the machine was
+// specified in.
+function benchProgram(){
+  const p=[], at={}, fix=[];
+  const emit=(...b)=>{ for(const b2 of b) p.push(b2); };
+  at.loop=p.length;
+  emit(0x21,0x00,0x60);                 // LD   HL,6000H
+  emit(0x11,0x00,0x64);                 // LD   DE,6400H
+  emit(0x01,0x00,0x01);                 // LD   BC,0100H
+  emit(0xED,0xB0);                      // LDIR            the buffer-to-screen move
+  emit(0x06,0x20);                      // LD   B,20H
+  at.inner=p.length;
+  emit(0x3A,0x00,0x60);                 // LD   A,(6000H)
+  emit(0xAF);                           // XOR  A
+  emit(0x3C);                           // INC  A
+  emit(0x87);                           // ADD  A,A
+  emit(0x32,0x00,0x61);                 // LD   (6100H),A
+  emit(0x21,0x00,0x62);                 // LD   HL,6200H
+  emit(0x34);                           // INC  (HL)
+  emit(0xED,0x5F);                      // LD   A,R        the games' random source
+  emit(0xE6,0x7F);                      // AND  7FH
+  emit(0xFE,0x40);                      // CP   40H
+  emit(0x38,0x02);                      // JR   C,+2
+  emit(0x00,0x00);                      // NOP / NOP
+  emit(0x05);                            // DEC  B
+  emit(0x20,0x00); fix.push([p.length-1,'inner']);        // JR   NZ,inner
+  emit(0xC3,0x00,0x50);                 // JP   5000H
+  for(const f of fix) p[f[0]]=(at[f[1]]-(f[0]+1))&0xFF;   // relative to the next instruction
+  return p;
+}
+function runBench(ms){
+  const ram=new Uint8Array(65536);
+  const prog=benchProgram();
+  for(let i=0;i<prog.length;i++) ram[0x5000+i]=prog[i];
+  const cpu=new Z80({read:a=>ram[a&0xFFFF],write:(a,v)=>{ram[a&0xFFFF]=v&0xFF;},
+                     in:()=>0xFF,out:()=>{}});
+  cpu.PC=0x5000; cpu.SP=0xFFF0;
+  for(let i=0;i<300000;i++) cpu.step();          // let the JIT settle first
+  const t0=performance.now(), T0=cpu.T;
+  let steps=0;
+  while(performance.now()-t0<ms){
+    for(let i=0;i<20000;i++) cpu.step();
+    steps+=20000;
+  }
+  const el=performance.now()-t0;
+  return {t:cpu.T-T0, ms:el, steps:steps};
+}
+$('bBench').onclick=()=>{
+  chip($('cBench'),'measuring','gold'); $('bBench').disabled=true;
+  setTimeout(()=>{
+    let b;
+    try{ b=runBench(900); }
+    catch(e){ chip($('cBench'),'failed','bad');
+      dl($('dBench'),[['error',e&&e.message]]); $('bBench').disabled=false; return; }
+    const tps=b.t/(b.ms/1000);
+    const mult=tps/1774000;
+    R.bench={tps:Math.round(tps), mult:+mult.toFixed(1),
+      ips:Math.round(b.steps/(b.ms/1000)), ms:Math.round(b.ms)};
+    dl($('dBench'),[
+      ['T-states per second',Math.round(tps).toLocaleString()],
+      ['instructions per second',Math.round(b.steps/(b.ms/1000)).toLocaleString()],
+      ['a Model I needs','1,774,000'],
+      ['so this phone runs at',mult.toFixed(1)+'x real time'],
+      ['headroom','a game needs 1x; this leaves '+(mult-1).toFixed(1)+'x spare'],
+      ['measured over',Math.round(b.ms)+'ms']
+    ]);
+    chip($('cBench'),mult>=3?'plenty fast':(mult>=1.2?'fast enough':'too slow'),
+      mult>=1.2?'ok':'bad');
+    $('bBench').disabled=false; report();
+  },60);
+};
+
+// ---- 04 touch and the overlay ---------------------------------------
+// Pointer events with capture, one tracked id per control, and a single
+// release path, which is what the game pages are missing today.
+const touch={active:0,max:0,stick:'',fire:false,msl:false,stuck:0,events:0,
+  capture:false,pe:!!window.PointerEvent};
+function drawMock(){
+  const cv=$('mockc');
+  const w=$('mock').clientWidth-12;
+  if(!legBuf2) legBuf2=buffer(playScreen());
+  blit(cv,legBuf2,w);
+}
+function touchOut(){
+  dl($('dTouch'),[
+    ['pointer events',touch.pe?'yes':'no  (falling back to touch events)'],
+    ['setPointerCapture',touch.capture?'working':'not exercised yet'],
+    ['pointers down now',touch.active],
+    ['most at once seen',touch.max+(touch.max>=3?'   enough for a stick plus two buttons':
+      (touch.max===2?'   enough for a direction plus one button':''))],
+    ['stick',touch.stick||'centred'],
+    ['buttons',(touch.fire?'FIRE ':'')+(touch.msl?'MSL':'')||'none'],
+    ['events seen',touch.events],
+    ['stuck controls',touch.stuck?touch.stuck+'  (a control stayed on with nothing held)':'none']
+  ]);
+  R.touch={pe:touch.pe,capture:touch.capture,max:touch.max,stuck:touch.stuck,
+    events:touch.events};
+}
+(function controls(){
+  const stick=$('stick'), knob=$('knob'), down=new Map();
+  function setKnob(dx,dy){
+    knob.style.left=(50+dx*34)+'%'; knob.style.top=(50+dy*34)+'%';
+  }
+  function stickMove(e,rect){
+    let dx=(e.clientX-(rect.left+rect.width/2))/(rect.width/2);
+    let dy=(e.clientY-(rect.top+rect.height/2))/(rect.height/2);
+    const m=Math.hypot(dx,dy); if(m>1){ dx/=m; dy/=m; }
+    setKnob(dx,dy);
+    const d=[];
+    if(dy<-0.4) d.push('UP'); if(dy>0.4) d.push('DOWN');
+    if(dx<-0.4) d.push('LEFT'); if(dx>0.4) d.push('RIGHT');
+    touch.stick=d.join('+');
+  }
+  function bind(el,onDown,onMove,onUp){
+    el.addEventListener('pointerdown',e=>{
+      e.preventDefault(); touch.events++;
+      try{ el.setPointerCapture(e.pointerId); touch.capture=true; }catch(err){}
+      down.set(e.pointerId,el); touch.active=down.size;
+      touch.max=Math.max(touch.max,touch.active);
+      onDown(e); touchOut();
+    });
+    el.addEventListener('pointermove',e=>{
+      if(down.get(e.pointerId)!==el) return;
+      touch.events++; onMove&&onMove(e); touchOut();
+    });
+    // One release path for every way a pointer can end, which is the fix:
+    // pointercancel is the one the game pages are missing, and it is the one
+    // that fires when the system takes the touch away mid-press.
+    const end=e=>{
+      if(!down.has(e.pointerId)) return;
+      touch.events++; down.delete(e.pointerId); touch.active=down.size;
+      onUp(e); touchOut();
+    };
+    el.addEventListener('pointerup',end);
+    el.addEventListener('pointercancel',end);
+    el.addEventListener('lostpointercapture',end);
+  }
+  bind(stick,
+    e=>{ stick.classList.add('on'); stickMove(e,stick.getBoundingClientRect()); },
+    e=>stickMove(e,stick.getBoundingClientRect()),
+    ()=>{ stick.classList.remove('on'); setKnob(0,0); touch.stick=''; });
+  for(const [id,key] of [['rb1','fire'],['rb2','msl']]){
+    const el=$(id);
+    bind(el,()=>{ el.classList.add('on'); touch[key]=true; },null,
+             ()=>{ el.classList.remove('on'); touch[key]=false; });
+  }
+  // A stuck control is the bug this panel exists to catch, so look for it
+  // rather than trusting that it cannot happen.
+  setInterval(()=>{
+    if(down.size===0&&(touch.fire||touch.msl||touch.stick)){ touch.stuck++; touchOut(); }
+  },1500);
+})();
+
+// ---- 05 fullscreen ---------------------------------------------------
+const fsEl=document.documentElement;
+const fsReq=fsEl.requestFullscreen||fsEl.webkitRequestFullscreen||
+            fsEl.webkitRequestFullScreen||fsEl.mozRequestFullScreen;
+const fsExit=document.exitFullscreen||document.webkitExitFullscreen||
+             document.mozCancelFullScreen;
+function fsOn(){ return !!(document.fullscreenElement||document.webkitFullscreenElement); }
+function fsOut(extra){
+  R.fs=Object.assign({
+    api:!!fsEl.requestFullscreen?'standard':(!!fsEl.webkitRequestFullscreen?'webkit prefix':'none'),
+    enabled:document.fullscreenEnabled!==undefined?!!document.fullscreenEnabled:'unknown',
+    on:fsOn()
+  },R.fs||{},extra||{});
+  dl($('dFS'),[
+    ['requestFullscreen',R.fs.api],
+    ['fullscreenEnabled',String(R.fs.enabled)],
+    ['in fullscreen now',fsOn()?'yes':'no'],
+    ['size while fullscreen',R.fs.size||'not measured'],
+    ['gained',R.fs.gain!==undefined?R.fs.gain+'px of height':'--'],
+    ['outcome',R.fs.outcome||'not tried']
+  ]);
+  report();
+}
+$('bFS').onclick=()=>{
+  if(!fsReq){ chip($('cFS'),'no api','bad'); fsOut({outcome:'no requestFullscreen on this browser'});
+    return; }
+  const before=innerHeight;
+  let p;
+  try{ p=fsReq.call(fsEl); }
+  catch(e){ chip($('cFS'),'threw','bad'); fsOut({outcome:(e.name||'Error')+': '+e.message}); return; }
+  Promise.resolve(p).then(()=>{
+    setTimeout(()=>{
+      chip($('cFS'),'works','ok');
+      fsOut({outcome:'granted',size:innerWidth+' x '+innerHeight,gain:innerHeight-before});
+      $('bFSx').disabled=false; screenFacts();
+    },350);
+  }).catch(e=>{
+    chip($('cFS'),'refused','bad');
+    fsOut({outcome:(e&&e.name||'refused')+(e&&e.message?': '+e.message:'')});
+  });
+};
+$('bFSx').onclick=()=>{
+  if(fsExit) try{ fsExit.call(document); }catch(e){}
+  $('bFSx').disabled=true; setTimeout(screenFacts,350);
+};
+document.addEventListener('fullscreenchange',()=>fsOut());
+document.addEventListener('webkitfullscreenchange',()=>fsOut());
+
+// ---- 06 orientation lock --------------------------------------------
+const so=screen.orientation;
+function lockOut(extra){
+  R.lock=Object.assign({
+    api:so?'screen.orientation present':'no screen.orientation',
+    lockFn:so&&typeof so.lock==='function'?'yes':'no',
+    type:so&&so.type
+  },R.lock||{},extra||{});
+  dl($('dLock'),[
+    ['screen.orientation',R.lock.api],
+    ['.lock()',R.lock.lockFn],
+    ['current',R.lock.type||'unknown'],
+    ['outcome',R.lock.outcome||'not tried'],
+    ['reading',R.lock.reading||'--']
+  ]);
+  report();
+}
+$('bLock').onclick=()=>{
+  if(!so||typeof so.lock!=='function'){
+    chip($('cLock'),'no api','bad');
+    lockOut({outcome:'screen.orientation.lock does not exist',
+             reading:'landscape has to be asked for, not enforced'});
+    return;
+  }
+  so.lock('landscape').then(()=>{
+    chip($('cLock'),'locked','ok');
+    lockOut({outcome:'granted',type:so.type,reading:'we can hold landscape ourselves'});
+  }).catch(e=>{
+    const n=e&&e.name||'refused';
+    // The distinction that matters: refused outright, or refused because it
+    // wants fullscreen first.
+    const reading=n==='SecurityError'?'needs fullscreen first; try test 5 then this again':
+                  n==='NotSupportedError'?'this browser will not lock orientation at all':
+                  n==='InvalidStateError'?'not in a state that allows locking':'unclear';
+    chip($('cLock'),n==='SecurityError'?'needs fullscreen':'refused',
+      n==='SecurityError'?'gold':'bad');
+    lockOut({outcome:n+(e&&e.message?': '+e.message:''),reading:reading});
+  });
+};
+$('bUnlock').onclick=()=>{ try{ so&&so.unlock&&so.unlock(); }catch(e){} lockOut({outcome:'unlocked'}); };
+
+// ---- 07 tilt ---------------------------------------------------------
+const tilt={on:false,beta:null,gamma:null,alpha:null,abs:null,
+  minB:999,maxB:-999,minG:999,maxG:-999,n:0,nulls:0,
+  perm:(typeof DeviceOrientationEvent!=='undefined'&&
+        typeof DeviceOrientationEvent.requestPermission==='function')?'needed':'not needed',
+  api:typeof DeviceOrientationEvent!=='undefined',
+  motion:typeof DeviceMotionEvent!=='undefined',
+  noise:0};
+const DEAD=12;                                  // degrees; inside this nothing fires
+let noiseBuf=[];
+function tiltOut(){
+  R.tilt={api:tilt.api,perm:tilt.perm,on:tilt.on,
+    beta:tilt.beta===null?null:+tilt.beta.toFixed(1),
+    gamma:tilt.gamma===null?null:+tilt.gamma.toFixed(1),
+    rangeB:tilt.maxB>-999?[Math.round(tilt.minB),Math.round(tilt.maxB)].join(' to '):null,
+    rangeG:tilt.maxG>-999?[Math.round(tilt.minG),Math.round(tilt.maxG)].join(' to '):null,
+    noise:+tilt.noise.toFixed(2),events:tilt.n,nulls:tilt.nulls,
+    outcome:tilt.outcome};
+  dl($('dTilt'),[
+    ['DeviceOrientationEvent',tilt.api?'yes':'no'],
+    ['permission',tilt.perm==='needed'?'must be asked for (iOS)':'not required'],
+    ['DeviceMotionEvent',tilt.motion?'yes':'no'],
+    ['outcome',tilt.outcome||'not tried'],
+    ['front/back (beta)',tilt.beta===null?'--':tilt.beta.toFixed(1)+'°'],
+    ['left/right (gamma)',tilt.gamma===null?'--':tilt.gamma.toFixed(1)+'°'],
+    ['beta seen',R.tilt.rangeB?R.tilt.rangeB+'°':'--'],
+    ['gamma seen',R.tilt.rangeG?R.tilt.rangeG+'°':'--'],
+    ['jitter while still',tilt.noise?tilt.noise.toFixed(2)+'°'+
+      (tilt.noise<1.5?'   steady enough':'   noisy; needs smoothing'):'--'],
+    ['events',tilt.n+(tilt.nulls?'   ('+tilt.nulls+' with no values)':'')]
+  ]);
+  report();
+}
+function onTilt(e){
+  tilt.n++;
+  if(e.beta===null&&e.gamma===null){ tilt.nulls++; if(tilt.n%10===0) tiltOut(); return; }
+  tilt.alpha=e.alpha; tilt.beta=e.beta; tilt.gamma=e.gamma; tilt.abs=e.absolute;
+  tilt.minB=Math.min(tilt.minB,e.beta); tilt.maxB=Math.max(tilt.maxB,e.beta);
+  tilt.minG=Math.min(tilt.minG,e.gamma); tilt.maxG=Math.max(tilt.maxG,e.gamma);
+  // Jitter: the spread of the last second or so of samples. If this is large
+  // the control needs smoothing before it is playable.
+  noiseBuf.push(e.gamma); if(noiseBuf.length>40) noiseBuf.shift();
+  if(noiseBuf.length>8){
+    const mean=noiseBuf.reduce((a,b)=>a+b,0)/noiseBuf.length;
+    tilt.noise=Math.sqrt(noiseBuf.reduce((a,b)=>a+(b-mean)*(b-mean),0)/noiseBuf.length);
+  }
+  // In landscape the phone is turned, so gamma is forward/back and beta is
+  // left/right. Read whichever orientation we are actually in.
+  const land=Math.abs((so&&so.angle)||0)===90;
+  const fb=land?(e.gamma||0)*((so.angle===90)?1:-1):(e.beta||0)-40;
+  const lr=land?(e.beta||0):(e.gamma||0);
+  $('bub').style.left=(50+Math.max(-48,Math.min(48,lr*0.9)))+'%';
+  $('bub').style.top=(50+Math.max(-48,Math.min(48,fb*0.9)))+'%';
+  $('dU').classList.toggle('on',fb<-DEAD);
+  $('dD').classList.toggle('on',fb>DEAD);
+  $('dL').classList.toggle('on',lr<-DEAD);
+  $('dR').classList.toggle('on',lr>DEAD);
+  if(tilt.n%5===0) tiltOut();
+}
+$('bTilt').onclick=()=>{
+  if(typeof DeviceOrientationEvent==='undefined'){
+    chip($('cTilt'),'no api','bad'); tilt.outcome='DeviceOrientationEvent does not exist';
+    tiltOut(); return;
+  }
+  const go=()=>{ window.addEventListener('deviceorientation',onTilt); tilt.on=true;
+    chip($('cTilt'),'listening','ok'); tilt.outcome='granted; tilt the phone';
+    // If nothing arrives, say so rather than leaving it looking enabled.
+    setTimeout(()=>{ if(tilt.n===0){ chip($('cTilt'),'silent','bad');
+      tilt.outcome='permission given but no events arrived'; tiltOut(); } },2500);
+    tiltOut(); };
+  if(typeof DeviceOrientationEvent.requestPermission==='function'){
+    DeviceOrientationEvent.requestPermission().then(s=>{
+      tilt.outcome='requestPermission returned "'+s+'"';
+      if(s==='granted') go();
+      else { chip($('cTilt'),s,'bad'); tiltOut(); }
+    }).catch(e=>{ chip($('cTilt'),'threw','bad');
+      tilt.outcome=(e&&e.name||'error')+': '+(e&&e.message||'');
+      tiltOut(); });
+  } else go();
+};
+
+// ---- 08 audio --------------------------------------------------------
+$('bAud').onclick=()=>{
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC){ chip($('cAud'),'no api','bad');
+    dl($('dAud'),[['AudioContext','does not exist']]); R.audio={api:false}; report(); return; }
+  let ac;
+  try{ ac=new AC(); }
+  catch(e){ chip($('cAud'),'failed','bad');
+    dl($('dAud'),[['error',e&&e.message]]); return; }
+  const born=ac.state;
+  const finish=()=>{
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='square'; o.frequency.value=440;               // a square wave, like the real thing
+    g.gain.value=0.07; o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime+0.25);
+    R.audio={api:true,born:born,after:ac.state,rate:ac.sampleRate,
+      latency:ac.baseLatency!==undefined?+(ac.baseLatency*1000).toFixed(1):null};
+    dl($('dAud'),[
+      ['AudioContext','yes'],
+      ['state when created',born],
+      ['state after resume',ac.state],
+      ['sample rate',ac.sampleRate+' Hz'],
+      ['base latency',R.audio.latency!==null?R.audio.latency+'ms':'unknown'],
+      ['did you hear it','a quarter second of 440Hz square wave']
+    ]);
+    chip($('cAud'),ac.state==='running'?'running':'still '+ac.state,
+      ac.state==='running'?'ok':'bad');
+    report();
+  };
+  if(ac.state==='suspended') ac.resume().then(finish).catch(finish); else finish();
+};
+
+// ---- 09 odds and ends ------------------------------------------------
+const misc={wake:'not tried',vib:'not tried'};
+function miscOut(){
+  const vv=window.visualViewport;
+  R.misc={wake:misc.wake,vib:misc.vib,
+    zoom:vv?+vv.scale.toFixed(2):null,
+    standalone:!!(navigator.standalone||matchMedia('(display-mode:standalone)').matches)};
+  dl($('dMisc'),[
+    ['wake lock',misc.wake],
+    ['vibrate',misc.vib],
+    ['page zoom now',vv?vv.scale.toFixed(2)+'x'+(vv.scale!==1?'   pinch zoom happened':''):'unknown'],
+    ['installed to home screen',R.misc.standalone?'yes':'no'],
+    ['hardware threads',navigator.hardwareConcurrency||'unknown'],
+    ['device memory',navigator.deviceMemory?navigator.deviceMemory+'GB':'not reported']
+  ]);
+  report();
+}
+$('bWake').onclick=()=>{
+  if(!navigator.wakeLock){ misc.wake='no API'; chip($('cMisc'),'no wake lock','bad'); miscOut(); return; }
+  navigator.wakeLock.request('screen').then(l=>{
+    misc.wake='held'; chip($('cMisc'),'wake lock held','ok'); miscOut();
+    l.addEventListener('release',()=>{ misc.wake='released'; miscOut(); });
+  }).catch(e=>{ misc.wake=(e&&e.name||'refused'); chip($('cMisc'),'refused','bad'); miscOut(); });
+};
+$('bVib').onclick=()=>{
+  if(!navigator.vibrate){ misc.vib='no API'; miscOut(); return; }
+  const r=navigator.vibrate(60);
+  misc.vib=r?'accepted (feel for it)':'rejected';
+  miscOut();
+};
+
+// ---- 10 the report ---------------------------------------------------
+function report(){
+  const L=[];
+  L.push('TRS-80 phone probe  '+new Date().toISOString());
+  const s=R.screen||{};
+  L.push('');
+  L.push('UA        '+(s.ua||'?'));
+  L.push('screen    '+s.screen+'  avail '+s.avail+'  dpr '+s.dpr);
+  L.push('window    '+s.inner+'  visual '+s.visual+'  scale '+s.scale);
+  L.push('dvh       '+s.dvh+'  (innerHeight off by '+s.vhGap+')');
+  L.push('insets    '+s.insets+'   orientation '+s.orient+' '+s.angle);
+  L.push('touch     coarse='+s.coarse+'  maxTouchPoints='+s.touchPoints);
+  L.push('char px   now '+s.charNow+'   rotated '+s.charFit+' ('+s.canvasFit+
+         ')   rotated+fullscreen '+s.charFull+' ('+s.canvasFull+', '+
+         s.sideMargin+'px margins)');
+  if(R.bench) L.push('speed     '+R.bench.tps.toLocaleString()+' T/s = '+R.bench.mult+
+    'x a Model I   ('+R.bench.ips.toLocaleString()+' instr/s)');
+  else L.push('speed     not measured');
+  if(R.touch) L.push('touch     pointerEvents='+R.touch.pe+' capture='+R.touch.capture+
+    ' maxConcurrent='+R.touch.max+' stuck='+R.touch.stuck+' events='+R.touch.events);
+  if(R.fs) L.push('fullscr   api='+R.fs.api+' enabled='+R.fs.enabled+
+    ' outcome='+R.fs.outcome+' size='+(R.fs.size||'-')+' gain='+(R.fs.gain!==undefined?R.fs.gain:'-'));
+  if(R.lock) L.push('orient    lock='+R.lock.lockFn+' outcome='+R.lock.outcome+
+    '  -> '+(R.lock.reading||''));
+  if(R.tilt) L.push('tilt      api='+R.tilt.api+' perm='+R.tilt.perm+' outcome='+R.tilt.outcome+
+    ' beta['+R.tilt.rangeB+'] gamma['+R.tilt.rangeG+'] jitter='+R.tilt.noise+
+    ' events='+R.tilt.events+' nulls='+R.tilt.nulls);
+  if(R.audio) L.push('audio     api='+R.audio.api+' born='+R.audio.born+' after='+R.audio.after+
+    ' rate='+R.audio.rate+' latency='+R.audio.latency);
+  if(R.misc) L.push('misc      wake='+R.misc.wake+' vibrate='+R.misc.vib+
+    ' zoom='+R.misc.zoom+' standalone='+R.misc.standalone+
+    ' threads='+(navigator.hardwareConcurrency||'?'));
+  $('rep').textContent=L.join('\n');
+}
+$('bCopy').onclick=()=>{
+  const t=$('rep').textContent;
+  const fallback=()=>{
+    const r=document.createRange(); r.selectNodeContents($('rep'));
+    const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    chip($('cCopy'),'selected, copy it','gold');
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(()=>chip($('cCopy'),'copied','ok')).catch(fallback);
+  } else fallback();
+};
+
+// ---- wire up ---------------------------------------------------------
+function relayout(){ screenFacts(); drawMock(); }
+addEventListener('resize',relayout);
+addEventListener('orientationchange',()=>setTimeout(relayout,300));
+if(screen.orientation) screen.orientation.addEventListener('change',()=>setTimeout(relayout,300));
+relayout(); touchOut(); fsOut(); lockOut(); tiltOut(); miscOut();
+</script>
+<script>
+(function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
+</script>
+</body></html>
