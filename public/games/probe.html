@@ -117,9 +117,11 @@ pre{background:#111110;border:1px solid var(--edge);border-radius:6px;padding:11
 Nine checks. Nothing here changes any game; the page only asks the browser questions and reports
 the answers.</p>
 
-<p class="hint"><b>How to run it:</b> turn the phone to landscape first, then work down the page
-and press every button. Tests 5 and 6 ask the system for permission, so they need a real tap.
-The last panel collects everything into one block to send back.</p>
+<p class="hint"><b>How to run it:</b> turn the phone to landscape first, and check that the page
+really did rotate: if it stayed upright, rotation lock is on and test 1 is measuring the wrong
+shape. Then work down the page and press every button. Tests 5, 6 and 7 ask the system for
+permission, so they need a real tap. The last panel collects everything into one block to send
+back.</p>
 
 <section>
   <h2><span class="n">01</span> Screen and viewport</h2>
@@ -1153,7 +1155,12 @@ function tiltOut(){
     ['front/back seen',R.tilt.rangeB?R.tilt.rangeB+'°':'--'],
     ['left/right seen',R.tilt.rangeG?R.tilt.rangeG+'°':'--'],
     ['jitter while still',tilt.noise?tilt.noise.toFixed(2)+'°'+
-      (tilt.noise<1.5?'   steady enough':'   noisy, needs smoothing'):'--']
+      (tilt.noise<1.5?'   steady enough':'   noisy, needs smoothing'):'--'],
+    ['how you are holding it',tilt.physLand===undefined?'--':
+      (tilt.physLand?'sideways':'upright')+
+      (tilt.physLand&&/portrait/.test((so&&so.type)||'')
+        ? '   BUT THE PAGE IS LAID OUT PORTRAIT: rotation lock is on'
+        : (!tilt.physLand&&/landscape/.test((so&&so.type)||'')?'   while the page is landscape':''))]
   ].concat(tilt.diag.map((d,i)=>[i?' ':'why',d])));
   report();
 }
@@ -1166,6 +1173,10 @@ function feed(beta,gamma,k){
   if(!tilt.using) tilt.using=k;
   if(tilt.using!==k) return;
   tilt.beta=beta; tilt.gamma=gamma;
+  // The sensors report how the phone is really being held even when the screen
+  // refuses to rotate, so the two together are the only way to catch a
+  // rotation lock. Held on its side, gravity swings gamma out towards 90.
+  tilt.physLand=Math.abs(gamma)>45;
   tilt.minB=Math.min(tilt.minB,beta); tilt.maxB=Math.max(tilt.maxB,beta);
   tilt.minG=Math.min(tilt.minG,gamma); tilt.maxG=Math.max(tilt.maxG,gamma);
   // Jitter: the spread of the last second or so. Large means it needs
@@ -1332,6 +1343,10 @@ function report(){
   if(R.tilt) L.push('tilt      perm='+R.tilt.perm+'  '+R.tilt.sources+
     '  using='+(R.tilt.using||'none')+'  fb['+R.tilt.rangeB+'] lr['+R.tilt.rangeG+
     '] jitter='+R.tilt.noise+'  outcome='+R.tilt.outcome);
+  if(R.tilt&&tilt.physLand!==undefined)
+    L.push('          held '+(tilt.physLand?'sideways':'upright')+
+      ', page is '+((so&&so.type)||'?')+
+      (tilt.physLand&&/portrait/.test((so&&so.type)||'')?'   ROTATION LOCK IS ON':''));
   if(R.tilt&&tilt.diag.length) L.push('          why: '+tilt.diag.join(' | '));
   if(R.audio) L.push('audio     api='+R.audio.api+' born='+R.audio.born+' after='+R.audio.after+
     ' rate='+R.audio.rate+' latency='+R.audio.latency);
