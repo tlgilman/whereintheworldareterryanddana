@@ -1,0 +1,19 @@
+public/games/rear-guard.html
+  s_278b69c35808c0::t_d9deb9de3dd0ef 675-676,679
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31b9e5c6ac96fa37d1d3292ead4dfd8a9a2ebfbd",
+  "prompts": {},
+  "sessions": {
+    "s_278b69c35808c0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_278b69c35808c0",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
