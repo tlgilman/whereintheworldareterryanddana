@@ -1,0 +1,19 @@
+next.config.ts
+  s_97df77b91675f8::t_63ef5e92097f47 12-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2df3dda44f8cfbca0acd87c4def4125523ed9cf",
+  "prompts": {},
+  "sessions": {
+    "s_97df77b91675f8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_97df77b91675f8",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
