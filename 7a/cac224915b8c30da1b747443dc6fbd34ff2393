@@ -1,0 +1,35 @@
+public/games/armored-patrol-code.html
+  s_f99eae4185d4ad::t_01e58bb1364121 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/defender-code.html
+  s_f99eae4185d4ad::t_fe4e386699fb58 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/donkey-kong-code.html
+  s_f99eae4185d4ad::t_21e82259eb94bc 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/eliminator-code.html
+  s_f99eae4185d4ad::t_7e56ebbf7aef53 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/rear-guard-code.html
+  s_f99eae4185d4ad::t_d607921d273082 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/robot-king-of-the-hill-code.html
+  s_f99eae4185d4ad::t_3dd7ba04c44ae6 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/seadragon-code.html
+  s_f99eae4185d4ad::t_f8f6a33f7ae00d 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/tank-zone-code.html
+  s_f99eae4185d4ad::t_b685db52d65c68 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+public/games/zaxxon-code.html
+  s_f99eae4185d4ad::t_a7d10899850ffc 118-121,1237,1246-1255,1259,1281,1479-1482,1484
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7acac224915b8c30da1b747443dc6fbd34ff2393",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
