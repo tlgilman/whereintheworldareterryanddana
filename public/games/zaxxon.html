@@ -37,10 +37,80 @@ table.keys{border-collapse:collapse;font-size:12px;width:100%}
 table.keys td{padding:4px 8px 4px 0;vertical-align:top}
 table.keys td.k{color:var(--gold);white-space:nowrap;width:1%}
 table.keys button{padding:2px 8px;font-size:11px}
-#pad{display:none;margin-top:14px;gap:10px;justify-content:space-between;touch-action:none}
-#pad .grp{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,56px);gap:6px}
-#pad button{height:56px;padding:0;font-size:15px}
-@media (pointer:coarse){#pad{display:flex}}
+/* ---- compact ---------------------------------------------------------
+   The game becomes the page. Switched on by measuring the window, never by
+   the user agent, so a phone, a tablet, a convertible and a narrow desktop
+   window all get it and nothing has to be sniffed. In landscape the height
+   is the scarce dimension, and page furniture is what eats it, so the
+   furniture folds away. */
+#pad{display:none}
+body.compact,html:has(body.compact){height:100%;overflow:hidden}
+body.compact #wrap{max-width:none;padding:0;height:100%;display:flex;
+  flex-direction:column;align-items:center;justify-content:center}
+body.compact .back,body.compact h1,body.compact .sub,
+body.compact .cols,body.compact .note{display:none}
+body.compact #screen{border:0;border-radius:0;box-shadow:none;padding:0;
+  background:var(--bg);position:relative;display:flex;align-items:center;
+  justify-content:center;flex:0 0 auto}
+/* The button bar is desktop furniture sitting on the picture, so it hides
+   behind one corner button and comes back on request. */
+#menutog{display:none}
+body.compact #menutog{display:grid;place-items:center;position:fixed;z-index:6;
+  top:calc(env(safe-area-inset-top,0px) + 4px);
+  left:calc(env(safe-area-inset-left,0px) + 4px);
+  width:36px;height:36px;padding:0;font-size:15px;line-height:1;
+  color:var(--gold);background:rgba(10,10,8,.66);border:1px solid #45453c;
+  border-radius:8px;cursor:pointer}
+body.compact #bar{display:none;position:fixed;z-index:5;
+  top:calc(env(safe-area-inset-top,0px) + 44px);
+  left:calc(env(safe-area-inset-left,0px) + 4px);
+  margin:0;padding:6px 8px;gap:6px;max-width:calc(100% - 16px);
+  background:rgba(10,10,8,.9);border:1px solid #2c2c26;border-radius:8px}
+body.compact.menu #bar{display:flex;flex-wrap:wrap}
+body.compact #bar label,body.compact #bar #fps{display:none}
+body.compact #bar button,body.compact #bar a.codebtn{
+  font-size:11px;padding:5px 9px;min-height:0;letter-spacing:.04em}
+body.compact #pad{display:flex;touch-action:none;flex:0 0 auto;
+  -webkit-user-select:none;user-select:none}
+
+/* Controls below the picture, when the window is tall enough to spare the
+   room. This is what a phone held upright gets. */
+body.compact #pad{width:100%;align-items:center;justify-content:space-between;
+  padding:8px 12px;gap:12px}
+/* Controls flanking the picture, when the width is the spare dimension.
+   Fixed rather than in flow so the canvas keeps every pixel of height, and
+   inset by the safe areas because a camera cutout is not drawable. */
+body.compact.beside #pad{position:fixed;top:0;bottom:0;width:auto;
+  left:env(safe-area-inset-left,0px);right:env(safe-area-inset-right,0px);
+  padding:0 10px;pointer-events:none}
+body.compact.beside .tgroup{pointer-events:auto}
+
+.tgroup{display:flex;align-items:center;gap:12px}
+.tgroup.twin{gap:9px}
+.tright{flex-direction:row-reverse}
+.tstick{position:relative;width:108px;height:108px;border-radius:50%;touch-action:none;
+  border:2px solid rgba(232,195,90,.45);background:rgba(232,195,90,.10)}
+.tstick.on{border-color:var(--gold);background:rgba(232,195,90,.18)}
+.tknob{position:absolute;left:50%;top:50%;width:44%;height:44%;border-radius:50%;
+  background:rgba(232,195,90,.55);transform:translate(-50%,-50%);pointer-events:none}
+.tlever{position:relative;width:48px;height:108px;border-radius:24px;touch-action:none;
+  border:2px solid rgba(232,195,90,.45);background:rgba(232,195,90,.10)}
+.tlever.on{border-color:var(--gold);background:rgba(232,195,90,.18)}
+.tlever .tknob{width:74%;height:30%;border-radius:16px}
+.tlabel{position:absolute;left:0;right:0;bottom:5px;text-align:center;font-size:10px;
+  color:var(--gold);pointer-events:none;letter-spacing:.1em}
+.tbtn{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;
+  touch-action:none;font-size:11px;letter-spacing:.04em;color:var(--phos);
+  border:2px solid rgba(232,230,217,.4);background:rgba(232,230,217,.10)}
+.tbtn.on{background:rgba(232,195,90,.45);border-color:var(--gold)}
+
+/* Beside the picture there is only the margin to work in, about 90px on the
+   phones measured, so everything shrinks and the buttons stack. */
+body.compact.beside .tstick{width:86px;height:86px}
+body.compact.beside .tlever{width:40px;height:94px}
+body.compact.beside .tbtn{width:56px;height:56px;font-size:10px}
+body.compact.beside .tright{flex-direction:column;gap:9px}
+body.compact.beside .tgroup.twin{gap:7px}
 </style></head><body><div id="wrap">
 <a class="back" href="index.html#ours">&larr; TRS-80 Retro Games</a>
 <h1>Zaxxon</h1>
@@ -58,12 +128,7 @@ table.keys button{padding:2px 8px;font-size:11px}
   <a class="codebtn" href="zaxxon-code.html">Watch the code run</a>
   <span id="fps" style="color:var(--dim)"></span>
 </div>
-<div id="pad">
-  <div class="grp">
-    <button data-k="LEFT">&larr;</button><button data-k="UP">&uarr;</button><button data-k="RIGHT">&rarr;</button>
-    <button data-k="ENTER">ENT</button><button data-k="DOWN">&darr;</button><button data-k="SPACE">FIRE</button>
-  </div>
-</div>
+<div id="pad"></div>
 <div class="cols">
   <div>
     <h2>Controls</h2>
@@ -575,6 +640,8 @@ const LIVES=null;
 const CONTROLS=[["Arrow keys","Move"],["Space or F","Fire"],["Shift+S","Pause, Enter resumes"]];
 const BINDABLE=["UP","DOWN","LEFT","RIGHT","SPACE","ENTER"];
 const ALIAS={"f":"SPACE"};
+
+const PAD={"kind":"dpad","buttons":[["SPACE","FIRE"]]};
 // ---- screen ------------------------------------------------------------
 const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
 const CELLW=cv.width/64, CELLH=cv.height/16, PHOS='#e8e6d9', BG='#0a0a08';
@@ -701,12 +768,6 @@ addEventListener('keyup',e=>{
   if(k){ delete SENT[e.key]; m.keys.delete(k); e.preventDefault(); }
 });
 addEventListener('blur',()=>{ m.keys.clear(); for(const k in SENT) delete SENT[k]; });
-document.querySelectorAll('#pad button').forEach(b=>{
-  const k=b.dataset.k;
-  const dn=e=>{e.preventDefault();m.keys.add(k);}, up=e=>{e.preventDefault();m.keys.delete(k);};
-  b.addEventListener('touchstart',dn,{passive:false}); b.addEventListener('touchend',up);
-  b.addEventListener('mousedown',dn); b.addEventListener('mouseup',up); b.addEventListener('mouseleave',up);
-});
 // ---- a practice mode, off unless you ask for it ------------------------
 // ?subs=N tops the submarine count back up to N whenever it falls below, so a
 // run can be played end to end without starting over. Nothing is patched into
@@ -742,6 +803,268 @@ runBtn.onclick=()=>{ running=!running; runBtn.textContent=running?'Pause':'Start
   if(running){ last=0; if(ac&&ac.state==='suspended') ac.resume(); requestAnimationFrame(loop); } };
 document.getElementById('reset').onclick=()=>{ m=new Machine(); draw(m); };
 renderControls(); draw(m);
+// ---- compact layout and touch controls ---------------------------------
+// One page, not two. Nothing here reads the user agent: a phone, a tablet, a
+// convertible and a narrow desktop window are the same problem, and the user
+// agent is a poor guide to any of them. The layout is decided by measuring the
+// window. On a wide window with a mouse none of this does anything.
+//
+// The sizes come from measurements taken on real phones with probe.html. The
+// finding that shapes it: fitting the canvas to the width makes it taller than
+// the screen in landscape, so the picture has to be sized from whichever
+// dimension is actually scarce, and the controls go wherever the space is left.
+(function(){
+  if(typeof document==='undefined'||!document.body) return;   // the verifier's stub DOM
+  const $=id=>document.getElementById(id);
+  const wrap=$('wrap'), box=$('screen'), cv=$('c'), pad=$('pad');
+  if(!wrap||!box||!cv||!pad) return;
+
+  const GUT=4;        // the smallest gutter worth keeping
+  const SHELF=104;    // the least vertical room a control shelf below can use
+  const FLANK=86;     // the least width a control column beside the canvas needs
+
+  function coarse(){
+    try{ return matchMedia('(pointer:coarse)').matches||(navigator.maxTouchPoints||0)>0; }
+    catch(e){ return false; }
+  }
+  // Safe-area insets read zero until something goes fullscreen and then they do
+  // not, so they are measured on every layout rather than cached. On one of the
+  // test phones the camera cutout takes 27px off the left in fullscreen
+  // landscape, and anything drawn there is simply not visible.
+  function inset(side){
+    try{
+      const p=document.createElement('div');
+      p.style.cssText='position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;'+
+        'padding-'+side+':env(safe-area-inset-'+side+',0px)';
+      document.body.appendChild(p);
+      const v=parseFloat(getComputedStyle(p)['padding'+side[0].toUpperCase()+side.slice(1)])||0;
+      p.parentNode.removeChild(p); return v;
+    }catch(e){ return 0; }
+  }
+  // 100dvh rather than innerHeight, because mobile browser chrome retracts and
+  // innerHeight lies about it while it is moving.
+  function vhNow(){
+    try{
+      const p=document.createElement('div');
+      p.style.cssText='position:fixed;left:-9999px;top:0;width:1px;height:100dvh';
+      document.body.appendChild(p);
+      const v=p.getBoundingClientRect().height;
+      p.parentNode.removeChild(p);
+      return v||innerHeight;
+    }catch(e){ return innerHeight; }
+  }
+
+  // ---- the controls ----------------------------------------------------
+  // Built from the per-game spec in games.json rather than hardcoded, because
+  // the nine games do not agree on what a control even is: two of them drive
+  // two independent tank treads and have no use for a d-pad at all.
+  const held=new Map();                 // pointerId -> the element holding it
+  function press(k){ if(k) m.keys.add(k); }
+  function lift(k){ if(k) m.keys.delete(k); }
+
+  function bind(el,onDown,onMove,onUp){
+    el.addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      try{ el.setPointerCapture(e.pointerId); }catch(err){}
+      held.set(e.pointerId,el);
+      onDown(e);
+    });
+    if(onMove) el.addEventListener('pointermove',e=>{
+      if(held.get(e.pointerId)===el) onMove(e);
+    });
+    // Every way a pointer can end goes through one path. The old code listened
+    // for touchend alone, so a touch the system took away (a notification, a
+    // palm, a gesture) left the key held down forever.
+    const end=e=>{ if(!held.has(e.pointerId)) return; held.delete(e.pointerId); onUp(e); };
+    el.addEventListener('pointerup',end);
+    el.addEventListener('pointercancel',end);
+    el.addEventListener('lostpointercapture',end);
+  }
+
+  function mk(cls,txt){
+    const d=document.createElement('div');
+    d.className=cls; if(txt) d.textContent=txt; return d;
+  }
+
+  // A thumbstick: eight directions, with a dead centre so a resting thumb does
+  // not steer. Returns its element.
+  function stick(keys){
+    const el=mk('tstick'), knob=mk('tknob');
+    el.appendChild(knob);
+    let on=[];
+    const clear=()=>{ on.forEach(lift); on=[]; };
+    const move=e=>{
+      const r=el.getBoundingClientRect();
+      let dx=(e.clientX-(r.left+r.width/2))/(r.width/2);
+      let dy=(e.clientY-(r.top+r.height/2))/(r.height/2);
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d>1){ dx/=d; dy/=d; }
+      knob.style.left=(50+dx*32)+'%'; knob.style.top=(50+dy*32)+'%';
+      const want=[];
+      if(dy<-0.38&&keys.UP) want.push(keys.UP);
+      if(dy> 0.38&&keys.DOWN) want.push(keys.DOWN);
+      if(dx<-0.38&&keys.LEFT) want.push(keys.LEFT);
+      if(dx> 0.38&&keys.RIGHT) want.push(keys.RIGHT);
+      on.filter(k=>want.indexOf(k)<0).forEach(lift);
+      want.filter(k=>on.indexOf(k)<0).forEach(press);
+      on=want;
+    };
+    bind(el,e=>{ el.classList.add('on'); move(e); }, move,
+            ()=>{ el.classList.remove('on'); clear();
+                  knob.style.left='50%'; knob.style.top='50%'; });
+    return el;
+  }
+
+  // A tread lever: push up to drive that tread forward, down to reverse. This
+  // is how a real tank is driven and how Armored Patrol and Tank Zone were
+  // always controlled, with A and Z on one hand and ; and . on the other.
+  function lever(fwd,back,label){
+    const el=mk('tlever'), knob=mk('tknob'), tag=mk('tlabel',label);
+    el.appendChild(knob); el.appendChild(tag);
+    let cur=null;
+    const set=k=>{ if(cur===k) return; lift(cur); cur=k; press(cur); };
+    const move=e=>{
+      const r=el.getBoundingClientRect();
+      const dy=(e.clientY-(r.top+r.height/2))/(r.height/2);
+      knob.style.top=(50+Math.max(-34,Math.min(34,dy*34)))+'%';
+      set(dy<-0.3?fwd:(dy>0.3?back:null));
+    };
+    bind(el,e=>{ el.classList.add('on'); move(e); }, move,
+            ()=>{ el.classList.remove('on'); lift(cur); cur=null; knob.style.top='50%'; });
+    return el;
+  }
+
+  function button(key,label){
+    const el=mk('tbtn',label);
+    bind(el,()=>{ el.classList.add('on'); press(key); },null,
+            ()=>{ el.classList.remove('on'); lift(key); });
+    return el;
+  }
+
+  function buildPad(){
+    pad.innerHTML='';
+    const spec=(typeof PAD!=='undefined'&&PAD)||{kind:'dpad',buttons:[['SPACE','FIRE']]};
+    const L=mk('tgroup tleft'), Rg=mk('tgroup tright');
+    if(spec.kind==='treads'){
+      L.appendChild(lever(spec.left[0],spec.left[1],'L'));
+      L.appendChild(lever(spec.right[0],spec.right[1],'R'));
+      L.className+=' twin';
+    } else if(spec.kind==='updown'){
+      L.appendChild(stick({UP:'UP',DOWN:'DOWN'}));
+    } else {
+      L.appendChild(stick({UP:'UP',DOWN:'DOWN',LEFT:'LEFT',RIGHT:'RIGHT'}));
+    }
+    (spec.buttons||[]).forEach(b=>Rg.appendChild(button(b[0],b[1])));
+    pad.appendChild(L); pad.appendChild(Rg);
+  }
+
+  // ---- fullscreen ------------------------------------------------------
+  // Worth real estate: on one test phone it recovered 75px of width and 30px of
+  // height, which is the difference between a picture that fits and one that
+  // does not. It does not exist at all on iPhone Safari, so the button hides
+  // itself rather than lying about what it can do.
+  const el=document.documentElement;
+  const fsReq=el.requestFullscreen||el.webkitRequestFullscreen||el.webkitRequestFullScreen;
+  const fsExit=document.exitFullscreen||document.webkitExitFullscreen;
+  const fsOn=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+  let fsBtn=null;
+  function makeFsBtn(){
+    if(fsBtn||!fsReq) return;
+    fsBtn=document.createElement('button');
+    fsBtn.id='fsbtn'; fsBtn.type='button'; fsBtn.textContent='Full screen';
+    fsBtn.onclick=()=>{
+      if(fsOn()){ if(fsExit) try{ fsExit.call(document); }catch(e){} return; }
+      Promise.resolve(fsReq.call(el)).then(()=>{
+        // Locking only works from inside fullscreen, which is why it is here
+        // and not on its own control. It simply does not exist on iOS.
+        try{ screen.orientation&&screen.orientation.lock&&
+             screen.orientation.lock('landscape').catch(()=>{}); }catch(e){}
+      }).catch(()=>{});
+    };
+    const b=$('bar'); if(b) b.appendChild(fsBtn);
+  }
+
+  // ---- the menu --------------------------------------------------------
+  // The button bar is desktop furniture sitting on top of the picture, so on a
+  // small screen it collapses behind one corner button. It stays open until the
+  // game is started, because Start lives in it, and gets out of the way after.
+  let tog=null;
+  function setMenu(open){ document.body.classList.toggle('menu',open);
+    if(tog) tog.setAttribute('aria-expanded',open?'true':'false'); }
+  function makeMenu(){
+    if(tog) return;
+    tog=document.createElement('button');
+    tog.id='menutog'; tog.type='button'; tog.textContent='☰';
+    tog.setAttribute('aria-label','Show the controls menu');
+    tog.onclick=()=>setMenu(!document.body.classList.contains('menu'));
+    document.body.appendChild(tog);
+    setMenu(true);
+    const runBtn=$('run');
+    if(runBtn){
+      const prev=runBtn.onclick;
+      runBtn.onclick=function(e){
+        if(prev) prev.call(this,e);
+        if(document.body.classList.contains('compact')) setMenu(false);
+      };
+    }
+  }
+
+  // ---- layout ----------------------------------------------------------
+  let mode='';
+  function layout(){
+    const compact=coarse()||innerWidth<760;
+    document.body.classList.toggle('compact',compact);
+    if(!compact){
+      if(mode){ cv.style.width=''; cv.style.height=''; mode=''; }
+      document.body.classList.remove('menu','beside');
+      return;
+    }
+    if(!pad.childNodes.length) buildPad();
+    makeFsBtn(); makeMenu();
+    if(fsBtn) fsBtn.textContent=fsOn()?'Exit full screen':'Full screen';
+
+    const il=inset('left'), ir=inset('right'), it=inset('top'), ib=inset('bottom');
+    const vw=Math.max(0,innerWidth-il-ir), vh=Math.max(0,vhNow()-it-ib);
+
+    // Two arrangements, and the one that gives the bigger character wins.
+    // Below: the canvas takes the width, the controls take the leftover height.
+    // Beside: the canvas takes the height, the controls flank it.
+    const belowW=Math.max(0,vw-2*GUT);
+    const belowFits=(vh-belowW*0.75)>=SHELF;
+    const besideW=Math.max(0,Math.min((vh-2*GUT)*4/3,vw-2*FLANK));
+    const besideFits=besideW>0&&(vw-besideW)>=2*FLANK;
+
+    let W,side;
+    if(belowFits&&besideFits){ side=besideW>belowW; W=side?besideW:belowW; }
+    else if(belowFits){ side=false; W=belowW; }
+    else if(besideFits){ side=true;  W=besideW; }
+    else { side=vw>vh; W=side?besideW:belowW; }      // neither is roomy: go by shape
+    if(!(W>0)) W=Math.max(belowW,1);
+
+    mode=side?'beside':'below';
+    document.body.classList.toggle('beside',side);
+    cv.style.width=Math.round(W)+'px';
+    cv.style.height=Math.round(W*0.75)+'px';
+    wrap.style.paddingLeft=il+'px';  wrap.style.paddingRight=ir+'px';
+    wrap.style.paddingTop=it+'px';   wrap.style.paddingBottom=ib+'px';
+  }
+
+  let pending=null;
+  const relayout=()=>{ clearTimeout(pending); pending=setTimeout(layout,60); };
+  addEventListener('resize',relayout);
+  addEventListener('orientationchange',()=>setTimeout(layout,250));
+  document.addEventListener('fullscreenchange',relayout);
+  document.addEventListener('webkitfullscreenchange',relayout);
+  try{ screen.orientation&&screen.orientation.addEventListener('change',
+       ()=>setTimeout(layout,250)); }catch(e){}
+  // Any pointer the page loses track of releases everything, so a key can never
+  // be left down after the finger has gone.
+  addEventListener('blur',()=>{ held.clear(); m.keys.clear(); });
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){ held.clear(); m.keys.clear(); } });
+
+  try{ layout(); }catch(e){}
+})();
 
 </script><script>
 (function(){try{var p=window.location.pathname;if(sessionStorage.getItem('visitor_tracked_'+p))return;fetch('/api/track-visitor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer})}).then(function(){sessionStorage.setItem('visitor_tracked_'+p,'true');}).catch(function(){});}catch(e){}})();
