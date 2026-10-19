@@ -1,0 +1,19 @@
+public/games/probe.html
+  s_f99eae4185d4ad::t_c8afcd9e28a599 4-10,654-664,684-685,705,707-709,808-811,1270-1274
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fd0e937a62df25c796dc3df68c462066b35cd856",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
