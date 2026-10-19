@@ -151,8 +151,9 @@ The last panel collects everything into one block to send back.</p>
   <h2><span class="n">04</span> Touch, and controls over the picture</h2>
   <p>A mock Sea Dragon screen with the proposed overlay on top: thumbstick at the left, two buttons
   at the right, both semi-transparent and both sitting on the picture rather than below it. Drive
-  it. Hold a direction and tap fire at the same time, which is the normal case, and watch whether
-  the count below reaches 2 and 3.</p>
+  it, then do one thing deliberately: <b>hold the stick and press both buttons at once, so three
+  fingers are down together</b>. The tanks need three, two tread levers and fire, and the count
+  below is the only way to know the phone will report them.</p>
   <figure><div id="mock" class="scr">
     <canvas id="mockc"></canvas>
     <div class="ov" id="stick"><div id="knob"></div></div>
@@ -187,9 +188,12 @@ The last panel collects everything into one block to send back.</p>
 <section>
   <h2><span class="n">07</span> Tilt</h2>
   <p>For Tank Zone, tilting forward, back, left and right instead of working two tread levers with
-  two thumbs. Grant the permission, then hold the phone the way you would play and tilt. The dashed
-  circle is a 12&deg; deadzone: inside it nothing fires. The four boxes light the way the treads
-  would drive.</p>
+  two thumbs. Press the button, then hold the phone the way you would play and tilt it for a few
+  seconds. The dashed circle is a 12&deg; deadzone: inside it nothing fires. The four boxes light
+  the way the treads would drive.</p>
+  <p>Three separate APIs can carry tilt and phones disagree about which one works, so all three are
+  listened to at once and reported separately. A phone that fires events full of nothing is a
+  different problem from one that fires none, and both are different from a working sensor.</p>
   <div class="row"><button id="bTilt">Enable tilt</button>
     <span class="chip" id="cTilt">not tried</span></div>
   <div class="lvwrap">
@@ -626,15 +630,21 @@ function screenFacts(){
     (parseFloat(getComputedStyle($('wrap')).paddingRight)||0);
   const canvasW=Math.max(0,wrapW-2*(10+3));          // #screen padding 10, border 3
   const dvh=measureDvh();
-  // Rotated, the short side becomes the height, whichever way the phone is
-  // held right now. The canvas is 4:3, so height decides the width, and the
-  // long side caps it.
-  const shortSide=Math.min(innerWidth,dvh), longSide=Math.max(innerWidth,dvh);
-  // Two cases worth separating: the page as it stands, which spends height on
-  // a title, a button bar and the browser's own address bar; and the page in
-  // fullscreen with a slim header, which is what the work would buy.
-  const fitNow=Math.min((shortSide-110)*4/3,longSide);
-  const fitFull=Math.min((shortSide-30)*4/3,longSide);
+  // The page fits the canvas to the width, which in landscape can make it
+  // taller than the screen: wide characters you cannot see all of at once.
+  // That is a different failure from small characters and worth naming.
+  const tallBy=Math.round(canvasW*3/4-dvh);
+  // Landscape dimensions, whichever way the phone is held right now.
+  const landW=Math.max(innerWidth,dvh), landH=Math.min(innerWidth,dvh);
+  // Fitted to the height instead, in two cases: the page as it stands, which
+  // spends height on a title, a button bar and the browser's own address bar;
+  // and fullscreen with the furniture gone, which is what the work would buy.
+  // Fullscreen comes off the screen size rather than the window, since that is
+  // what fullscreen gets back.
+  const scrShort=Math.min(screen.width,screen.height);
+  const scrLong =Math.max(screen.width,screen.height);
+  const fitNow=Math.min((landH-110)*4/3,landW);
+  const fitFull=Math.min((scrShort-6)*4/3,scrLong);
   R.screen={
     screen:[screen.width,screen.height].join(' x '),
     avail:[screen.availWidth,screen.availHeight].join(' x '),
@@ -648,11 +658,13 @@ function screenFacts(){
     orient:(screen.orientation&&screen.orientation.type)||'unknown',
     angle:(screen.orientation&&screen.orientation.angle),
     charNow:+(canvasW/64).toFixed(2),
+    canvasNow:Math.round(canvasW)+' x '+Math.round(canvasW*3/4),
+    tallBy:tallBy,
     canvasFit:Math.round(fitNow)+' x '+Math.round(fitNow*3/4),
     charFit:+(fitNow/64).toFixed(2),
     canvasFull:Math.round(fitFull)+' x '+Math.round(fitFull*3/4),
     charFull:+(fitFull/64).toFixed(2),
-    sideMargin:Math.round((longSide-fitFull)/2),
+    sideMargin:Math.round((scrLong-fitFull)/2),
     coarse:matchMedia('(pointer:coarse)').matches,
     touchPoints:navigator.maxTouchPoints,
     ua:navigator.userAgent
@@ -667,12 +679,14 @@ function screenFacts(){
     ['orientation',s.orient+'  '+s.angle+'°'],
     ['pointer:coarse',s.coarse?'yes':'no'],
     ['max touch points',s.touchPoints],
-    ['— one character, now',s.charNow+'px wide'+(s.charNow<6?'   TOO SMALL':'   readable')],
-    ['— rotated, page as it is',s.canvasFit+'  →  '+s.charFit+'px'+
+    ['canvas now, fitted to width',s.canvasNow+'  →  '+s.charNow+'px'+
+      (s.charNow<6?'   TOO SMALL':'   readable')+
+      (s.tallBy>0?',  but '+s.tallBy+'px TALLER THAN THE SCREEN':'')],
+    ['fitted to height, page as it is',s.canvasFit+'  →  '+s.charFit+'px'+
       (s.charFit<6?'   TOO SMALL':'   readable')],
-    ['— rotated, fullscreen, slim header',s.canvasFull+'  →  '+s.charFull+'px'+
+    ['fitted to height, fullscreen',s.canvasFull+'  →  '+s.charFull+'px'+
       (s.charFull<6?'   TOO SMALL':'   readable')],
-    ['— room beside it for controls',s.sideMargin+'px each side']
+    ['room beside it for controls',s.sideMargin+'px each side']
   ]);
   drawLegibility();
   report();
@@ -763,14 +777,16 @@ function drawLegibility(){
   // and scrolls sideways if that is wider than the phone is right now.
   const note=w=>w>$('wrap').clientWidth-40?'  (scroll it sideways)':'';
   blit($('legA'),legBuf,s.charNow*64);
-  $('capA').textContent='The page as it stands, in this orientation: '+
-    s.charNow.toFixed(2)+'px per character.'+note(s.charNow*64);
+  $('capA').textContent='The page as it stands, fitted to the width: '+
+    s.charNow.toFixed(2)+'px per character.'+
+    (s.tallBy>0?'  Readable, but '+s.tallBy+'px taller than your screen, so you cannot see '+
+      'the whole thing at once.':'')+note(s.charNow*64);
   blit($('legB'),legBuf,s.charFit*64);
-  $('capB').textContent='Rotated, with the title and button bar still there: '+
+  $('capB').textContent='Fitted to the height instead, keeping the title and button bar: '+
     s.charFit.toFixed(2)+'px per character.'+note(s.charFit*64);
   blit($('legC'),legBuf,s.charFull*64);
-  $('capC').textContent='Rotated, fullscreen, slim header: '+s.charFull.toFixed(2)+
-    'px per character. This is what the work buys.'+note(s.charFull*64);
+  $('capC').textContent='Fitted to the height in fullscreen, with the furniture gone: '+
+    s.charFull.toFixed(2)+'px per character. This is what the work buys.'+note(s.charFull*64);
 }
 
 // ---- 03 speed --------------------------------------------------------
@@ -863,8 +879,10 @@ function touchOut(){
     ['pointer events',touch.pe?'yes':'no  (falling back to touch events)'],
     ['setPointerCapture',touch.capture?'working':'not exercised yet'],
     ['pointers down now',touch.active],
-    ['most at once seen',touch.max+(touch.max>=3?'   enough for a stick plus two buttons':
-      (touch.max===2?'   enough for a direction plus one button':''))],
+    ['most at once seen',touch.max+(touch.max>=3?'   enough for the tanks':
+      (touch.max===2?'   enough for a direction plus one button; try for three':
+       '   try holding the stick and a button together'))],
+    ['the phone claims it can do',navigator.maxTouchPoints+' at once'],
     ['stick',touch.stick||'centred'],
     ['buttons',(touch.fire?'FIRE ':'')+(touch.msl?'MSL':'')||'none'],
     ['events seen',touch.events],
@@ -988,6 +1006,7 @@ function lockOut(extra){
     ['screen.orientation',R.lock.api],
     ['.lock()',R.lock.lockFn],
     ['current',R.lock.type||'unknown'],
+    ['in fullscreen now',fsOn()?'yes, so try the lock again from here':'no'],
     ['outcome',R.lock.outcome||'not tried'],
     ['reading',R.lock.reading||'--']
   ]);
@@ -1015,87 +1034,140 @@ $('bLock').onclick=()=>{
     lockOut({outcome:n+(e&&e.message?': '+e.message:''),reading:reading});
   });
 };
-$('bUnlock').onclick=()=>{ try{ so&&so.unlock&&so.unlock(); }catch(e){} lockOut({outcome:'unlocked'}); };
+// Unlocking must not overwrite what the lock attempt told us, which is the
+// result worth keeping.
+$('bUnlock').onclick=()=>{ try{ so&&so.unlock&&so.unlock(); }catch(e){}
+  lockOut({outcome:(R.lock&&R.lock.outcome&&R.lock.outcome!=='not tried'
+    ? R.lock.outcome+', then unlocked' : 'unlocked without locking first')}); };
 
 // ---- 07 tilt ---------------------------------------------------------
-const tilt={on:false,beta:null,gamma:null,alpha:null,abs:null,
-  minB:999,maxB:-999,minG:999,maxG:-999,n:0,nulls:0,
-  perm:(typeof DeviceOrientationEvent!=='undefined'&&
-        typeof DeviceOrientationEvent.requestPermission==='function')?'needed':'not needed',
-  api:typeof DeviceOrientationEvent!=='undefined',
-  motion:typeof DeviceMotionEvent!=='undefined',
-  noise:0};
+// Three different APIs can deliver tilt and phones disagree about which one
+// works. Android in particular will happily fire deviceorientation with null
+// values while deviceorientationabsolute, or the accelerometer, work fine. So
+// listen to all three and report which ones actually carry numbers, rather
+// than concluding from whichever answers first.
 const DEAD=12;                                  // degrees; inside this nothing fires
+const SRC={
+  rel:{label:'deviceorientation',          n:0,nulls:0,live:false},
+  abs:{label:'deviceorientationabsolute',  n:0,nulls:0,live:false},
+  mot:{label:'devicemotion, from gravity', n:0,nulls:0,live:false}
+};
+const tilt={on:false,beta:null,gamma:null,using:null,
+  minB:999,maxB:-999,minG:999,maxG:-999,noise:0,outcome:null,
+  perm:(typeof DeviceOrientationEvent!=='undefined'&&
+        typeof DeviceOrientationEvent.requestPermission==='function')?'needed':'not needed'};
 let noiseBuf=[];
+function srcState(k){
+  const s=SRC[k];
+  return s.n===0 ? 'no events at all'
+       : s.live  ? s.n+' events, real values'
+       :           s.n+' events, every one empty';
+}
 function tiltOut(){
-  R.tilt={api:tilt.api,perm:tilt.perm,on:tilt.on,
+  R.tilt={perm:tilt.perm,outcome:tilt.outcome,using:tilt.using,
+    sources:Object.keys(SRC).map(k=>SRC[k].label+'='+
+      (SRC[k].n===0?'none':SRC[k].n+(SRC[k].live?'/live':'/null'))).join(' '),
     beta:tilt.beta===null?null:+tilt.beta.toFixed(1),
     gamma:tilt.gamma===null?null:+tilt.gamma.toFixed(1),
     rangeB:tilt.maxB>-999?[Math.round(tilt.minB),Math.round(tilt.maxB)].join(' to '):null,
     rangeG:tilt.maxG>-999?[Math.round(tilt.minG),Math.round(tilt.maxG)].join(' to '):null,
-    noise:+tilt.noise.toFixed(2),events:tilt.n,nulls:tilt.nulls,
-    outcome:tilt.outcome};
+    noise:+tilt.noise.toFixed(2)};
   dl($('dTilt'),[
-    ['DeviceOrientationEvent',tilt.api?'yes':'no'],
     ['permission',tilt.perm==='needed'?'must be asked for (iOS)':'not required'],
-    ['DeviceMotionEvent',tilt.motion?'yes':'no'],
     ['outcome',tilt.outcome||'not tried'],
-    ['front/back (beta)',tilt.beta===null?'--':tilt.beta.toFixed(1)+'°'],
-    ['left/right (gamma)',tilt.gamma===null?'--':tilt.gamma.toFixed(1)+'°'],
-    ['beta seen',R.tilt.rangeB?R.tilt.rangeB+'°':'--'],
-    ['gamma seen',R.tilt.rangeG?R.tilt.rangeG+'°':'--'],
+    [SRC.rel.label,srcState('rel')],
+    [SRC.abs.label,srcState('abs')],
+    [SRC.mot.label,srcState('mot')],
+    ['driving the display',tilt.using?SRC[tilt.using].label:'nothing yet'],
+    ['front/back',tilt.beta===null?'--':tilt.beta.toFixed(1)+'°'],
+    ['left/right',tilt.gamma===null?'--':tilt.gamma.toFixed(1)+'°'],
+    ['front/back seen',R.tilt.rangeB?R.tilt.rangeB+'°':'--'],
+    ['left/right seen',R.tilt.rangeG?R.tilt.rangeG+'°':'--'],
     ['jitter while still',tilt.noise?tilt.noise.toFixed(2)+'°'+
-      (tilt.noise<1.5?'   steady enough':'   noisy; needs smoothing'):'--'],
-    ['events',tilt.n+(tilt.nulls?'   ('+tilt.nulls+' with no values)':'')]
+      (tilt.noise<1.5?'   steady enough':'   noisy, needs smoothing'):'--']
   ]);
   report();
 }
-function onTilt(e){
-  tilt.n++;
-  if(e.beta===null&&e.gamma===null){ tilt.nulls++; if(tilt.n%10===0) tiltOut(); return; }
-  tilt.alpha=e.alpha; tilt.beta=e.beta; tilt.gamma=e.gamma; tilt.abs=e.absolute;
-  tilt.minB=Math.min(tilt.minB,e.beta); tilt.maxB=Math.max(tilt.maxB,e.beta);
-  tilt.minG=Math.min(tilt.minG,e.gamma); tilt.maxG=Math.max(tilt.maxG,e.gamma);
-  // Jitter: the spread of the last second or so of samples. If this is large
-  // the control needs smoothing before it is playable.
-  noiseBuf.push(e.gamma); if(noiseBuf.length>40) noiseBuf.shift();
+// One display, fed by whichever source first proves it carries real numbers.
+function feed(beta,gamma,k){
+  const s=SRC[k];
+  if(beta===null||gamma===null||beta===undefined||gamma===undefined||
+     (beta===0&&gamma===0&&s.n<3)){ s.nulls++; if(s.n%10===0) tiltOut(); return; }
+  s.live=true;
+  if(!tilt.using) tilt.using=k;
+  if(tilt.using!==k) return;
+  tilt.beta=beta; tilt.gamma=gamma;
+  tilt.minB=Math.min(tilt.minB,beta); tilt.maxB=Math.max(tilt.maxB,beta);
+  tilt.minG=Math.min(tilt.minG,gamma); tilt.maxG=Math.max(tilt.maxG,gamma);
+  // Jitter: the spread of the last second or so. Large means it needs
+  // smoothing before it would be playable.
+  noiseBuf.push(gamma); if(noiseBuf.length>40) noiseBuf.shift();
   if(noiseBuf.length>8){
     const mean=noiseBuf.reduce((a,b)=>a+b,0)/noiseBuf.length;
     tilt.noise=Math.sqrt(noiseBuf.reduce((a,b)=>a+(b-mean)*(b-mean),0)/noiseBuf.length);
   }
-  // In landscape the phone is turned, so gamma is forward/back and beta is
-  // left/right. Read whichever orientation we are actually in.
-  const land=Math.abs((so&&so.angle)||0)===90;
-  const fb=land?(e.gamma||0)*((so.angle===90)?1:-1):(e.beta||0)-40;
-  const lr=land?(e.beta||0):(e.gamma||0);
+  // Held in landscape the phone is turned, so the two axes swap over.
+  const ang=(so&&so.angle)||0, land=Math.abs(ang)===90;
+  const fb=land?gamma*(ang===90?1:-1):beta-40;
+  const lr=land?beta:gamma;
   $('bub').style.left=(50+Math.max(-48,Math.min(48,lr*0.9)))+'%';
-  $('bub').style.top=(50+Math.max(-48,Math.min(48,fb*0.9)))+'%';
+  $('bub').style.top =(50+Math.max(-48,Math.min(48,fb*0.9)))+'%';
   $('dU').classList.toggle('on',fb<-DEAD);
   $('dD').classList.toggle('on',fb>DEAD);
   $('dL').classList.toggle('on',lr<-DEAD);
   $('dR').classList.toggle('on',lr>DEAD);
-  if(tilt.n%5===0) tiltOut();
+  if(s.n%5===0) tiltOut();
+}
+// The accelerometer reports gravity, and gravity is which way down is, which
+// is the same information tilt carries.
+function fromGravity(e){
+  const a=e.accelerationIncludingGravity;
+  if(!a||a.x===null||a.x===undefined) return null;
+  const R2=180/Math.PI;
+  return {beta: Math.atan2(a.y,Math.sqrt(a.x*a.x+a.z*a.z))*R2,
+          gamma:Math.atan2(-a.x,Math.sqrt(a.y*a.y+a.z*a.z))*R2};
 }
 $('bTilt').onclick=()=>{
-  if(typeof DeviceOrientationEvent==='undefined'){
-    chip($('cTilt'),'no api','bad'); tilt.outcome='DeviceOrientationEvent does not exist';
-    tiltOut(); return;
-  }
-  const go=()=>{ window.addEventListener('deviceorientation',onTilt); tilt.on=true;
-    chip($('cTilt'),'listening','ok'); tilt.outcome='granted; tilt the phone';
-    // If nothing arrives, say so rather than leaving it looking enabled.
-    setTimeout(()=>{ if(tilt.n===0){ chip($('cTilt'),'silent','bad');
-      tilt.outcome='permission given but no events arrived'; tiltOut(); } },2500);
-    tiltOut(); };
-  if(typeof DeviceOrientationEvent.requestPermission==='function'){
-    DeviceOrientationEvent.requestPermission().then(s=>{
-      tilt.outcome='requestPermission returned "'+s+'"';
-      if(s==='granted') go();
-      else { chip($('cTilt'),s,'bad'); tiltOut(); }
-    }).catch(e=>{ chip($('cTilt'),'threw','bad');
-      tilt.outcome=(e&&e.name||'error')+': '+(e&&e.message||'');
-      tiltOut(); });
-  } else go();
+  const listen=()=>{
+    tilt.on=true;
+    window.addEventListener('deviceorientation',e=>{
+      SRC.rel.n++; feed(e.beta,e.gamma,'rel'); });
+    window.addEventListener('deviceorientationabsolute',e=>{
+      SRC.abs.n++; feed(e.beta,e.gamma,'abs'); });
+    window.addEventListener('devicemotion',e=>{
+      SRC.mot.n++; const g=fromGravity(e);
+      feed(g&&g.beta,g&&g.gamma,'mot'); });
+    chip($('cTilt'),'listening','gold');
+    tilt.outcome='listening on all three';
+    // Judge honestly once there has been time for something to arrive. Events
+    // that carry nothing are not the same as no events, and neither is success.
+    setTimeout(()=>{
+      const any=Object.keys(SRC).some(k=>SRC[k].live);
+      const some=Object.keys(SRC).some(k=>SRC[k].n>0);
+      if(any){ chip($('cTilt'),'working','ok');
+        tilt.outcome='working, through '+SRC[tilt.using].label; }
+      else if(some){ chip($('cTilt'),'events but no values','bad');
+        tilt.outcome='events arrive with empty values: the sensor is blocked or absent'; }
+      else { chip($('cTilt'),'nothing','bad');
+        tilt.outcome='no events from any of the three'; }
+      tiltOut();
+    },3000);
+    tiltOut();
+  };
+  if(typeof DeviceOrientationEvent!=='undefined'&&
+     typeof DeviceOrientationEvent.requestPermission==='function'){
+    // iOS: this only works from inside a real tap, which is why it is a button.
+    const ask=[DeviceOrientationEvent.requestPermission()];
+    if(typeof DeviceMotionEvent!=='undefined'&&
+       typeof DeviceMotionEvent.requestPermission==='function')
+      ask.push(DeviceMotionEvent.requestPermission());
+    Promise.all(ask).then(r=>{
+      tilt.outcome='requestPermission returned '+r.join(' and ');
+      if(r.indexOf('granted')>=0) listen();
+      else { chip($('cTilt'),r[0],'bad'); tiltOut(); }
+    }).catch(e=>{ chip($('cTilt'),'refused','bad');
+      tilt.outcome=(e&&e.name||'error')+': '+(e&&e.message||''); tiltOut(); });
+  } else listen();
 };
 
 // ---- 08 audio --------------------------------------------------------
@@ -1185,9 +1257,9 @@ function report(){
     ' outcome='+R.fs.outcome+' size='+(R.fs.size||'-')+' gain='+(R.fs.gain!==undefined?R.fs.gain:'-'));
   if(R.lock) L.push('orient    lock='+R.lock.lockFn+' outcome='+R.lock.outcome+
     '  -> '+(R.lock.reading||''));
-  if(R.tilt) L.push('tilt      api='+R.tilt.api+' perm='+R.tilt.perm+' outcome='+R.tilt.outcome+
-    ' beta['+R.tilt.rangeB+'] gamma['+R.tilt.rangeG+'] jitter='+R.tilt.noise+
-    ' events='+R.tilt.events+' nulls='+R.tilt.nulls);
+  if(R.tilt) L.push('tilt      perm='+R.tilt.perm+'  '+R.tilt.sources+
+    '  using='+(R.tilt.using||'none')+'  fb['+R.tilt.rangeB+'] lr['+R.tilt.rangeG+
+    '] jitter='+R.tilt.noise+'  outcome='+R.tilt.outcome);
   if(R.audio) L.push('audio     api='+R.audio.api+' born='+R.audio.born+' after='+R.audio.after+
     ' rate='+R.audio.rate+' latency='+R.audio.latency);
   if(R.misc) L.push('misc      wake='+R.misc.wake+' vibrate='+R.misc.vib+
