@@ -672,11 +672,11 @@ class Machine{
 
 const LIVES=null;
 
-const CONTROLS=[["Up and Down","Move"],["Space or F","Fire"],["Enter or S","Shields"],["Home, Left Ctrl or D","Smart bomb"],["Shift+S","Pause, Enter resumes"]];
-const BINDABLE=["UP","DOWN","SPACE","ENTER","CLEAR"];
+const CONTROLS=[["Up and Down","Move"],["Space or F","Fire"],["Enter or S","Shields"],["Shift+S","Pause, Enter resumes"]];
+const BINDABLE=["UP","DOWN","SPACE","ENTER"];
 const ALIAS={"f":"SPACE","s":"ENTER","d":"CLEAR"};
 
-const PAD={"kind":"updown","buttons":[["SPACE","FIRE"],["ENTER","SHLD"],["CLEAR","BOMB"]]};
+const PAD={"kind":"updown","buttons":[["SPACE","FIRE"],["ENTER","SHLD"]]};
 const PROMPT=["ENTER","1","2"];
 // ---- screen ------------------------------------------------------------
 const cv=document.getElementById('c'), ctx=cv.getContext('2d',{alpha:false});
