@@ -64,6 +64,14 @@ body.compact #menutog,body.compact #keytog{display:grid;place-items:center;
 body.compact #menutog{left:calc(env(safe-area-inset-left,0px) + 4px)}
 body.compact #keytog{left:calc(env(safe-area-inset-left,0px) + 46px);font-size:11px}
 body.compact #keytog.on{color:var(--bg);background:var(--gold);border-color:var(--gold)}
+/* Start lives on the picture rather than in the menu, so that reaching it
+   does not leave a row of buttons sitting over the game. */
+#startov{display:none}
+body.compact #startov{display:grid;place-items:center;position:absolute;z-index:4;
+  left:50%;top:50%;transform:translate(-50%,-50%);
+  width:74px;height:74px;padding:0;border:0;border-radius:50%;cursor:pointer;
+  font-size:27px;line-height:1;color:var(--bg);background:rgba(232,195,90,.92)}
+body.compact #startov[hidden]{display:none}
 body.compact #bar{display:none;position:fixed;z-index:5;
   top:calc(env(safe-area-inset-top,0px) + 44px);
   left:calc(env(safe-area-inset-left,0px) + 4px);
@@ -1077,6 +1085,7 @@ renderControls(); draw(m);
     if(keysOpen) buildKeys(naming?'name':'menu');
     document.body.classList.toggle('prompt',keysOpen);
     if(keyTog) keyTog.classList.toggle('on',keysOpen);
+    syncStart();
   }
   function dismissKeys(){ if(keysOpen&&!wasNaming){ keysOpen=false; refreshKeys(); } }
   setInterval(refreshKeys,250);
@@ -1102,15 +1111,43 @@ renderControls(); draw(m);
     keyTog.setAttribute('aria-label','Show or hide the keypad');
     keyTog.onclick=()=>{ keysOpen=!keysOpen; refreshKeys(); };
     document.body.appendChild(keyTog);
-    setMenu(true);
+    // Closed by default. It used to open itself so that Start was reachable,
+    // which put five buttons across the top of the picture.
+    setMenu(false);
     const runBtn=$('run');
     if(runBtn){
       const prev=runBtn.onclick;
       runBtn.onclick=function(e){
         if(prev) prev.call(this,e);
-        if(document.body.classList.contains('compact')) setMenu(false);
+        if(document.body.classList.contains('compact')){ setMenu(false); syncStart(); }
       };
     }
+    // Tapping the picture puts the menu away again, so it can never be left
+    // sitting over the game.
+    document.addEventListener('pointerdown',e=>{
+      if(!document.body.classList.contains('menu')) return;
+      const bar=$('bar');
+      if(e.target===tog||(bar&&bar.contains(e.target))) return;
+      setMenu(false);
+    },true);
+  }
+
+  // Start gets its own control on the picture, the way any video has one, so
+  // that reaching it does not mean leaving a menu open over the game.
+  let startOv=null;
+  function makeStart(){
+    if(startOv) return;
+    startOv=document.createElement('button');
+    startOv.id='startov'; startOv.type='button'; startOv.textContent='▶';
+    startOv.setAttribute('aria-label','Start');
+    startOv.onclick=()=>{ const r=$('run'); if(r) r.click(); };
+    box.appendChild(startOv);
+  }
+  function syncStart(){
+    if(!startOv) return;
+    let on=false;
+    try{ on=!!running; }catch(e){}
+    startOv.hidden=on;
   }
 
   // ---- layout ----------------------------------------------------------
@@ -1124,7 +1161,7 @@ renderControls(); draw(m);
       return;
     }
     if(!pad.childNodes.length) buildPad();
-    makeFsBtn(); makeMenu();
+    makeFsBtn(); makeStart(); makeMenu(); syncStart();
     if(fsBtn) fsBtn.textContent=fsOn()?'Exit full screen':'Full screen';
 
     const il=inset('left'), ir=inset('right'), it=inset('top'), ib=inset('bottom');
