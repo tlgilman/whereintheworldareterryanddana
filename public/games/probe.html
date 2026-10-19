@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- iPhone Safari has no Fullscreen API at all, so the only way to a window
+     without browser furniture there is Add to Home Screen. These make that
+     work, and the page reports whether it is running that way. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TRS-80 Probe">
 <title>Phone Probe &mdash; TRS-80</title>
 <style>
 /* The games' own palette: phosphor on a dark CRT. Deliberately one theme,
@@ -644,7 +651,17 @@ function screenFacts(){
   const scrShort=Math.min(screen.width,screen.height);
   const scrLong =Math.max(screen.width,screen.height);
   const fitNow=Math.min((landH-110)*4/3,landW);
-  const fitFull=Math.min((scrShort-6)*4/3,scrLong);
+  // The best case actually reachable here. Where fullscreen exists it gets the
+  // whole screen back, so measure from the screen. Where it does not, as on
+  // iPhone Safari, the ceiling is the window we already have with the page
+  // furniture cut to a slim bar, and promising the screen size would be a lie.
+  const canFS=!!(document.documentElement.requestFullscreen||
+                 document.documentElement.webkitRequestFullscreen||
+                 document.documentElement.webkitRequestFullScreen);
+  const fitFull=canFS?Math.min((scrShort-6)*4/3,scrLong)
+                     :Math.min((landH-24)*4/3,landW);
+  const bestLabel=canFS?'fitted to height, fullscreen'
+                       :'fitted to height, slim header (no fullscreen here)';
   R.screen={
     screen:[screen.width,screen.height].join(' x '),
     avail:[screen.availWidth,screen.availHeight].join(' x '),
@@ -664,7 +681,8 @@ function screenFacts(){
     charFit:+(fitNow/64).toFixed(2),
     canvasFull:Math.round(fitFull)+' x '+Math.round(fitFull*3/4),
     charFull:+(fitFull/64).toFixed(2),
-    sideMargin:Math.round((scrLong-fitFull)/2),
+    bestLabel:bestLabel, canFS:canFS,
+    sideMargin:Math.round(((canFS?scrLong:landW)-fitFull)/2),
     coarse:matchMedia('(pointer:coarse)').matches,
     touchPoints:navigator.maxTouchPoints,
     ua:navigator.userAgent
@@ -684,9 +702,11 @@ function screenFacts(){
       (s.tallBy>0?',  but '+s.tallBy+'px TALLER THAN THE SCREEN':'')],
     ['fitted to height, page as it is',s.canvasFit+'  →  '+s.charFit+'px'+
       (s.charFit<6?'   TOO SMALL':'   readable')],
-    ['fitted to height, fullscreen',s.canvasFull+'  →  '+s.charFull+'px'+
+    [s.bestLabel,s.canvasFull+'  →  '+s.charFull+'px'+
       (s.charFull<6?'   TOO SMALL':'   readable')],
-    ['room beside it for controls',s.sideMargin+'px each side']
+    ['room beside it for controls',s.sideMargin+'px each side'],
+    ['added to the home screen',R.misc&&R.misc.standalone?'yes, and that is why the window is bigger'
+      :'no, so Safari is taking a slice of the screen']
   ]);
   drawLegibility();
   report();
@@ -785,8 +805,10 @@ function drawLegibility(){
   $('capB').textContent='Fitted to the height instead, keeping the title and button bar: '+
     s.charFit.toFixed(2)+'px per character.'+note(s.charFit*64);
   blit($('legC'),legBuf,s.charFull*64);
-  $('capC').textContent='Fitted to the height in fullscreen, with the furniture gone: '+
-    s.charFull.toFixed(2)+'px per character. This is what the work buys.'+note(s.charFull*64);
+  $('capC').textContent='The best this device can actually reach, '+
+    (s.canFS?'fullscreen with the furniture gone':
+     'no fullscreen here, so the window you have with a slim header')+': '+
+    s.charFull.toFixed(2)+'px per character.'+note(s.charFull*64);
 }
 
 // ---- 03 speed --------------------------------------------------------
@@ -1245,9 +1267,11 @@ function report(){
   L.push('dvh       '+s.dvh+'  (innerHeight off by '+s.vhGap+')');
   L.push('insets    '+s.insets+'   orientation '+s.orient+' '+s.angle);
   L.push('touch     coarse='+s.coarse+'  maxTouchPoints='+s.touchPoints);
-  L.push('char px   now '+s.charNow+'   rotated '+s.charFit+' ('+s.canvasFit+
-         ')   rotated+fullscreen '+s.charFull+' ('+s.canvasFull+', '+
-         s.sideMargin+'px margins)');
+  L.push('char px   width-fit '+s.charNow+' ('+s.canvasNow+
+         (s.tallBy>0?', '+s.tallBy+'px TOO TALL':'')+')');
+  L.push('          height-fit '+s.charFit+' ('+s.canvasFit+')   best-case '+
+         s.charFull+' ('+s.canvasFull+', '+s.sideMargin+'px margins, '+
+         (s.canFS?'via fullscreen':'NO FULLSCREEN HERE')+')');
   if(R.bench) L.push('speed     '+R.bench.tps.toLocaleString()+' T/s = '+R.bench.mult+
     'x a Model I   ('+R.bench.ips.toLocaleString()+' instr/s)');
   else L.push('speed     not measured');
