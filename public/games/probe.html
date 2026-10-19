@@ -202,8 +202,10 @@ The last panel collects everything into one block to send back.</p>
   listened to at once and reported separately. A phone that fires events full of nothing is a
   different problem from one that fires none, and both are different from a working sensor.</p>
   <p>If they all come back empty, the lines under <b>why</b> say whether the sensor is switched off
-  or simply absent. Switched off is usually Chrome: <b>&#8942; &rarr; Settings &rarr; Site settings
-  &rarr; Motion sensors</b>, and the padlock beside the address for this site.</p>
+  or simply absent. Switched off is usually the browser rather than the phone: privacy browsers such
+  as Brave block motion sensors by default as a fingerprinting defence, and report the permission as
+  denied while the hardware sits there working. Look under <b>Site settings &rarr; Motion
+  sensors</b>, and at the padlock beside the address for this site.</p>
   <div class="row"><button id="bTilt">Enable tilt</button>
     <span class="chip" id="cTilt">not tried</span></div>
   <div class="lvwrap">
@@ -661,10 +663,20 @@ function screenFacts(){
   const canFS=!!(document.documentElement.requestFullscreen||
                  document.documentElement.webkitRequestFullscreen||
                  document.documentElement.webkitRequestFullScreen);
-  const fitFull=canFS?Math.min((scrShort-6)*4/3,scrLong)
-                     :Math.min((landH-24)*4/3,landW);
-  const bestLabel=canFS?'fitted to height, fullscreen'
+  // Once fullscreen has actually been tried, use the size it really gave:
+  // browsers keep different amounts of furniture even in fullscreen, and the
+  // screen size flatters them.
+  const fsW=(R.fs&&R.fs.w)||null, fsH=(R.fs&&R.fs.h)||null;
+  const bestH=fsH||(canFS?scrShort-6:landH-24);
+  const bestW=fsW||(canFS?scrLong:landW);
+  const fitFull=Math.min(bestH*4/3,bestW);
+  const bestLabel=canFS?('fitted to height, fullscreen'+(fsW?' (measured)':' (estimated)'))
                        :'fitted to height, slim header (no fullscreen here)';
+  // A notch takes a bite out of one side and nothing may be drawn there, so
+  // the room left for controls is what is outside the canvas and inside the
+  // insets.
+  const insL=inset('left'), insR=inset('right');
+  const usableW=bestW-insL-insR;
   R.screen={
     screen:[screen.width,screen.height].join(' x '),
     avail:[screen.availWidth,screen.availHeight].join(' x '),
@@ -685,7 +697,8 @@ function screenFacts(){
     canvasFull:Math.round(fitFull)+' x '+Math.round(fitFull*3/4),
     charFull:+(fitFull/64).toFixed(2),
     bestLabel:bestLabel, canFS:canFS,
-    sideMargin:Math.round(((canFS?scrLong:landW)-fitFull)/2),
+    sideMargin:Math.round((usableW-fitFull)/2),
+    notch:(insL||insR)?(insL+' left, '+insR+' right'):null,
     coarse:matchMedia('(pointer:coarse)').matches,
     touchPoints:navigator.maxTouchPoints,
     ua:navigator.userAgent
@@ -707,7 +720,8 @@ function screenFacts(){
       (s.charFit<6?'   TOO SMALL':'   readable')],
     [s.bestLabel,s.canvasFull+'  →  '+s.charFull+'px'+
       (s.charFull<6?'   TOO SMALL':'   readable')],
-    ['room beside it for controls',s.sideMargin+'px each side'],
+    ['room beside it for controls',s.sideMargin+'px each side'+
+      (s.notch?'   (after a notch of '+s.notch+')':'')],
     ['added to the home screen',R.misc&&R.misc.standalone?'yes, and that is why the window is bigger'
       :'no, so Safari is taking a slice of the screen']
   ]);
@@ -1004,7 +1018,8 @@ $('bFS').onclick=()=>{
   Promise.resolve(p).then(()=>{
     setTimeout(()=>{
       chip($('cFS'),'works','ok');
-      fsOut({outcome:'granted',size:innerWidth+' x '+innerHeight,gain:innerHeight-before});
+      fsOut({outcome:'granted',size:innerWidth+' x '+innerHeight,
+             w:innerWidth,h:innerHeight,gain:innerHeight-before});
       $('bFSx').disabled=false; screenFacts();
     },350);
   }).catch(e=>{
