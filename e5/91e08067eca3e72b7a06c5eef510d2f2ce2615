@@ -1,0 +1,35 @@
+public/games/armored-patrol.html
+  s_f99eae4185d4ad::t_1e78a32767fbf7 40-113,131,643-644,806-1067
+public/games/defender.html
+  s_f99eae4185d4ad::t_15a6be260168b3 40-113,131,643-644,806-1067
+public/games/donkey-kong.html
+  s_f99eae4185d4ad::t_843447fea221b9 40-113,131,643-644,806-1067
+public/games/eliminator.html
+  s_f99eae4185d4ad::t_771f63c17700b6 40-113,131,643-644,806-1067
+public/games/rear-guard.html
+  s_f99eae4185d4ad::t_3715f94c4101e5 40-113,131,643-644,806-1067
+public/games/robot-king-of-the-hill.html
+  s_f99eae4185d4ad::t_8f7f352a47437b 40-113,131,643-644,806-1067
+public/games/seadragon.html
+  s_f99eae4185d4ad::t_2e87605ae9fcb4 40-113,131,643-644,806-1067
+public/games/tank-zone.html
+  s_f99eae4185d4ad::t_d0442230388299 40-113,131,643-644,806-1067
+public/games/zaxxon.html
+  s_f99eae4185d4ad::t_c3d46650ced579 40-113,131,643-644,806-1067
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e591e08067eca3e72b7a06c5eef510d2f2ce2615",
+  "prompts": {},
+  "sessions": {
+    "s_f99eae4185d4ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db5a4191-0bbb-45ac-9125-eed98f023726",
+        "model": "unknown"
+      },
+      "human_author": "tlgilman <terry.gilman@gmail.com>"
+    }
+  }
+}
