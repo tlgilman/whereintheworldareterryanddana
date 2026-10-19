@@ -83,12 +83,15 @@ body.compact.menu #bar{display:flex;flex-wrap:wrap}
    high score initials. It replaces the controls rather than sitting on them,
    because a thumbstick is no use at a prompt. */
 #keys{display:none}
+/* Only as wide as its own buttons, centred, so the controls at the edges stay
+   uncovered and usable. The bottom offset is set from the layout, because the
+   controls sit under the picture on a tall window and beside it on a wide one.
+   The controls are never hidden: hiding them meant the only way to put the
+   keypad away was a button you had to go looking for, mid-game. */
 body.compact.prompt #keys{display:flex;position:fixed;z-index:7;
-  left:env(safe-area-inset-left,0px);right:env(safe-area-inset-right,0px);
-  bottom:env(safe-area-inset-bottom,0px);
-  justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;padding:9px 10px;
-  background:rgba(10,10,8,.86);border-top:1px solid #2c2c26}
-body.compact.prompt #pad{display:none}
+  left:0;right:0;margin-inline:auto;width:max-content;max-width:calc(100% - 16px);
+  justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;padding:8px 10px;
+  background:rgba(10,10,8,.9);border:1px solid #2c2c26;border-radius:10px}
 .kbtn{min-width:52px;height:50px;padding:0 12px;font-family:inherit;font-size:15px;
   letter-spacing:.06em;color:var(--phos);background:#2c2c26;border:1px solid #45453c;
   border-radius:6px;cursor:pointer;touch-action:none}
@@ -1070,10 +1073,16 @@ renderControls(); draw(m);
   // screen blinks "<ENTER>" so it is never still either. So this does not try
   // to read the game's mind. It follows the player instead, which is knowable.
   //
-  // The keypad is open when the page loads, because answering questions is the
-  // first thing anyone has to do. Touching the stick or a fire button means
-  // play has started, so it folds away. Name entry opens it again by itself,
-  // and that one is exact: it really does go through the line-input routine.
+  // A third attempt, counting how much of the screen changes, failed too, and
+  // in the most instructive way: Donkey Kong's attract loop churns more than
+  // its gameplay does, so the test is not merely unreliable but backwards.
+  // There is no signal here. Stop looking for one.
+  //
+  // So the keypad is open when the page loads, because answering questions is
+  // the first thing anyone has to do, and it never hides the controls, which
+  // stay live beside it. Touching the stick folds it away. Name entry opens it
+  // again by itself, and that one is exact: it really does go through the
+  // line-input routine.
   let keysOpen=true, wasNaming=false;
   function refreshKeys(){
     if(!document.body.classList.contains('compact')){
@@ -1085,9 +1094,27 @@ renderControls(); draw(m);
     if(keysOpen) buildKeys(naming?'name':'menu');
     document.body.classList.toggle('prompt',keysOpen);
     if(keyTog) keyTog.classList.toggle('on',keysOpen);
+    if(keysOpen) placeKeys();          // its height depends on which keys are in it
     syncStart();
   }
   function dismissKeys(){ if(keysOpen&&!wasNaming){ keysOpen=false; refreshKeys(); } }
+  // Put the keypad where it covers neither the controls nor, if it can be
+  // helped, the picture. Beside the picture the controls hug the two edges and
+  // the middle of the bottom is free. Underneath it they sit in a row, so the
+  // keypad goes below that row when there is room and above it when there is
+  // not. Measured from where the controls actually are, not from how tall they
+  // are: the row is centred with the picture rather than pinned to the bottom,
+  // and assuming otherwise clipped the thumbstick by 16px.
+  function placeKeys(){
+    try{
+      const ib=inset('bottom'), kh=keysBox.offsetHeight||62;
+      const pr=pad.getBoundingClientRect();
+      const room=innerHeight-ib-pr.bottom;
+      keysBox.style.bottom=(mode==='beside'||room>=kh+10)
+        ? (ib+6)+'px'
+        : Math.round(innerHeight-pr.top+6)+'px';
+    }catch(e){}
+  }
   setInterval(refreshKeys,250);
 
   // ---- the menu --------------------------------------------------------
@@ -1184,6 +1211,7 @@ renderControls(); draw(m);
 
     mode=side?'beside':'below';
     document.body.classList.toggle('beside',side);
+    placeKeys();
     cv.style.width=Math.round(W)+'px';
     cv.style.height=Math.round(W*0.75)+'px';
     wrap.style.paddingLeft=il+'px';  wrap.style.paddingRight=ir+'px';
